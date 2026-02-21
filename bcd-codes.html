@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BCD 8-4-2-1 Code — Digital Logic</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',system-ui,sans-serif;
+    display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:18px}
+  h1{font-size:1.5em;color:#e0e0ff}
+  .subtitle{color:#7d8590;margin-bottom:10px;font-size:.92em;text-align:center;max-width:860px}
+
+  .tabs{display:flex;gap:6px;margin:10px 0;flex-wrap:wrap;justify-content:center}
+  .tab{padding:8px 18px;border-radius:8px;cursor:pointer;font-size:.86em;
+    background:#161b22;border:1px solid #30363d;color:#8b949e;transition:.2s}
+  .tab:hover{border-color:#58a6ff;color:#e6edf3}
+  .tab.active{background:#1f6feb;border-color:#1f6feb;color:white;font-weight:bold}
+
+  .main{max-width:1100px;width:100%;margin-top:10px}
+  .row{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;margin-bottom:14px}
+  .panel{background:#161b22;border-radius:12px;padding:16px;border:1px solid #30363d;flex:1;min-width:300px}
+  .panel h2{font-size:.95em;color:#8b949e;margin-bottom:10px;text-align:center}
+
+  /* Interactive converter */
+  .converter{display:flex;flex-direction:column;align-items:center;gap:14px}
+  .digit-row{display:flex;gap:6px;align-items:center;justify-content:center;flex-wrap:wrap}
+  .digit-btn{width:52px;height:52px;border-radius:10px;font-size:1.5em;font-weight:bold;
+    font-family:'Courier New',monospace;cursor:pointer;border:2px solid #30363d;
+    transition:.2s;background:#21262d;color:#8b949e;display:flex;align-items:center;justify-content:center}
+  .digit-btn:hover{transform:scale(1.05);border-color:#58a6ff}
+  .digit-btn.selected{background:#1f6feb;color:white;border-color:#58a6ff;box-shadow:0 0 10px #1f6feb40}
+
+  /* BCD bits display */
+  .bcd-display{display:flex;gap:16px;align-items:center;justify-content:center;flex-wrap:wrap}
+  .bcd-group{display:flex;flex-direction:column;align-items:center;gap:4px}
+  .bcd-group .digit-label{font-size:.8em;color:#8b949e}
+  .bcd-bits{display:flex;gap:3px}
+  .bcd-bit{width:38px;height:42px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    border-radius:8px;font-family:'Courier New',monospace;transition:.3s;border:2px solid #30363d}
+  .bcd-bit.b1{background:#1f6feb;color:white;border-color:#58a6ff;box-shadow:0 0 6px #1f6feb30}
+  .bcd-bit.b0{background:#21262d;color:#484f58}
+  .bcd-bit .bit-val{font-size:1.2em;font-weight:bold}
+  .bcd-bit .bit-weight{font-size:.6em;color:#8b949e}
+
+  .arrow{font-size:1.4em;color:#3fb950}
+
+  /* Result box */
+  .result-box{background:#0d1117;border:2px solid #3fb950;border-radius:10px;padding:12px 20px;text-align:center;margin-top:8px}
+  .result-box .label{font-size:.8em;color:#8b949e;margin-bottom:4px}
+  .result-box .val{font-size:1.3em;font-family:'Courier New',monospace;color:#3fb950;font-weight:bold;letter-spacing:2px}
+
+  /* Weight calc */
+  .calc{font-family:'Courier New',monospace;font-size:.95em;text-align:center;margin-top:8px;
+    background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:10px 14px;line-height:1.8}
+  .calc .w{color:#f0883e}
+  .calc .b{color:#58a6ff;font-weight:bold}
+  .calc .eq{color:#d2a8ff}
+  .calc .res{color:#3fb950;font-weight:bold}
+
+  /* Reference table */
+  .ref-table{border-collapse:collapse;width:100%;font-size:.88em;font-family:'Courier New',monospace}
+  .ref-table th{background:#21262d;color:#8b949e;padding:6px 10px;border:1px solid #30363d;font-size:.8em}
+  .ref-table td{padding:6px 10px;border:1px solid #30363d;text-align:center}
+  .ref-table td.dec{color:#f0883e;font-weight:bold;font-size:1.1em}
+  .ref-table td.bcd{color:#3fb950;font-weight:bold;letter-spacing:2px}
+  .ref-table tr.invalid{opacity:0.35}
+  .ref-table tr:hover{background:#21262d}
+
+  /* Multi-digit input */
+  .multi-input{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap}
+  .multi-input input{background:#0d1117;border:1px solid #30363d;border-radius:8px;color:#e6edf3;
+    padding:10px 14px;font-size:1.2em;font-family:'Courier New',monospace;width:180px;text-align:center}
+  .multi-input input:focus{border-color:#58a6ff;outline:none}
+  button{background:#238636;color:white;border:none;padding:7px 16px;border-radius:6px;
+    cursor:pointer;font-size:.85em;transition:.2s}
+  button:hover{background:#2ea043}
+  button.sec{background:#30363d}
+  button.sec:hover{background:#484f58}
+  .btn-row{display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap}
+
+  .section{display:none}
+  .section.active{display:block}
+
+  .info{max-width:800px;width:100%;margin-top:16px;padding:14px 18px;
+    background:#161b22;border-radius:12px;border:1px solid #30363d;font-size:.85em;line-height:1.7;color:#8b949e}
+  .info a{color:#58a6ff;text-decoration:none}
+  .info a:hover{text-decoration:underline}
+
+  .invalid-msg{color:#f97583;font-size:.85em;text-align:center;margin-top:6px}
+</style>
+</head>
+<body>
+<h1>BCD 8-4-2-1 Code</h1>
+<p class="subtitle">Binary-Coded Decimal encodes each decimal digit (0–9) as a 4-bit binary number using weights 8, 4, 2, 1.</p>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab(0)">Single Digit</div>
+  <div class="tab" onclick="switchTab(1)">Multi-Digit</div>
+  <div class="tab" onclick="switchTab(2)">Reference Table</div>
+</div>
+
+<!-- ═══════ TAB 0: SINGLE DIGIT ═══════ -->
+<div class="section active" id="sec0">
+<div class="main">
+  <div class="row">
+    <div class="panel" style="max-width:600px">
+      <h2>Click a Decimal Digit</h2>
+      <div class="converter">
+        <div class="digit-row" id="digitBtns"></div>
+        <div class="arrow">▼</div>
+        <div style="text-align:center">
+          <div style="font-size:.8em;color:#8b949e;margin-bottom:6px">BCD 8-4-2-1 Encoding</div>
+          <div class="bcd-display" id="singleBCD"></div>
+        </div>
+        <div class="calc" id="singleCalc"></div>
+      </div>
+    </div>
+
+    <div class="panel" style="max-width:440px">
+      <h2>How It Works</h2>
+      <div style="font-size:.9em;line-height:1.9;color:#c9d1d9">
+        <div>Each decimal digit (0–9) is encoded independently as a <strong style="color:#58a6ff">4-bit binary number</strong>.</div>
+        <div style="margin-top:8px">The <strong style="color:#f0883e">weights</strong> are:</div>
+        <div style="font-family:'Courier New',monospace;font-size:1.1em;text-align:center;margin:8px 0;color:#f0883e">
+          8 &nbsp; 4 &nbsp; 2 &nbsp; 1
+        </div>
+        <div>Each bit position contributes its weight when the bit is <span style="color:#3fb950;font-weight:bold">1</span>:</div>
+        <div style="font-family:'Courier New',monospace;text-align:center;margin:8px 0">
+          <span style="color:#8b949e">Decimal value =</span> <span style="color:#f0883e">8</span>·b₃ + <span style="color:#f0883e">4</span>·b₂ + <span style="color:#f0883e">2</span>·b₁ + <span style="color:#f0883e">1</span>·b₀
+        </div>
+        <div style="margin-top:10px"><strong style="color:#d29922">Important:</strong> BCD only uses codes 0000–1001 (0–9). Codes 1010–1111 (10–15) are <span style="color:#f97583">invalid</span> in BCD.</div>
+        <div style="margin-top:10px"><strong style="color:#3fb950">BCD ≠ Binary.</strong> For example:</div>
+        <div style="font-family:'Courier New',monospace;font-size:.9em;margin:6px 0;padding:8px;background:#0d1117;border-radius:6px;border:1px solid #30363d">
+          <span style="color:#8b949e">Decimal 13:</span><br>
+          <span style="color:#58a6ff">Binary:</span> 1101 &nbsp;<span style="color:#8b949e">(one 4-bit group)</span><br>
+          <span style="color:#3fb950">BCD:</span>&nbsp;&nbsp;&nbsp; 0001 0011 &nbsp;<span style="color:#8b949e">(two 4-bit groups: 1, 3)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════ TAB 1: MULTI-DIGIT ═══════ -->
+<div class="section" id="sec1">
+<div class="main">
+  <div class="row">
+    <div class="panel" style="max-width:700px">
+      <h2>Decimal → BCD Converter</h2>
+      <div class="multi-input">
+        <span style="color:#8b949e;font-size:.9em">Decimal:</span>
+        <input type="text" id="multiDecInput" placeholder="e.g. 295" maxlength="8" oninput="convertDecToBCD()">
+      </div>
+      <div id="multiBCDResult" style="margin-top:14px"></div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="panel" style="max-width:700px">
+      <h2>BCD → Decimal Converter</h2>
+      <div class="multi-input">
+        <span style="color:#8b949e;font-size:.9em">BCD bits:</span>
+        <input type="text" id="multiBCDInput" placeholder="e.g. 0010 1001 0101" oninput="convertBCDtoDec()">
+      </div>
+      <div id="multiDecResult" style="margin-top:14px"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════ TAB 2: REFERENCE TABLE ═══════ -->
+<div class="section" id="sec2">
+<div class="main">
+  <div class="row">
+    <div class="panel" style="max-width:500px">
+      <h2>BCD 8-4-2-1 Code Table</h2>
+      <table class="ref-table" id="refTable"></table>
+    </div>
+
+    <div class="panel" style="max-width:520px">
+      <h2>BCD vs Pure Binary Comparison</h2>
+      <table class="ref-table" id="compTable"></table>
+      <div style="margin-top:10px;font-size:.82em;color:#7d8590;text-align:center">
+        BCD uses more bits but preserves decimal digit boundaries
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="info">
+  <strong>BCD (Binary-Coded Decimal):</strong> Each decimal digit is encoded separately as 4 bits. The 8-4-2-1 code is the most common BCD code, using natural binary weights.<br>
+  <strong>Why BCD?</strong> Used in digital displays (7-segment), financial calculations (exact decimal), clocks, meters, and anywhere decimal representation must be preserved.<br>
+  <strong>Invalid codes:</strong> 4-bit patterns 1010 through 1111 (10–15) are unused in BCD — they don't correspond to any decimal digit.<br><br>
+  <a href="index.html">&larr; All Demos</a> &middot;
+  <a href="binary-arithmetic.html">Binary Arithmetic</a> &middot;
+  <a href="kmap.html">K-Map Simplifier</a> &middot;
+  <a href="xor-xnor.html">XOR &amp; XNOR Gates</a>
+</div>
+
+<script>
+// ── Tab switching ──
+function switchTab(idx) {
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+  document.querySelectorAll('.section').forEach((s, i) => s.classList.toggle('active', i === idx));
+}
+
+// ── Helpers ──
+function toBCD4(d) {
+  return [(d >> 3) & 1, (d >> 2) & 1, (d >> 1) & 1, d & 1];
+}
+
+function bcdHTML(bits, digit) {
+  const weights = [8, 4, 2, 1];
+  let html = '<div class="bcd-group"><div class="bcd-bits">';
+  bits.forEach((b, i) => {
+    html += '<div class="bcd-bit b' + b + '"><span class="bit-weight">' + weights[i] + '</span><span class="bit-val">' + b + '</span></div>';
+  });
+  html += '</div>';
+  if (digit !== undefined) html += '<div class="digit-label">digit ' + digit + '</div>';
+  html += '</div>';
+  return html;
+}
+
+// ═══════════════════════════════════════
+// TAB 0: SINGLE DIGIT
+// ═══════════════════════════════════════
+let selectedDigit = 0;
+
+function buildDigitBtns() {
+  let html = '';
+  for (let i = 0; i <= 9; i++) {
+    html += '<div class="digit-btn' + (i === 0 ? ' selected' : '') + '" id="dbtn' + i + '" onclick="selectDigit(' + i + ')">' + i + '</div>';
+  }
+  document.getElementById('digitBtns').innerHTML = html;
+}
+
+function selectDigit(d) {
+  selectedDigit = d;
+  for (let i = 0; i <= 9; i++)
+    document.getElementById('dbtn' + i).classList.toggle('selected', i === d);
+  updateSingle();
+}
+
+function updateSingle() {
+  const d = selectedDigit;
+  const bits = toBCD4(d);
+  document.getElementById('singleBCD').innerHTML = bcdHTML(bits);
+
+  // Weight calculation
+  const weights = [8, 4, 2, 1];
+  let parts = [], sum = 0;
+  bits.forEach((b, i) => {
+    parts.push('<span class="w">' + weights[i] + '</span>×<span class="b">' + b + '</span>');
+    sum += weights[i] * b;
+  });
+  document.getElementById('singleCalc').innerHTML =
+    parts.join(' + ') + ' <span class="eq">=</span> <span class="res">' + sum + '</span>';
+}
+
+// ═══════════════════════════════════════
+// TAB 1: MULTI-DIGIT
+// ═══════════════════════════════════════
+function convertDecToBCD() {
+  const input = document.getElementById('multiDecInput').value.trim();
+  const box = document.getElementById('multiBCDResult');
+  if (!input) { box.innerHTML = ''; return; }
+
+  // Validate
+  if (!/^\d+$/.test(input)) {
+    box.innerHTML = '<div class="invalid-msg">Enter a valid decimal number (digits 0–9 only)</div>';
+    return;
+  }
+
+  const digits = input.split('').map(Number);
+
+  // BCD display
+  let html = '<div class="bcd-display">';
+  digits.forEach((d, i) => {
+    if (i > 0) html += '<div style="width:8px"></div>';
+    html += bcdHTML(toBCD4(d), d);
+  });
+  html += '</div>';
+
+  // BCD string
+  const bcdStr = digits.map(d => toBCD4(d).join('')).join(' ');
+  html += '<div class="result-box" style="margin-top:12px"><div class="label">BCD 8-4-2-1</div>';
+  html += '<div class="val">' + bcdStr + '</div></div>';
+
+  // Calculation
+  html += '<div class="calc">';
+  digits.forEach((d, i) => {
+    const bits = toBCD4(d);
+    html += '<span style="color:#8b949e">Digit ' + d + ':</span> ';
+    const weights = [8, 4, 2, 1];
+    let parts = [];
+    bits.forEach((b, j) => parts.push('<span class="w">' + weights[j] + '</span>×<span class="b">' + b + '</span>'));
+    html += parts.join('+') + ' <span class="eq">=</span> <span class="res">' + d + '</span> → <span class="b">' + bits.join('') + '</span>';
+    if (i < digits.length - 1) html += '<br>';
+  });
+  html += '</div>';
+
+  // Compare with pure binary
+  const num = parseInt(input, 10);
+  if (num <= 9999) {
+    const bin = num.toString(2);
+    html += '<div style="margin-top:10px;font-size:.82em;color:#7d8590;text-align:center">';
+    html += 'BCD: <span style="color:#3fb950;font-family:monospace">' + bcdStr + '</span> (' + (digits.length * 4) + ' bits)';
+    html += ' &nbsp;vs&nbsp; Binary: <span style="color:#58a6ff;font-family:monospace">' + bin + '</span> (' + bin.length + ' bits)';
+    html += '</div>';
+  }
+
+  box.innerHTML = html;
+}
+
+function convertBCDtoDec() {
+  const input = document.getElementById('multiBCDInput').value.trim().replace(/\s+/g, '');
+  const box = document.getElementById('multiDecResult');
+  if (!input) { box.innerHTML = ''; return; }
+
+  if (!/^[01]+$/.test(input)) {
+    box.innerHTML = '<div class="invalid-msg">Enter only 0s and 1s (spaces allowed between groups)</div>';
+    return;
+  }
+
+  // Pad to multiple of 4
+  let padded = input;
+  if (padded.length % 4 !== 0) padded = '0'.repeat(4 - (padded.length % 4)) + padded;
+
+  // Split into 4-bit groups
+  const groups = [];
+  for (let i = 0; i < padded.length; i += 4) groups.push(padded.slice(i, i + 4));
+
+  let decStr = '', valid = true;
+  let html = '<div class="bcd-display">';
+  groups.forEach((g, i) => {
+    const val = parseInt(g, 2);
+    const bits = g.split('').map(Number);
+    if (i > 0) html += '<div style="width:8px"></div>';
+    if (val > 9) {
+      valid = false;
+      html += '<div class="bcd-group"><div class="bcd-bits">';
+      bits.forEach((b, j) => {
+        html += '<div class="bcd-bit" style="border-color:#f97583;color:#f97583;background:#f9758318"><span class="bit-weight" style="color:#f97583">' + [8,4,2,1][j] + '</span><span class="bit-val">' + b + '</span></div>';
+      });
+      html += '</div><div class="digit-label" style="color:#f97583">invalid (' + val + ')</div></div>';
+    } else {
+      decStr += val;
+      html += bcdHTML(bits, val);
+    }
+  });
+  html += '</div>';
+
+  if (valid) {
+    html += '<div class="result-box" style="margin-top:12px"><div class="label">Decimal</div>';
+    html += '<div class="val">' + decStr + '</div></div>';
+
+    // Calculation
+    html += '<div class="calc">';
+    groups.forEach((g, i) => {
+      const bits = g.split('').map(Number);
+      const val = parseInt(g, 2);
+      const weights = [8, 4, 2, 1];
+      let parts = [];
+      bits.forEach((b, j) => parts.push('<span class="w">' + weights[j] + '</span>×<span class="b">' + b + '</span>'));
+      html += parts.join('+') + ' <span class="eq">=</span> <span class="res">' + val + '</span>';
+      if (i < groups.length - 1) html += '<br>';
+    });
+    html += '</div>';
+  } else {
+    html += '<div class="invalid-msg" style="margin-top:10px">BCD groups must represent 0–9 only. Values 10–15 (1010–1111) are invalid.</div>';
+  }
+
+  box.innerHTML = html;
+}
+
+// ═══════════════════════════════════════
+// TAB 2: REFERENCE TABLE
+// ═══════════════════════════════════════
+function buildRefTable() {
+  let html = '<thead><tr><th>Decimal</th><th>BCD (8-4-2-1)</th><th>Weights</th></tr></thead><tbody>';
+  for (let i = 0; i <= 15; i++) {
+    const bits = toBCD4(i);
+    const isValid = i <= 9;
+    html += '<tr' + (isValid ? '' : ' class="invalid"') + '>';
+    html += '<td class="dec">' + i + '</td>';
+    html += '<td class="bcd">' + bits.join(' ') + '</td>';
+    if (isValid) {
+      const weights = [8, 4, 2, 1];
+      const parts = [];
+      bits.forEach((b, j) => { if (b) parts.push(weights[j]); });
+      html += '<td style="color:#8b949e">' + (parts.length ? parts.join(' + ') + ' = ' + i : '0') + '</td>';
+    } else {
+      html += '<td style="color:#f97583">INVALID</td>';
+    }
+    html += '</tr>';
+  }
+  html += '</tbody>';
+  document.getElementById('refTable').innerHTML = html;
+}
+
+function buildCompTable() {
+  let html = '<thead><tr><th>Decimal</th><th>Pure Binary</th><th>BCD 8-4-2-1</th><th>BCD Bits</th></tr></thead><tbody>';
+  const examples = [0, 5, 9, 10, 13, 25, 99, 127, 255];
+  examples.forEach(n => {
+    const bin = n.toString(2);
+    const digits = String(n).split('').map(Number);
+    const bcd = digits.map(d => toBCD4(d).join('')).join(' ');
+    html += '<tr>';
+    html += '<td class="dec">' + n + '</td>';
+    html += '<td style="color:#58a6ff;letter-spacing:1px">' + bin + '</td>';
+    html += '<td class="bcd">' + bcd + '</td>';
+    html += '<td style="color:#8b949e;font-size:.8em">' + (digits.length * 4) + ' bits</td>';
+    html += '</tr>';
+  });
+  html += '</tbody>';
+  document.getElementById('compTable').innerHTML = html;
+}
+
+// ── Init ──
+buildDigitBtns();
+updateSingle();
+buildRefTable();
+buildCompTable();
+</script>
+</body>
+</html>
