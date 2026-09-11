@@ -3,3 +3,8 @@
 # Student-identifying data — this repo is a public GitHub Pages site.
 # exe3317-exam1.xlsx holds Student_Name / Student_ID columns for the whole class.
 AI-grading/*.xlsx
+
+# Unpublished at the author's request — kept locally, not served from GitHub Pages.
+presentation.html
+AI-grading/
+grade/
