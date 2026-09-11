@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fourier Series, Transform &amp; Standard Pairs — ECE 440</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',system-ui,sans-serif;
+    display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:18px}
+  h1{font-size:1.5em;color:#e0e0ff}
+  .subtitle{color:#7d8590;margin-bottom:10px;font-size:.92em;text-align:center;max-width:900px}
+  canvas{display:block;border-radius:10px;max-width:100%}
+  .tabs{display:flex;gap:6px;margin:10px 0;flex-wrap:wrap;justify-content:center}
+  .tab{padding:8px 18px;border-radius:8px;cursor:pointer;font-size:.86em;
+    background:#161b22;border:1px solid #30363d;color:#8b949e;transition:.2s}
+  .tab:hover{border-color:#58a6ff;color:#e6edf3}
+  .tab.active{background:#1f6feb;border-color:#1f6feb;color:white;font-weight:bold}
+  .eq-box{background:#161b22;border:1px solid #30363d;border-radius:10px;
+    padding:8px 14px;margin:6px 0;max-width:1120px;width:100%;text-align:center}
+  .eq{font-size:1.05em;font-family:'Times New Roman',serif;color:#e0e0ff}
+  .eq-desc{font-size:.78em;color:#7d8590;margin-top:3px}
+  .legend{display:flex;gap:12px;justify-content:center;margin:6px 0;flex-wrap:wrap}
+  .legend-item{display:flex;align-items:center;gap:4px;font-size:.76em;color:#8b949e}
+  .legend-dot{width:9px;height:9px;border-radius:3px}
+  .row{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:8px;max-width:1120px;width:100%}
+  .panel{background:#161b22;border-radius:12px;padding:12px;border:1px solid #30363d;width:100%}
+  .panel h2{font-size:.88em;color:#8b949e;margin-bottom:6px;text-align:center}
+  .meters{display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap;max-width:1120px}
+  .meter{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:4px 10px;text-align:center;min-width:96px}
+  .meter .ml{font-size:.68em;color:#8b949e}
+  .meter .mv{font-size:.88em;font-weight:bold;font-family:'Courier New',monospace;color:#e6edf3}
+  .controls{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;justify-content:center;align-items:center;
+    max-width:1120px;width:100%;background:#161b22;border:1px solid #30363d;border-radius:12px;padding:12px}
+  .cg{display:flex;align-items:center;gap:5px}
+  .cg label{font-size:.78em;color:#8b949e;white-space:nowrap}
+  input[type="range"]{width:130px;accent-color:#58a6ff}
+  .val{font-size:.78em;color:#58a6ff;min-width:50px;font-family:'Courier New',monospace}
+  button{background:#238636;color:white;border:none;padding:6px 14px;border-radius:6px;
+    cursor:pointer;font-size:.82em;transition:.2s}
+  button:hover{background:#2ea043}
+  button.sec{background:#30363d}
+  button.sec:hover{background:#484f58}
+  .chk{display:flex;align-items:center;gap:4px;font-size:.76em;color:#8b949e;cursor:pointer;user-select:none}
+  .chk input{accent-color:#58a6ff;cursor:pointer}
+  .presets{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:10px;max-width:1120px}
+  .preset{padding:5px 12px;border-radius:6px;cursor:pointer;font-size:.76em;
+    background:#21262d;border:1px solid #30363d;color:#8b949e;transition:.2s}
+  .preset:hover{border-color:#58a6ff;color:#e6edf3}
+  .preset.active{background:#1f6feb;border-color:#1f6feb;color:white}
+  .info{max-width:1120px;width:100%;background:#161b22;border-radius:12px;
+    padding:14px 18px;border:1px solid #30363d;margin-top:14px;font-size:.84em;line-height:1.65;color:#8b949e}
+  .info strong{color:#e0e0ff}
+  .info code{color:#f0883e;background:#21262d;padding:1px 5px;border-radius:3px;font-size:.95em}
+  .info ul{margin:6px 0 0 20px}
+  .info li{margin:3px 0}
+  .hidden{display:none!important}
+  a{color:#58a6ff}
+  .back{margin-top:16px;font-size:.82em}
+</style>
+</head>
+<body>
+
+<h1>Fourier Series, Transform &amp; Standard Pairs</h1>
+<p class="subtitle">Periodic signals are sums of harmonics; everything else is an integral of them. Here are the coefficients, the transform, the dozen pairs worth memorising, and the handful of properties that let you avoid computing any integral ever again.</p>
+
+<div class="tabs">
+  <div class="tab active" data-tab="0">Fourier Series</div>
+  <div class="tab" data-tab="1">Fourier Transform</div>
+  <div class="tab" data-tab="2">Standard Pairs</div>
+  <div class="tab" data-tab="3">Properties</div>
+</div>
+
+<div class="eq-box">
+  <div class="eq" id="eqText"></div>
+  <div class="eq-desc" id="eqDesc"></div>
+</div>
+
+<div class="presets" id="presets"></div>
+<div class="legend" id="legend"></div>
+
+<div class="row"><div class="panel"><h2 id="mainTitle">Signal</h2>
+  <canvas id="mainCanvas" width="1080" height="430"></canvas></div></div>
+<div class="row"><div class="panel"><h2 id="auxTitle">Spectrum</h2>
+  <canvas id="auxCanvas" width="1080" height="270"></canvas></div></div>
+
+<div class="meters" id="meters"></div>
+
+<div class="controls">
+  <div class="cg" data-tabs="0"><label>harmonics N:</label>
+    <input type="range" id="slNH" min="1" max="80" step="1" value="7">
+    <span class="val" id="vNH">7</span></div>
+  <div class="cg" data-tabs="0"><label>duty cycle:</label>
+    <input type="range" id="slDuty" min="0.05" max="0.95" step="0.01" value="0.3">
+    <span class="val" id="vDuty">0.30</span></div>
+  <div class="cg" data-tabs="0"><label class="chk"><input type="checkbox" id="ckHarm"> show individual harmonics</label></div>
+  <div class="cg" data-tabs="0"><label class="chk"><input type="checkbox" id="ckMag" checked> magnitude / phase</label></div>
+
+  <div class="cg" data-tabs="1"><label>width τ:</label>
+    <input type="range" id="slTau" min="0.1" max="4" step="0.02" value="1">
+    <span class="val" id="vTau">1.00</span></div>
+
+  <div class="cg" data-tabs="3"><label>parameter:</label>
+    <input type="range" id="slProp" min="-2" max="2" step="0.02" value="0.6">
+    <span class="val" id="vProp">0.60</span></div>
+  <div class="cg" data-tabs="3"><label>property:</label>
+    <button class="sec" id="btnProp">time shift</button></div>
+
+  <div class="cg"><button class="sec" id="btnReset">Reset</button></div>
+</div>
+
+<div class="info" id="info"></div>
+<div class="back"><a href="index.html">← All demos</a> &nbsp;·&nbsp; <a href="modulation.html">AM &amp; FM</a></div>
+
+<script>
+/* ================= helpers ================= */
+const PI=Math.PI, TAU=2*PI;
+const sinc=x=>Math.abs(x)<1e-9?1:Math.sin(PI*x)/(PI*x);   // normalised sinc
+function clear(ctx,c){ ctx.fillStyle='#0d1117'; ctx.fillRect(0,0,c.width,c.height); }
+function txt(ctx,s,x,y,col,font,align){
+  ctx.fillStyle=col||'#8b949e'; ctx.font=font||'11px Segoe UI';
+  ctx.textAlign=align||'center'; ctx.textBaseline='middle'; ctx.fillText(s,x,y);
+}
+function line(ctx,x1,y1,x2,y2,col,w,dash){
+  ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=w||1; if(dash)ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); ctx.restore();
+}
+function dot(ctx,x,y,r,col){ ctx.fillStyle=col; ctx.beginPath(); ctx.arc(x,y,r,0,TAU); ctx.fill(); }
+function niceTicks(a,b,count){
+  const span=b-a||1, raw=span/count, mag=Math.pow(10,Math.floor(Math.log10(raw)));
+  const norm=raw/mag, step=(norm<1.5?1:norm<3?2:norm<7?5:10)*mag;
+  const out=[]; for(let v=Math.ceil(a/step)*step; v<=b+1e-9; v+=step) out.push(+v.toFixed(10));
+  return out;
+}
+function frame(ctx,x,y,w,h,x0,x1,y0,y1,title){
+  const X=v=>x+(v-x0)/(x1-x0)*w, Y=v=>y+h-(v-y0)/(y1-y0)*h;
+  ctx.strokeStyle='#30363d'; ctx.lineWidth=1; ctx.strokeRect(x,y,w,h);
+  if(title) txt(ctx,title,x+w/2,y-12,'#8b949e','bold 11px Segoe UI');
+  return {X,Y,x,y,w,h,x0,x1,y0,y1};
+}
+function axesXY(ctx,Fr,xf,yf,nx,ny){
+  niceTicks(Fr.x0,Fr.x1,nx||8).forEach(v=>{ const xx=Fr.X(v);
+    if(xx<Fr.x-1||xx>Fr.x+Fr.w+1) return;
+    line(ctx,xx,Fr.y,xx,Fr.y+Fr.h,Math.abs(v)<1e-12?'#484f58':'#1b222b',1);
+    txt(ctx,xf?xf(v):String(+v.toFixed(2)),xx,Fr.y+Fr.h+12,'#6e7681','9px Segoe UI'); });
+  niceTicks(Fr.y0,Fr.y1,ny||4).forEach(v=>{ const yy=Fr.Y(v);
+    if(yy<Fr.y-1||yy>Fr.y+Fr.h+1) return;
+    line(ctx,Fr.x,yy,Fr.x+Fr.w,yy,Math.abs(v)<1e-12?'#484f58':'#1b222b',1);
+    txt(ctx,yf?yf(v):String(+v.toFixed(2)),Fr.x-6,yy,'#6e7681','9px Segoe UI','right'); });
+}
+function plot(ctx,Fr,fn,col,lw,dash,M){
+  ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=lw||2; if(dash)ctx.setLineDash(dash);
+  ctx.beginPath();
+  const n=M||1200; let pen=false;
+  for(let i=0;i<=n;i++){
+    const x=Fr.x0+(Fr.x1-Fr.x0)*i/n, v=fn(x);
+    if(!isFinite(v)){ pen=false; ctx.stroke(); ctx.beginPath(); continue; }
+    const Y=Math.max(Fr.y-40,Math.min(Fr.y+Fr.h+40,Fr.Y(v)));
+    pen?ctx.lineTo(Fr.X(x),Y):ctx.moveTo(Fr.X(x),Y); pen=true;
+  }
+  ctx.stroke(); ctx.restore();
+}
+/* an impulse, drawn as an arrow whose height encodes its area */
+function impulse(ctx,Fr,x,area,col,label){
+  if(Math.abs(area)<1e-12) return;
+  const x0=Fr.X(x), y0=Fr.Y(0);
+  const h=Math.sign(area)*Math.min(Math.abs(area),Fr.y1*0.86);
+  const y1=Fr.Y(h);
+  line(ctx,x0,y0,x0,y1,col,2.6);
+  const d=Math.sign(h)||1;
+  ctx.fillStyle=col; ctx.beginPath();
+  ctx.moveTo(x0,y1); ctx.lineTo(x0-5,y1+d*9); ctx.lineTo(x0+5,y1+d*9); ctx.closePath(); ctx.fill();
+  if(label) txt(ctx,label,x0,y1-d*12,col,'bold 10px Segoe UI');
+}
+
+/* ================= state ================= */
+const S={ tab:0, wave:'square', NH:7, duty:0.3, showHarm:false, magPhase:true,
+          pair:'rect', tau:1, prop:'shift', pv:0.6 };
+
+const mainC=document.getElementById('mainCanvas'), mx=mainC.getContext('2d');
+const auxC=document.getElementById('auxCanvas'),  ax=auxC.getContext('2d');
+
+/* ================= TAB 0 : Fourier series =================
+   Period 1, so w0 = 2*pi.  x(t) = a0 + sum a_n cos(n w0 t) + b_n sin(n w0 t)   */
+const WAVES={
+  square:{name:'Square',eq:'b<sub>n</sub> = 4/(nπ) for odd n,&nbsp; 0 otherwise',
+    f:t=>{const u=t-Math.floor(t); return u<0.5?1:-1;},
+    a0:()=>0, a:()=>0, b:n=>(n%2)?4/(n*PI):0, sym:'odd · half-wave'},
+  saw:{name:'Sawtooth',eq:'b<sub>n</sub> = 2(−1)<sup>n+1</sup>/(nπ)',
+    f:t=>{const u=t-Math.floor(t+0.5); return 2*u;},
+    a0:()=>0, a:()=>0, b:n=>2*Math.pow(-1,n+1)/(n*PI), sym:'odd'},
+  tri:{name:'Triangle',eq:'a<sub>n</sub> = 8/(n²π²) for odd n,&nbsp; 0 otherwise',
+    f:t=>{const u=t-Math.floor(t+0.5); return 1-4*Math.abs(u);},
+    a0:()=>0, a:n=>(n%2)?8/(n*n*PI*PI):0, b:()=>0, sym:'even · half-wave'},
+  pulse:{name:'Pulse train',eq:'a<sub>0</sub> = d,&nbsp; a<sub>n</sub> = 2d·sinc(nd)',
+    f:t=>{const u=t-Math.floor(t+0.5); return Math.abs(u)<=S.duty/2?1:0;},
+    a0:()=>S.duty, a:n=>2*S.duty*sinc(n*S.duty), b:()=>0, sym:'even'},
+  halfwave:{name:'Half-wave rectified',eq:'a<sub>0</sub> = 1/π,&nbsp; a<sub>n</sub> = −2/(π(n²−1)) for even n',
+    f:t=>{const s=Math.sin(TAU*t); return s>0?s:0;},
+    a0:()=>1/PI, a:n=>n===1?0:((n%2===0)?-2/(PI*(n*n-1)):0),
+    b:n=>n===1?0.5:0, sym:'neither'},
+  fullwave:{name:'Full-wave rectified',eq:'a<sub>0</sub> = 2/π,&nbsp; a<sub>n</sub> = −4/(π(4n²−1))',
+    f:t=>Math.abs(Math.sin(PI*t)), a0:()=>2/PI,
+    a:n=>-4/(PI*(4*n*n-1)), b:()=>0, sym:'even · period 1'}
+};
+function W(){ return WAVES[S.wave]; }
+function partial(t,N){
+  const w=W();
+  let s=w.a0();
+  for(let n=1;n<=N;n++) s+=w.a(n)*Math.cos(n*TAU*t)+w.b(n)*Math.sin(n*TAU*t);
+  return s;
+}
+/* complex coefficient magnitude and phase, from a_n and b_n */
+function cn(n){
+  const w=W();
+  if(n===0) return {mag:Math.abs(w.a0()),ph:w.a0()>=0?0:PI,re:w.a0(),im:0};
+  const a=w.a(n), b=w.b(n);
+  // c_n = (a_n - j b_n)/2
+  const re=a/2, im=-b/2;
+  return {mag:Math.hypot(re,im),ph:Math.atan2(im,re),re,im};
+}
+function drawSeries(){
+  clear(mx,mainC);
+  const w=W();
+  const A=frame(mx,80,44,930,220,-1.2,1.2,-1.55,1.55,
+    w.name+' wave and its partial sum through N = '+S.NH);
+  axesXY(mx,A,v=>v.toFixed(1),null,8,4);
+  // the target
+  plot(mx,A,w.f,'#3fb950',2.6,null,3000);
+  // individual harmonics
+  if(S.showHarm){
+    for(let n=1;n<=Math.min(S.NH,24);n++){
+      const a=w.a(n), b=w.b(n);
+      if(Math.abs(a)<1e-9&&Math.abs(b)<1e-9) continue;
+      plot(mx,A,t=>a*Math.cos(n*TAU*t)+b*Math.sin(n*TAU*t),'rgba(137,87,229,0.42)',1.1);
+    }
+  }
+  plot(mx,A,t=>partial(t,S.NH),'#58a6ff',2.2,null,3000);
+  txt(mx,'target x(t)',A.x+A.w-8,A.y+14,'#3fb950','10px Segoe UI','right');
+  txt(mx,'partial sum S_N(t)',A.x+A.w-8,A.y+28,'#58a6ff','10px Segoe UI','right');
+  txt(mx,'t / T',A.x+A.w/2,A.y+A.h+27,'#6e7681','10px Segoe UI');
+
+  /* Gibbs: overshoot near a jump */
+  const jump=hasJump();
+  if(jump!==null){
+    // Gibbs is quoted as a fraction of the JUMP HEIGHT, not of the limiting value —
+    // a square wave stepping -1 to +1 overshoots to 1.179, which is 8.95% of the step of 2.
+    const after=w.f(jump+1e-6), before=w.f(jump-1e-6);
+    const jumpSize=Math.abs(after-before);
+    const win=(S.wave==='pulse')?Math.max(S.duty*0.45,0.01):0.2;
+    const up=after>before;
+    let ext=after, at=jump;
+    for(let i=1;i<=4000;i++){
+      const t=jump+win*i/4000, v=partial(t,S.NH);
+      if(up? v>ext : v<ext){ ext=v; at=t; }
+    }
+    if(jumpSize>1e-6){
+      const pct=Math.abs(ext-after)/jumpSize*100;
+      if(pct>0.3){
+        dot(mx,A.X(at),A.Y(ext),4,'#f85149');
+        txt(mx,'overshoot '+pct.toFixed(2)+'% of the jump',
+            A.X(at)+8,A.Y(ext)+(up?-10:10),'#f85149','bold 10px Segoe UI','left');
+      }
+    }
+  }
+
+  /* error of the partial sum */
+  const B=frame(mx,80,318,930,80,-1.2,1.2,-0.62,0.62,'error  x(t) − S_N(t)');
+  axesXY(mx,B,v=>v.toFixed(1),null,8,2);
+  plot(mx,B,t=>Math.max(-0.6,Math.min(0.6,w.f(t)-partial(t,S.NH))),'#f0883e',1.6,null,3000);
+
+  drawSeriesSpectrum();
+}
+function hasJump(){
+  // where the waveform is discontinuous, for the Gibbs readout
+  if(S.wave==='square') return 0;
+  if(S.wave==='saw') return 0.5;
+  if(S.wave==='pulse') return -S.duty/2;
+  return null;
+}
+function drawSeriesSpectrum(){
+  clear(ax,auxC);
+  const NMAX=Math.max(S.NH,20);
+  let peak=0;
+  for(let n=0;n<=NMAX;n++) peak=Math.max(peak,cn(n).mag,Math.abs(W().a(n||1)),Math.abs(W().b(n||1)));
+  peak=Math.max(peak*1.3,0.05);
+  if(S.magPhase){
+    const A=frame(ax,80,36,600,110,-NMAX-0.7,NMAX+0.7,0,peak,'|c_n|  — two-sided magnitude spectrum');
+    axesXY(ax,A,v=>String(Math.round(v)),null,10,3);
+    for(let n=-NMAX;n<=NMAX;n++){
+      const c=cn(Math.abs(n));
+      if(c.mag<1e-9) continue;
+      const x=A.X(n);
+      line(ax,x,A.Y(0),x,A.Y(c.mag),n===0?'#f85149':'#58a6ff',2.4);
+      dot(ax,x,A.Y(c.mag),2.6,n===0?'#f85149':'#58a6ff');
+    }
+    txt(ax,'n',A.x+A.w/2,A.y+A.h+26,'#6e7681','10px Segoe UI');
+    const B=frame(ax,80,196,600,58,-NMAX-0.7,NMAX+0.7,-PI-0.3,PI+0.3,'∠c_n');
+    axesXY(ax,B,v=>String(Math.round(v)),v=>(v/PI).toFixed(1)+'π',10,2);
+    for(let n=-NMAX;n<=NMAX;n++){
+      const c=cn(Math.abs(n));
+      if(c.mag<1e-9) continue;
+      const ph=n<0?-c.ph:c.ph;
+      dot(ax,B.X(n),B.Y(ph),2.6,'#d2a8ff');
+    }
+  } else {
+    const A=frame(ax,80,36,600,110,0.3,NMAX+0.7,-peak*2,peak*2,'a_n (cosine) and b_n (sine)');
+    axesXY(ax,A,v=>String(Math.round(v)),null,10,4);
+    for(let n=1;n<=NMAX;n++){
+      const a=W().a(n), b=W().b(n), x=A.X(n);
+      if(Math.abs(a)>1e-9){ line(ax,x-2.5,A.Y(0),x-2.5,A.Y(a),'#58a6ff',3); }
+      if(Math.abs(b)>1e-9){ line(ax,x+2.5,A.Y(0),x+2.5,A.Y(b),'#e3b341',3); }
+    }
+    txt(ax,'a_n',A.x+A.w-8,A.y+14,'#58a6ff','10px Segoe UI','right');
+    txt(ax,'b_n',A.x+A.w-8,A.y+28,'#e3b341','10px Segoe UI','right');
+    txt(ax,'n',A.x+A.w/2,A.y+A.h+26,'#6e7681','10px Segoe UI');
+  }
+
+  /* power convergence: Parseval */
+  const G=frame(ax,740,36,270,218,0,Math.max(S.NH,20),0,1.08,
+    'fraction of total power in the first N harmonics');
+  axesXY(ax,G,v=>String(Math.round(v)),v=>(v*100).toFixed(0)+'%',5,4);
+  const Ptot=totalPower();
+  ax.strokeStyle='#3fb950'; ax.lineWidth=2.4; ax.beginPath();
+  let acc=cn(0).mag*cn(0).mag;
+  for(let n=0;n<=Math.max(S.NH,20);n++){
+    if(n>0){ const c=cn(n); acc+=2*c.mag*c.mag; }
+    const v=Ptot>0?acc/Ptot:0;
+    n?ax.lineTo(G.X(n),G.Y(Math.min(v,1.05))):ax.moveTo(G.X(n),G.Y(Math.min(v,1.05)));
+  }
+  ax.stroke();
+  line(ax,G.x,G.Y(1),G.x+G.w,G.Y(1),'#484f58',1,[4,3]);
+  line(ax,G.X(S.NH),G.y,G.X(S.NH),G.y+G.h,'#d2a8ff',1.6,[4,3]);
+  let accN=cn(0).mag*cn(0).mag;
+  for(let n=1;n<=S.NH;n++){ const c=cn(n); accN+=2*c.mag*c.mag; }
+  dot(ax,G.X(S.NH),G.Y(Math.min(Ptot>0?accN/Ptot:0,1.05)),4.5,'#d2a8ff');
+  txt(ax,'N = '+S.NH+' captures '+(Ptot>0?(100*accN/Ptot).toFixed(2):'0')+'%',
+      G.x+G.w/2,G.y+G.h+26,'#d2a8ff','10px Courier New');
+}
+function totalPower(){
+  // mean square of the waveform over one period, by fine sampling
+  const w=W(), M=20000; let s=0;
+  for(let i=0;i<M;i++){ const v=w.f(-0.5+(i+0.5)/M); s+=v*v; }
+  return s/M;
+}
+
+/* ================= TAB 1 : Fourier transform ================= */
+const FTS={
+  rect:{name:'Rectangle',time:'rect(t/τ)',freq:'τ·sinc(fτ)',
+    f:t=>Math.abs(t)<=S.tau/2?1:0, F:f=>S.tau*sinc(f*S.tau), even:true,
+    tb:'first null at f = 1/τ'},
+  tri:{name:'Triangle',time:'tri(t/τ)',freq:'τ·sinc²(fτ)',
+    f:t=>Math.max(0,1-Math.abs(t)/S.tau), F:f=>S.tau*Math.pow(sinc(f*S.tau),2), even:true,
+    tb:'sinc², so the sidelobes fall twice as fast'},
+  gauss:{name:'Gaussian',time:'e^(−πt²/τ²)',freq:'τ·e^(−πf²τ²)',
+    f:t=>Math.exp(-PI*t*t/(S.tau*S.tau)), F:f=>S.tau*Math.exp(-PI*f*f*S.tau*S.tau), even:true,
+    tb:'the only shape that transforms to itself'},
+  expo2:{name:'Two-sided exponential',time:'e^(−|t|/τ)',freq:'2τ/(1+(2πfτ)²)',
+    f:t=>Math.exp(-Math.abs(t)/S.tau), F:f=>2*S.tau/(1+Math.pow(TAU*f*S.tau,2)), even:true,
+    tb:'Lorentzian — heavy spectral tails from the corner at t = 0'},
+  sincp:{name:'Sinc',time:'sinc(t/τ)',freq:'τ·rect(fτ)',
+    f:t=>sinc(t/S.tau), F:f=>Math.abs(f*S.tau)<=0.5?S.tau:0, even:true,
+    tb:'duality: the pair of the rectangle, read backwards'}
+};
+function FT(){ return FTS[S.pair in FTS?S.pair:'rect']; }
+function drawTransform(){
+  clear(mx,mainC);
+  const g=FT();
+  const A=frame(mx,80,48,440,330,-4,4,-0.45,1.25,'x(t) = '+g.time);
+  axesXY(mx,A,v=>v.toFixed(0),null,8,4);
+  plot(mx,A,g.f,'#3fb950',2.6,null,3000);
+  txt(mx,'t',A.x+A.w/2,A.y+A.h+27,'#6e7681','10px Segoe UI');
+  // effective width markers
+  line(mx,A.X(-S.tau/2),A.y,A.X(-S.tau/2),A.y+A.h,'#e3b341',1.2,[3,3]);
+  line(mx,A.X(S.tau/2),A.y,A.X(S.tau/2),A.y+A.h,'#e3b341',1.2,[3,3]);
+  txt(mx,'τ = '+S.tau.toFixed(2),A.X(0),A.y+14,'#e3b341','bold 10px Segoe UI');
+
+  let fmax=0;
+  for(let i=0;i<=400;i++) fmax=Math.max(fmax,Math.abs(g.F(-4+8*i/400)));
+  fmax=Math.max(fmax*1.25,0.1);
+  const B=frame(mx,580,48,430,330,-4,4,-fmax*0.4,fmax,'X(f) = '+g.freq);
+  axesXY(mx,B,v=>v.toFixed(0),null,8,4);
+  plot(mx,B,g.F,'#58a6ff',2.6,null,3000);
+  txt(mx,'f',B.x+B.w/2,B.y+B.h+27,'#6e7681','10px Segoe UI');
+  const bw=(S.pair==='rect'||S.pair==='tri')?1/S.tau:(S.pair==='sincp'?0.5/S.tau:1/(TAU*S.tau));
+  line(mx,B.X(-bw),B.y,B.X(-bw),B.y+B.h,'#e3b341',1.2,[3,3]);
+  line(mx,B.X(bw),B.y,B.X(bw),B.y+B.h,'#e3b341',1.2,[3,3]);
+  txt(mx,g.tb,B.x+B.w/2,B.y+14,'#e3b341','10px Segoe UI');
+
+  clear(ax,auxC);
+  const G=frame(ax,110,44,880,180,0.1,4,0,6,
+    'the reciprocal spread: make the pulse narrower and its spectrum gets wider');
+  axesXY(ax,G,v=>v.toFixed(1),v=>v.toFixed(1),8,5);
+  ax.strokeStyle='#58a6ff'; ax.lineWidth=2.6; ax.beginPath();
+  for(let i=0;i<=300;i++){
+    const tau=0.1+3.9*i/300;
+    const b=(S.pair==='rect'||S.pair==='tri')?1/tau:(S.pair==='sincp'?0.5/tau:1/(TAU*tau));
+    i?ax.lineTo(G.X(tau),G.Y(Math.min(b,6))):ax.moveTo(G.X(tau),G.Y(Math.min(b,6)));
+  }
+  ax.stroke();
+  dot(ax,G.X(S.tau),G.Y(Math.min(bw,6)),5,'#d2a8ff');
+  txt(ax,'τ  (pulse width)',G.x+G.w/2,G.y+G.h+28,'#6e7681','10px Segoe UI');
+  txt(ax,'bandwidth × duration is constant: you cannot be narrow in both domains at once',
+      G.x+G.w/2,G.y+G.h+44,'#6e7681','10px Segoe UI');
+  txt(ax,'B ≈ '+bw.toFixed(3)+'    τ·B = '+(S.tau*bw).toFixed(3),
+      G.x+G.w-10,G.y+16,'#d2a8ff','bold 11px Courier New','right');
+}
+
+/* ================= TAB 2 : standard pairs =================
+   Each entry draws its own time and frequency picture; impulses are arrows
+   whose height stands for area, so a delta and a finite function can share axes. */
+const PAIRS=[
+ {k:'one',   n:'1',           te:'x(t) = 1',            fe:'X(f) = δ(f)',
+  tf:{fn:()=>1}, ff:{imp:[[0,1,'δ(f)']]},
+  note:'A constant has energy at exactly one frequency: DC.'},
+ {k:'delta', n:'δ(t)',        te:'x(t) = δ(t)',         fe:'X(f) = 1',
+  tf:{imp:[[0,1,'δ(t)']]}, ff:{fn:()=>1},
+  note:'An instant in time is every frequency at once — the dual of the line above.'},
+ {k:'dshift',n:'δ(t−t₀)',     te:'x(t) = δ(t − t₀)',    fe:'X(f) = e^(−j2πft₀)',
+  tf:{imp:[[1,1,'δ(t−1)']]}, ff:{re:f=>Math.cos(TAU*f),im:f=>-Math.sin(TAU*f)},
+  note:'Delaying a signal leaves |X(f)| alone and adds a linear phase ramp.'},
+ {k:'cos',   n:'cos 2πf₀t',   te:'x(t) = cos(2πf₀t)',   fe:'X(f) = ½δ(f−f₀) + ½δ(f+f₀)',
+  tf:{fn:t=>Math.cos(TAU*t)}, ff:{imp:[[-1,0.5,'½'],[1,0.5,'½']]},
+  note:'Real and even, so the transform is real and even: two positive impulses.'},
+ {k:'sin',   n:'sin 2πf₀t',   te:'x(t) = sin(2πf₀t)',   fe:'X(f) = (j/2)δ(f+f₀) − (j/2)δ(f−f₀)',
+  tf:{fn:t=>Math.sin(TAU*t)}, ff:{imp:[[-1,0.5,'+j½'],[1,-0.5,'−j½']],imag:true},
+  note:'Real and odd, so the transform is imaginary and odd. Same magnitude as the cosine — the difference is entirely phase.'},
+ {k:'rect',  n:'rect(t)',     te:'x(t) = rect(t/τ)',    fe:'X(f) = τ·sinc(fτ)',
+  tf:{fn:t=>Math.abs(t)<=0.5?1:0}, ff:{fn:f=>sinc(f)},
+  note:'A hard edge in time costs you a spectrum that decays only as 1/f.'},
+ {k:'sinc',  n:'sinc(t)',     te:'x(t) = sinc(t)',      fe:'X(f) = rect(f)',
+  tf:{fn:t=>sinc(t)}, ff:{fn:f=>Math.abs(f)<=0.5?1:0},
+  note:'Duality again: swap the roles of t and f and the pair still holds.'},
+ {k:'tri',   n:'tri(t)',      te:'x(t) = tri(t/τ)',     fe:'X(f) = τ·sinc²(fτ)',
+  tf:{fn:t=>Math.max(0,1-Math.abs(t))}, ff:{fn:f=>sinc(f)*sinc(f)},
+  note:'A triangle is a rectangle convolved with itself, so its transform is the sinc squared.'},
+ {k:'sgn',   n:'sgn(t)',      te:'x(t) = sgn(t)',       fe:'X(f) = 1/(jπf)',
+  tf:{fn:t=>t>0?1:(t<0?-1:0)}, ff:{im:f=>Math.abs(f)<0.04?null:-1/(PI*f)},
+  note:'Real and odd ⇒ purely imaginary transform. It blows up at DC because sgn has no finite energy.'},
+ {k:'step',  n:'u(t)',        te:'x(t) = u(t)',         fe:'X(f) = ½δ(f) + 1/(j2πf)',
+  tf:{fn:t=>t>0?1:(t<0?0:0.5)}, ff:{imp:[[0,0.5,'½δ(f)']],im:f=>Math.abs(f)<0.04?null:-1/(TAU*f)},
+  note:'Half a constant plus half a sgn — so it inherits both an impulse and a 1/f tail.'},
+ {k:'exp',   n:'e^(−at)u(t)', te:'x(t) = e^(−at)u(t),  a > 0',  fe:'X(f) = 1/(a + j2πf)',
+  tf:{fn:t=>t>=0?Math.exp(-t):0},
+  ff:{re:f=>1/(1+Math.pow(TAU*f,2)),im:f=>-TAU*f/(1+Math.pow(TAU*f,2))},
+  note:'Neither even nor odd, so the transform is genuinely complex — the RC low-pass response.'},
+ {k:'gauss', n:'Gaussian',    te:'x(t) = e^(−πt²)',     fe:'X(f) = e^(−πf²)',
+  tf:{fn:t=>Math.exp(-PI*t*t)}, ff:{fn:f=>Math.exp(-PI*f*f)},
+  note:'Its own transform. It also minimises the time-bandwidth product — no signal is more compact in both domains.'},
+ {k:'comb',  n:'impulse train',te:'x(t) = Σ δ(t − nT)', fe:'X(f) = (1/T)Σ δ(f − k/T)',
+  tf:{imp:[[-2,1,''],[-1,1,''],[0,1,'δ(t)'],[1,1,''],[2,1,'']]},
+  ff:{imp:[[-2,1,''],[-1,1,''],[0,1,'1/T'],[1,1,''],[2,1,'']]},
+  note:'A comb transforms to a comb, with reciprocal spacing. This single pair is the whole of sampling theory.'}
+];
+function pairOf(k){ return PAIRS.find(p=>p.k===k)||PAIRS[5]; }
+function drawSide(ctx,Fr,spec,colRe,colIm){
+  if(spec.fn) plot(ctx,Fr,spec.fn,colRe,2.6,null,3000);
+  if(spec.re) plot(ctx,Fr,spec.re,colRe,2.6,null,3000);
+  if(spec.im) plot(ctx,Fr,spec.im,colIm,2.2,[5,3],3000);
+  if(spec.imp) spec.imp.forEach(([x,a,lab])=>impulse(ctx,Fr,x,a,spec.imag?colIm:colRe,lab));
+}
+function drawPairs(){
+  clear(mx,mainC);
+  const p=pairOf(S.pair);
+  const A=frame(mx,80,52,440,320,-3,3,-1.25,1.25,'time domain');
+  axesXY(mx,A,v=>v.toFixed(0),null,7,4);
+  drawSide(mx,A,p.tf,'#3fb950','#d2a8ff');
+  txt(mx,p.te,A.x+A.w/2,A.y+16,'#3fb950','bold 12px Courier New');
+  txt(mx,'t',A.x+A.w/2,A.y+A.h+27,'#6e7681','10px Segoe UI');
+
+  const B=frame(mx,580,52,430,320,-3,3,-1.25,1.25,'frequency domain');
+  axesXY(mx,B,v=>v.toFixed(0),null,7,4);
+  drawSide(mx,B,p.ff,'#58a6ff','#d2a8ff');
+  txt(mx,p.fe,B.x+B.w/2,B.y+16,'#58a6ff','bold 12px Courier New');
+  txt(mx,'f',B.x+B.w/2,B.y+B.h+27,'#6e7681','10px Segoe UI');
+
+  // the arrow between them
+  const cx=(A.x+A.w+B.x)/2;
+  line(mx,cx-22,212,cx+22,212,'#8b949e',2);
+  line(mx,cx+22,212,cx+14,207,'#8b949e',2);
+  line(mx,cx+22,212,cx+14,217,'#8b949e',2);
+  txt(mx,'ℱ',cx,196,'#e6edf3','bold 15px Times New Roman');
+
+  clear(ax,auxC);
+  txt(ax,p.note,auxC.width/2,44,'#e6edf3','13px Segoe UI');
+  const hasIm=!!(p.ff.im||p.ff.imag);
+  const sym = p.k==='sin'||p.k==='sgn' ? 'real and odd  ⇒  transform imaginary and odd'
+            : (p.k==='exp'||p.k==='dshift' ? 'neither even nor odd  ⇒  transform genuinely complex'
+            : 'real and even  ⇒  transform real and even');
+  txt(ax,sym,auxC.width/2,78,hasIm?'#d2a8ff':'#3fb950','bold 11.5px Segoe UI');
+  const rows=[
+    ['solid green / blue','the real part','#3fb950'],
+    ['dashed purple','the imaginary part','#d2a8ff'],
+    ['arrows','impulses — the arrow height stands for the area, not a value','#e3b341']
+  ];
+  rows.forEach((r,i)=>{
+    txt(ax,r[0],380,124+i*26,r[2],'bold 11px Segoe UI','right');
+    txt(ax,'  —  '+r[1],392,124+i*26,'#8b949e','11px Segoe UI','left');
+  });
+  txt(ax,'Every pair here follows from two of them (δ and the rectangle) plus the properties on the next tab.',
+      auxC.width/2,auxC.height-18,'#6e7681','11px Segoe UI');
+}
+
+/* ================= TAB 3 : properties ================= */
+const PROPS={
+  shift:{name:'time shift',eq:'x(t − t₀)  ⟷  X(f)·e^(−j2πft₀)',
+    desc:'Shifting in time changes only the phase; the magnitude spectrum is untouched.',
+    lab:'t₀'},
+  scale:{name:'time scaling',eq:'x(at)  ⟷  (1/|a|)·X(f/a)',
+    desc:'Compress in time and you stretch in frequency by the same factor — and the amplitude falls to keep the area right.',
+    lab:'a'},
+  mod:{name:'modulation',eq:'x(t)·cos(2πf₀t)  ⟷  ½X(f−f₀) + ½X(f+f₀)',
+    desc:'Multiplying by a carrier copies the spectrum up to ±f₀ and halves it. This is the whole of AM in one line.',
+    lab:'f₀'},
+  conv:{name:'convolution',eq:'x(t) ∗ h(t)  ⟷  X(f)·H(f)',
+    desc:'Convolution becomes multiplication — the reason filters are designed in the frequency domain.',
+    lab:'width'}
+};
+function drawProps(){
+  clear(mx,mainC);
+  const P=PROPS[S.prop], v=S.pv;
+  const base=t=>Math.max(0,1-Math.abs(t));             // triangle, so the transform is real
+  const baseF=f=>sinc(f)*sinc(f);
+  let tf, ffRe, ffIm, ffMag;
+  if(S.prop==='shift'){
+    tf=t=>base(t-v);
+    ffRe=f=>baseF(f)*Math.cos(TAU*f*v); ffIm=f=>-baseF(f)*Math.sin(TAU*f*v);
+    ffMag=f=>Math.abs(baseF(f));
+  } else if(S.prop==='scale'){
+    const a=Math.abs(v)<0.15?0.15:Math.abs(v);
+    tf=t=>base(a*t);
+    ffRe=f=>baseF(f/a)/a; ffIm=null; ffMag=f=>Math.abs(baseF(f/a)/a);
+  } else if(S.prop==='mod'){
+    const f0=Math.abs(v)*2;
+    tf=t=>base(t)*Math.cos(TAU*f0*t);
+    ffRe=f=>0.5*baseF(f-f0)+0.5*baseF(f+f0); ffIm=null;
+    ffMag=f=>Math.abs(0.5*baseF(f-f0)+0.5*baseF(f+f0));
+  } else {
+    const w=Math.max(0.2,Math.abs(v));
+    // triangle convolved with a rectangle of width w, done numerically
+    tf=t=>{ let s=0; const M=140;
+      for(let i=0;i<M;i++){ const u=-w/2+w*(i+0.5)/M; s+=base(t-u); }
+      return s*w/M/w*1; };
+    ffRe=f=>baseF(f)*sinc(f*w); ffIm=null;
+    ffMag=f=>Math.abs(baseF(f)*sinc(f*w));
+  }
+  const A=frame(mx,80,50,440,320,-4,4,-1.25,1.3,'time domain');
+  axesXY(mx,A,v2=>v2.toFixed(0),null,8,4);
+  plot(mx,A,base,'#484f58',1.6,[4,3],2000);
+  plot(mx,A,tf,'#3fb950',2.6,null,2000);
+  txt(mx,'t',A.x+A.w/2,A.y+A.h+27,'#6e7681','10px Segoe UI');
+  txt(mx,'dashed = the original',A.x+A.w-8,A.y+14,'#6e7681','10px Segoe UI','right');
+
+  const B=frame(mx,580,50,430,320,-4,4,-0.6,1.3,'frequency domain');
+  axesXY(mx,B,v2=>v2.toFixed(0),null,8,4);
+  plot(mx,B,baseF,'#484f58',1.6,[4,3],2000);
+  if(ffIm) plot(mx,B,ffIm,'#d2a8ff',1.8,[5,3],2000);
+  plot(mx,B,ffRe,'#58a6ff',2.6,null,2000);
+  plot(mx,B,ffMag,'#e3b341',1.6,[3,3],2000);
+  txt(mx,'f',B.x+B.w/2,B.y+B.h+27,'#6e7681','10px Segoe UI');
+  txt(mx,'|X(f)|',B.x+B.w-8,B.y+14,'#e3b341','10px Segoe UI','right');
+  if(ffIm) txt(mx,'Im part',B.x+B.w-8,B.y+28,'#d2a8ff','10px Segoe UI','right');
+
+  clear(ax,auxC);
+  txt(ax,P.eq,auxC.width/2,50,'#e6edf3','bold 15px Times New Roman');
+  txt(ax,P.desc,auxC.width/2,84,'#8b949e','12px Segoe UI');
+  txt(ax,P.lab+' = '+(S.prop==='mod'?(Math.abs(v)*2).toFixed(2):v.toFixed(2)),
+      auxC.width/2,120,'#d2a8ff','bold 13px Courier New');
+  if(S.prop==='shift')
+    txt(ax,'Watch the yellow |X(f)| curve: it never moves. Only the blue real part ripples, because the phase is rotating.',
+        auxC.width/2,156,'#e3b341','11.5px Segoe UI');
+  if(S.prop==='scale')
+    txt(ax,'Area is conserved: narrowing the pulse by a raises the spectrum by 1/a and widens it by a.',
+        auxC.width/2,156,'#e3b341','11.5px Segoe UI');
+  if(S.prop==='mod')
+    txt(ax,'Two half-height copies, centred at ±f₀. Reading this backwards is how a receiver brings them home again.',
+        auxC.width/2,156,'#e3b341','11.5px Segoe UI');
+  if(S.prop==='conv')
+    txt(ax,'The time-domain shape smooths as the rectangle widens, and the spectrum is multiplied by that rectangle’s sinc.',
+        auxC.width/2,156,'#e3b341','11.5px Segoe UI');
+  txt(ax,'These four, plus linearity and duality, cover essentially every transform you will be asked to compute.',
+      auxC.width/2,auxC.height-24,'#6e7681','11px Segoe UI');
+}
+
+/* ================= tab metadata ================= */
+const TABS=[
+{title:'Periodic Signals as Sums of Harmonics',aux:'Coefficients and the power they carry',
+ eq:'x(t) = a₀ + Σ<sub>n≥1</sub> [ a<sub>n</sub>cos(nω₀t) + b<sub>n</sub>sin(nω₀t) ] &nbsp;=&nbsp; Σ<sub>n</sub> c<sub>n</sub>e<sup>jnω₀t</sup>,&nbsp; c<sub>n</sub> = (a<sub>n</sub> − j b<sub>n</sub>)/2',
+ desc:'Add harmonics one at a time and watch the partial sum close in on the target. The coefficients below are exact, not fitted.',
+ legend:[['#3fb950','target x(t)'],['#58a6ff','partial sum S_N'],['#8957e5','individual harmonics'],
+         ['#f0883e','error'],['#f85149','Gibbs overshoot']]},
+{title:'Aperiodic Signals and the Transform',aux:'Time–bandwidth trade',
+ eq:'X(f) = ∫ x(t)e<sup>−j2πft</sup> dt &nbsp;&nbsp;·&nbsp;&nbsp; x(t) = ∫ X(f)e<sup>+j2πft</sup> df',
+ desc:'Let the period go to infinity and the discrete harmonics merge into a continuum. Squeeze a pulse in time and its spectrum necessarily spreads.',
+ legend:[['#3fb950','x(t)'],['#58a6ff','X(f)'],['#e3b341','characteristic width']]},
+{title:'The Pairs Worth Memorising',aux:'What each one is telling you',
+ eq:'',desc:'Pick a pair. Green is the real part, dashed purple the imaginary part, and an arrow is an impulse whose height stands for its area.',
+ legend:[['#3fb950','real part, time'],['#58a6ff','real part, frequency'],['#d2a8ff','imaginary part'],['#e3b341','impulse']]},
+{title:'Four Properties That Replace Most Integrals',aux:'The rule, stated',
+ eq:'',desc:'Shift, scale, modulate, convolve. Almost every transform in a homework set is one of the pairs on the previous tab with one of these applied.',
+ legend:[['#484f58','the original'],['#3fb950','transformed x(t)'],['#58a6ff','real part of X(f)'],['#e3b341','|X(f)|']]}
+];
+const INFO=[
+`<strong>Any periodic signal is a sum of sinusoids at multiples of its own fundamental.</strong> The coefficients say how much of each.
+<ul>
+<li><strong>Symmetry does half the work.</strong> An even signal has only cosines (b<sub>n</sub> = 0); an odd one only sines (a<sub>n</sub> = 0). The square and sawtooth are odd; the triangle and pulse train are even. Switch the coefficient view to a<sub>n</sub>/b<sub>n</sub> and you can see whole families vanish.</li>
+<li><strong>Half-wave symmetry kills the even harmonics</strong> — that is why the square and triangle contain only odd n.</li>
+<li><strong>How fast the coefficients decay tells you how smooth the signal is.</strong> Square and sawtooth have jumps, so their coefficients fall as 1/n. The triangle is continuous with a kink, so it falls as 1/n². Smoother signal, faster decay, fewer terms needed.</li>
+<li><strong>Gibbs never goes away.</strong> Near a jump the partial sum overshoots by about 8.95% of the step no matter how large N is — the overshoot narrows but never shrinks. Push N to 80 on the square wave and watch it persist.</li>
+<li><strong>Parseval:</strong> the panel on the right accumulates |c<sub>n</sub>|² and compares it with the true mean-square. For the square wave the fundamental alone carries 81% of the power.</li>
+</ul>`,
+`<strong>The transform is the series with the period taken to infinity.</strong> Harmonic lines spaced 1/T apart merge into a continuous X(f) as T → ∞.
+<ul>
+<li><strong>Narrow in time means wide in frequency, always.</strong> Drag τ and watch the two panels move in opposite directions. Their product stays fixed — this is the same mathematics as the uncertainty principle.</li>
+<li><strong>Discontinuities are expensive.</strong> The rectangle's hard edges give a spectrum decaying only as 1/f, which is why an abrupt pulse splatters energy across the band. The triangle, being continuous, decays as 1/f².</li>
+<li><strong>The Gaussian is its own transform</strong> and achieves the minimum possible time-bandwidth product. Nothing is more compact in both domains at once.</li>
+<li><strong>Duality:</strong> the rectangle and the sinc are each other's transform. Any pair you know gives you a second one for free by swapping t and f.</li>
+<li>This trade is the reason a communication channel's bandwidth limits its symbol rate, which is exactly where the <a href="modulation.html">modulation demo</a> picks up.</li>
+</ul>`,
+`<strong>A dozen pairs and you rarely need the integral.</strong> Nearly everything in a first course is one of these, transformed by one of the properties.
+<ul>
+<li><strong>The two extremes first.</strong> 1 ⟷ δ(f): a constant is pure DC. δ(t) ⟷ 1: an instant contains every frequency equally. Each is the other read backwards — that is duality in its starkest form.</li>
+<li><strong>Cosine and sine have identical magnitude spectra</strong> and differ only in phase: the cosine gives two real impulses, the sine two imaginary ones of opposite sign. If you only ever plot magnitude you cannot tell them apart.</li>
+<li><strong>Symmetry predicts the answer's type before you compute it.</strong> Real and even ⇒ real and even. Real and odd ⇒ imaginary and odd. Neither ⇒ complex. Check sgn(t) and e<sup>−at</sup>u(t) against that rule.</li>
+<li><strong>sgn and u(t) blow up at DC</strong> because they have infinite energy. Their transforms only exist in the sense of distributions — which is exactly why the impulse notation is worth the trouble.</li>
+<li><strong>The impulse train is the important one.</strong> A comb of period T transforms to a comb of spacing 1/T; sampling multiplies by the first and therefore convolves with the second, producing the spectral images that the whole of the sampling theorem is about.</li>
+</ul>`,
+`<strong>Learn the properties, not the integrals.</strong> Each one converts an operation in one domain into a simpler one in the other.
+<ul>
+<li><strong>Time shift ⟷ phase ramp.</strong> Slide t₀ and watch |X(f)| stay perfectly still while the real part ripples. Delay never changes which frequencies are present, only their relative timing — and that is why group delay, not magnitude, governs pulse distortion.</li>
+<li><strong>Scaling is reciprocal.</strong> x(at) ⟷ (1/|a|)X(f/a): squeeze by 2 in time, stretch by 2 in frequency and halve the height. The area under X(f) is fixed because it equals x(0).</li>
+<li><strong>Modulation is a frequency shift.</strong> Multiplying by cos(2πf₀t) makes two half-height copies at ±f₀. Read it forwards and you have a transmitter; read it backwards and you have a mixer in a receiver.</li>
+<li><strong>Convolution ⟷ multiplication</strong> is the one that makes filtering tractable. Widening the rectangle smooths the signal in time and multiplies the spectrum by an ever-narrower sinc — low-pass filtering, drawn.</li>
+<li>Combine them: a delayed, scaled, modulated rectangle needs no integral at all — just <code>rect ⟷ sinc</code> and three rules.</li>
+</ul>`
+];
+
+/* ================= meters ================= */
+const MET=[
+  ['view',()=>['series','transform','pairs','properties'][S.tab]],
+  ['signal',()=>S.tab===0?W().name:(S.tab===1?FT().name:(S.tab===2?pairOf(S.pair).n:PROPS[S.prop].name))],
+  ['N',()=>S.tab===0?S.NH:'—'],
+  ['a₀ / DC',()=>S.tab===0?W().a0().toFixed(4):'—'],
+  ['|c₁|',()=>S.tab===0?cn(1).mag.toFixed(4):'—'],
+  ['|c₂|',()=>S.tab===0?cn(2).mag.toFixed(4):'—'],
+  ['|c₃|',()=>S.tab===0?cn(3).mag.toFixed(4):'—'],
+  ['power captured',()=>{
+    if(S.tab!==0) return '—';
+    const P=totalPower(); let acc=cn(0).mag*cn(0).mag;
+    for(let n=1;n<=S.NH;n++){ const c=cn(n); acc+=2*c.mag*c.mag; }
+    return P>0?(100*acc/P).toFixed(2)+'%':'—'; }],
+  ['τ',()=>S.tab===1?S.tau.toFixed(2):'—'],
+  ['τ·B',()=>{
+    if(S.tab!==1) return '—';
+    const b=(S.pair==='rect'||S.pair==='tri')?1/S.tau:(S.pair==='sincp'?0.5/S.tau:1/(TAU*S.tau));
+    return (S.tau*b).toFixed(3); }]
+];
+document.getElementById('meters').innerHTML=MET.map((m,i)=>
+  `<div class="meter"><div class="ml">${m[0]}</div><div class="mv" id="mv${i}">—</div></div>`).join('');
+function updateMeters(){ MET.forEach((m,i)=>{
+  const el=document.getElementById('mv'+i); if(el) el.textContent=String(m[1]()); }); }
+
+/* ================= selector row ================= */
+function buildPresets(){
+  const el=document.getElementById('presets');
+  let items=[], attr='', cur='';
+  if(S.tab===0){ items=Object.keys(WAVES).map(k=>[k,WAVES[k].name]); attr='w'; cur=S.wave; }
+  else if(S.tab===1){ items=Object.keys(FTS).map(k=>[k,FTS[k].name]); attr='p'; cur=S.pair in FTS?S.pair:'rect'; }
+  else if(S.tab===2){ items=PAIRS.map(p=>[p.k,p.n]); attr='p'; cur=S.pair; }
+  else { items=Object.keys(PROPS).map(k=>[k,PROPS[k].name]); attr='r'; cur=S.prop; }
+  el.innerHTML=items.map(([k,n])=>
+    `<div class="preset${k===cur?' active':''}" data-${attr}="${k}">${n}</div>`).join('');
+  el.querySelectorAll('.preset').forEach(e=>e.addEventListener('click',()=>{
+    const k=e.dataset[attr];
+    if(S.tab===0) S.wave=k; else if(S.tab===3) S.prop=k; else S.pair=k;
+    if(S.tab===3) document.getElementById('btnProp').textContent=PROPS[S.prop].name;
+    buildPresets(); draw();
+  }));
+}
+
+/* ================= dispatch ================= */
+function draw(){
+  if(S.tab===0) drawSeries();
+  else if(S.tab===1) drawTransform();
+  else if(S.tab===2) drawPairs();
+  else drawProps();
+  updateMeters();
+}
+const $=id=>document.getElementById(id);
+const TAB_SLUGS=['series','transform','pairs','properties'];
+function setTab(t,skipHash){
+  S.tab=t;
+  if(!skipHash && typeof location!=='undefined' && typeof history!=='undefined' && history.replaceState){
+    try{ history.replaceState(null,'','#'+TAB_SLUGS[t]); }catch(e){}
+  }
+  if(t===1 && !(S.pair in FTS)) S.pair='rect';
+  if(t===2 && (S.pair in FTS) && !PAIRS.some(p=>p.k===S.pair)) S.pair='rect';
+  document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active',+el.dataset.tab===t));
+  const T=TABS[t];
+  $('mainTitle').textContent=T.title; $('auxTitle').textContent=T.aux;
+  $('eqText').innerHTML=T.eq|| (t===0?W().eq:'');
+  $('eqDesc').textContent=T.desc;
+  $('legend').innerHTML=T.legend.map(l=>
+    `<div class="legend-item"><div class="legend-dot" style="background:${l[0]}"></div>${l[1]}</div>`).join('');
+  $('info').innerHTML=INFO[t];
+  document.querySelectorAll('.cg[data-tabs]').forEach(el=>
+    el.classList.toggle('hidden',!el.dataset.tabs.split(',').includes(String(t))));
+  buildPresets();
+  draw();
+}
+document.querySelectorAll('.tab').forEach(el=>el.addEventListener('click',()=>setTab(+el.dataset.tab)));
+
+/* ================= controls ================= */
+$('slNH').addEventListener('input',e=>{ S.NH=+e.target.value; $('vNH').textContent=S.NH; draw(); });
+$('slDuty').addEventListener('input',e=>{ S.duty=+e.target.value; $('vDuty').textContent=S.duty.toFixed(2); draw(); });
+$('ckHarm').addEventListener('change',e=>{ S.showHarm=e.target.checked; draw(); });
+$('ckMag').addEventListener('change',e=>{ S.magPhase=e.target.checked; draw(); });
+$('slTau').addEventListener('input',e=>{ S.tau=+e.target.value; $('vTau').textContent=S.tau.toFixed(2); draw(); });
+$('slProp').addEventListener('input',e=>{ S.pv=+e.target.value; $('vProp').textContent=S.pv.toFixed(2); draw(); });
+$('btnProp').addEventListener('click',()=>{
+  const ks=Object.keys(PROPS);
+  S.prop=ks[(ks.indexOf(S.prop)+1)%ks.length];
+  $('btnProp').textContent=PROPS[S.prop].name; buildPresets(); draw(); });
+$('btnReset').addEventListener('click',()=>{
+  Object.assign(S,{NH:7,duty:0.3,tau:1,pv:0.6,showHarm:false,magPhase:true});
+  $('slNH').value=7; $('vNH').textContent='7';
+  $('slDuty').value=0.3; $('vDuty').textContent='0.30';
+  $('slTau').value=1; $('vTau').textContent='1.00';
+  $('slProp').value=0.6; $('vProp').textContent='0.60';
+  $('ckHarm').checked=false; $('ckMag').checked=true;
+  draw(); });
+
+let startTab=0;
+if(typeof location!=='undefined' && location.hash){
+  const i=TAB_SLUGS.indexOf(location.hash.replace('#','').toLowerCase());
+  if(i>=0) startTab=i;
+}
+setTab(startTab,true);
+</script>
+</body>
+</html>
