@@ -108,7 +108,8 @@
   <div class="cg" data-tabs="4"><label>property:</label>
     <button class="sec" id="btnProp">time shift</button></div>
 
-  <div class="cg" data-tabs="0"><button id="btnBuild">▶ Build up harmonics</button></div>
+  <div class="cg" data-tabs="0"><button id="btnStep">▶ Add harmonics one by one</button></div>
+  <div class="cg" data-tabs="0"><button class="sec" id="btnBuild">▶ Sweep N quickly</button></div>
   <div class="cg" data-tabs="1"><button id="btnSpin">⏸ Pause</button></div>
   <div class="cg" data-tabs="0"><button class="sec" id="btnClearDraw">Clear drawing</button></div>
   <div class="cg"><button class="sec" id="btnReset">Reset</button></div>
@@ -182,7 +183,7 @@ function impulse(ctx,Fr,x,area,col,label){
 const S={ tab:0, wave:'square', NH:7, duty:0.3, showHarm:false, magPhase:true,
           pair:'rect', tau:1, prop:'shift', pv:0.6,
           custom:new Float64Array(129), customVer:0, drawing:false,
-          building:false, buildT:0, phasorT:0, phasorRun:true, stack:false };
+          building:false, buildT:0, stepMode:false, phasorT:0, phasorRun:true, stack:false };
 // seed the drawable waveform with something recognisable
 for(let i=0;i<S.custom.length;i++){
   const u=i/(S.custom.length-1);
@@ -289,6 +290,13 @@ function cn(n){
   const re=a/2, im=-b/2;
   return {mag:Math.hypot(re,im),ph:Math.atan2(im,re),re,im};
 }
+function liveHarmonics(limit){
+  const w=W(), out=[];
+  for(let n=1;n<=limit;n++){
+    if(Math.hypot(w.a(n),w.b(n))>1e-9) out.push(n);
+  }
+  return out;
+}
 /* Build-up view: one sinusoid per row on the left, the running total on the right,
    so you can see exactly which frequency contributes what. */
 function drawSeriesStacked(){
@@ -348,6 +356,11 @@ function drawSeriesStacked(){
     }
     mx.stroke();
     txt(mx,'S'+h.n,RX+RW+10,yc,'#58a6ff','bold 10px Courier New','left');
+    if(S.building&&i===K-1){
+      txt(mx,'← just added',RX+RW+46,yc,'#7ee787','bold 10px Segoe UI','left');
+      mx.strokeStyle='rgba(126,231,135,0.5)'; mx.lineWidth=1.4;
+      mx.strokeRect(LX-4,y+2,LW+8,rowH-4);
+    }
   });
   txt(mx,'green = the target, blue = the sum so far.  Raise N to add more rows; '+
         'the ones you cannot see here are smaller still.',
@@ -943,7 +956,7 @@ document.querySelectorAll('.tab').forEach(el=>el.addEventListener('click',()=>se
 
 /* ================= controls ================= */
 $('slNH').addEventListener('input',e=>{ S.NH=+e.target.value; $('vNH').textContent=S.NH;
-  S.building=false; $('btnBuild').textContent='▶ Build up harmonics'; draw(); });
+  stopBuild(); draw(); });
 $('slDuty').addEventListener('input',e=>{ S.duty=+e.target.value; $('vDuty').textContent=S.duty.toFixed(2); draw(); });
 // note: WAVES.trapezoid.key() includes S.duty, so the coefficient cache invalidates itself
 $('ckHarm').addEventListener('change',e=>{ S.showHarm=e.target.checked; draw(); });
@@ -1013,11 +1026,19 @@ if(typeof window!=='undefined'&&window.addEventListener){
 function loop(){
   let need=false;
   if(S.building&&S.tab===0){
-    S.buildT+=0.035;
-    const n=1+Math.floor(S.buildT);
-    if(n>80){ S.building=false; S.buildT=0;
-      const b=document.getElementById('btnBuild'); if(b) b.textContent='▶ Build up harmonics'; }
-    else if(n!==S.NH){ S.NH=n;
+    S.buildT+=1;
+    let n;
+    if(S.stepMode){
+      // pause on each harmonic that actually contributes, so it can be read
+      const live=liveHarmonics(80);
+      const idx=Math.floor(S.buildT/40);
+      if(idx>=Math.min(live.length,12)){ stopBuild(); n=S.NH; }
+      else n=live[idx];
+    } else {
+      n=1+Math.floor(S.buildT*0.035);
+      if(n>80){ stopBuild(); n=S.NH; }
+    }
+    if(S.building&&n!==S.NH){ S.NH=n;
       const sl=document.getElementById('slNH'), v=document.getElementById('vNH');
       if(sl) sl.value=n; if(v) v.textContent=String(n);
     }
@@ -1034,11 +1055,24 @@ if(typeof location!=='undefined' && location.hash){
   if(i>=0) startTab=i;
 }
 setTab(startTab,true);
-$('btnBuild').addEventListener('click',()=>{
-  S.building=!S.building;
-  if(S.building){ S.buildT=0; S.NH=1; $('slNH').value=1; $('vNH').textContent='1'; }
-  $('btnBuild').textContent=S.building?'⏸ Stop building':'▶ Build up harmonics';
-});
+function stopBuild(){
+  S.building=false; S.buildT=0; S.stepMode=false;
+  const a=document.getElementById('btnStep'), b=document.getElementById('btnBuild');
+  if(a) a.textContent='▶ Add harmonics one by one';
+  if(b) b.textContent='▶ Sweep N quickly';
+}
+function startBuild(step){
+  S.building=true; S.stepMode=step; S.buildT=0;
+  const live=liveHarmonics(80);
+  S.NH=live.length?live[0]:1;
+  $('slNH').value=S.NH; $('vNH').textContent=String(S.NH);
+  if(step){ S.stack=true; $('ckStack').checked=true; }
+  $('btnStep').textContent=step?'⏸ Stop':'▶ Add harmonics one by one';
+  $('btnBuild').textContent=step?'▶ Sweep N quickly':'⏸ Stop';
+  draw();
+}
+$('btnStep').addEventListener('click',()=>{ S.building&&S.stepMode?stopBuild():startBuild(true); });
+$('btnBuild').addEventListener('click',()=>{ S.building&&!S.stepMode?stopBuild():startBuild(false); });
 $('btnSpin').addEventListener('click',()=>{
   S.phasorRun=!S.phasorRun;
   $('btnSpin').textContent=S.phasorRun?'⏸ Pause':'▶ Play';
