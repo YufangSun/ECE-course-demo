@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pulse Shaping, ISI &amp; Eye Diagrams — ECE 440</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',system-ui,sans-serif;
+    display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:18px}
+  h1{font-size:1.5em;color:#e0e0ff}
+  .subtitle{color:#7d8590;margin-bottom:10px;font-size:.92em;text-align:center;max-width:900px}
+  canvas{display:block;border-radius:10px;max-width:100%}
+  .tabs{display:flex;gap:6px;margin:10px 0;flex-wrap:wrap;justify-content:center}
+  .tab{padding:8px 18px;border-radius:8px;cursor:pointer;font-size:.86em;
+    background:#161b22;border:1px solid #30363d;color:#8b949e;transition:.2s}
+  .tab:hover{border-color:#58a6ff;color:#e6edf3}
+  .tab.active{background:#1f6feb;border-color:#1f6feb;color:white;font-weight:bold}
+  .eq-box{background:#161b22;border:1px solid #30363d;border-radius:10px;
+    padding:8px 14px;margin:6px 0;max-width:1120px;width:100%;text-align:center}
+  .eq{font-size:1.05em;font-family:'Times New Roman',serif;color:#e0e0ff}
+  .eq-desc{font-size:.78em;color:#7d8590;margin-top:3px}
+  .legend{display:flex;gap:12px;justify-content:center;margin:6px 0;flex-wrap:wrap}
+  .legend-item{display:flex;align-items:center;gap:4px;font-size:.76em;color:#8b949e}
+  .legend-dot{width:9px;height:9px;border-radius:3px}
+  .row{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:8px;max-width:1120px;width:100%}
+  .panel{background:#161b22;border-radius:12px;padding:12px;border:1px solid #30363d;width:100%}
+  .panel h2{font-size:.88em;color:#8b949e;margin-bottom:6px;text-align:center}
+  .meters{display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap;max-width:1120px}
+  .meter{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:4px 10px;text-align:center;min-width:96px}
+  .meter .ml{font-size:.68em;color:#8b949e}
+  .meter .mv{font-size:.88em;font-weight:bold;font-family:'Courier New',monospace;color:#e6edf3}
+  .controls{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;justify-content:center;align-items:center;
+    max-width:1120px;width:100%;background:#161b22;border:1px solid #30363d;border-radius:12px;padding:12px}
+  .cg{display:flex;align-items:center;gap:5px}
+  .cg label{font-size:.78em;color:#8b949e;white-space:nowrap}
+  input[type="range"]{width:130px;accent-color:#58a6ff}
+  .val{font-size:.78em;color:#58a6ff;min-width:54px;font-family:'Courier New',monospace}
+  button{background:#238636;color:white;border:none;padding:6px 14px;border-radius:6px;
+    cursor:pointer;font-size:.82em;transition:.2s}
+  button:hover{background:#2ea043}
+  button.sec{background:#30363d}
+  button.sec:hover{background:#484f58}
+  .chk{display:flex;align-items:center;gap:4px;font-size:.76em;color:#8b949e;cursor:pointer;user-select:none}
+  .chk input{accent-color:#58a6ff;cursor:pointer}
+  .presets{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:10px;max-width:1120px}
+  .preset{padding:5px 13px;border-radius:6px;cursor:pointer;font-size:.76em;
+    background:#21262d;border:1px solid #30363d;color:#8b949e;transition:.2s}
+  .preset:hover{border-color:#58a6ff;color:#e6edf3}
+  .preset.active{background:#1f6feb;border-color:#1f6feb;color:white}
+  .info{max-width:1120px;width:100%;background:#161b22;border-radius:12px;
+    padding:14px 18px;border:1px solid #30363d;margin-top:14px;font-size:.84em;line-height:1.65;color:#8b949e}
+  .info strong{color:#e0e0ff}
+  .info code{color:#f0883e;background:#21262d;padding:1px 5px;border-radius:3px;font-size:.95em}
+  .info ul{margin:6px 0 0 20px}
+  .info li{margin:3px 0}
+  .hidden{display:none!important}
+  a{color:#58a6ff}
+  .back{margin-top:16px;font-size:.82em}
+</style>
+</head>
+<body>
+
+<h1>Pulse Shaping, ISI &amp; Eye Diagrams</h1>
+<p class="subtitle">A pulse that is short in time is wide in frequency, and a pulse squeezed into a narrow band spreads across its neighbours. Pulse shaping is the art of spreading in time without ever interfering at the sampling instants.</p>
+
+<div class="tabs">
+  <div class="tab active" data-tab="0">Pulse Shapes</div>
+  <div class="tab" data-tab="1">Eye Diagram</div>
+  <div class="tab" data-tab="2">ISI Up Close</div>
+  <div class="tab" data-tab="3">Bandwidth Cost</div>
+</div>
+
+<div class="eq-box">
+  <div class="eq" id="eqText"></div>
+  <div class="eq-desc" id="eqDesc"></div>
+</div>
+
+<div class="presets" id="presets"></div>
+<div class="legend" id="legend"></div>
+
+<div class="row"><div class="panel"><h2 id="mainTitle">Pulse</h2>
+  <canvas id="mainCanvas" width="1080" height="430"></canvas></div></div>
+<div class="row"><div class="panel"><h2 id="auxTitle">Detail</h2>
+  <canvas id="auxCanvas" width="1080" height="270"></canvas></div></div>
+
+<div class="meters" id="meters"></div>
+
+<div class="controls">
+  <div class="cg"><label>roll-off β:</label>
+    <input type="range" id="slBeta" min="0" max="1" step="0.01" value="0.35">
+    <span class="val" id="vBeta">0.35</span></div>
+  <div class="cg" data-tabs="1,2"><label>noise σ:</label>
+    <input type="range" id="slNoise" min="0" max="0.4" step="0.005" value="0">
+    <span class="val" id="vNoise">0.000</span></div>
+  <div class="cg" data-tabs="1,2"><label>timing offset:</label>
+    <input type="range" id="slTau" min="-0.5" max="0.5" step="0.01" value="0">
+    <span class="val" id="vTau">0.00 T</span></div>
+  <div class="cg" data-tabs="1"><label>symbols:</label>
+    <input type="range" id="slN" min="30" max="400" step="10" value="150">
+    <span class="val" id="vN">150</span></div>
+  <div class="cg" data-tabs="1"><label class="chk"><input type="checkbox" id="ckMask" checked> eye measurements</label></div>
+  <div class="cg"><button class="sec" id="btnRerun">New data</button></div>
+  <div class="cg"><button class="sec" id="btnReset">Reset</button></div>
+</div>
+
+<div class="info" id="info"></div>
+<div class="back"><a href="index.html">← All demos</a> &nbsp;·&nbsp;
+  <a href="digital-modulation.html">Digital Modulation</a> &nbsp;·&nbsp; <a href="fourier.html">Fourier</a></div>
+
+<script>
+/* ================= helpers ================= */
+const PI=Math.PI, TAU=2*PI;
+const sinc=x=>Math.abs(x)<1e-10?1:Math.sin(PI*x)/(PI*x);
+function clear(ctx,c){ ctx.fillStyle='#0d1117'; ctx.fillRect(0,0,c.width,c.height); }
+function txt(ctx,s,x,y,col,font,align){
+  ctx.fillStyle=col||'#8b949e'; ctx.font=font||'11px Segoe UI';
+  ctx.textAlign=align||'center'; ctx.textBaseline='middle'; ctx.fillText(s,x,y);
+}
+function line(ctx,x1,y1,x2,y2,col,w,dash){
+  ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=w||1; if(dash)ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); ctx.restore();
+}
+function dot(ctx,x,y,r,col){ ctx.fillStyle=col; ctx.beginPath(); ctx.arc(x,y,r,0,TAU); ctx.fill(); }
+function niceTicks(a,b,count){
+  const span=b-a||1, raw=span/count, mag=Math.pow(10,Math.floor(Math.log10(raw)));
+  const norm=raw/mag, step=(norm<1.5?1:norm<3?2:norm<7?5:10)*mag;
+  const out=[]; for(let v=Math.ceil(a/step)*step; v<=b+1e-9; v+=step) out.push(+v.toFixed(10));
+  return out;
+}
+function frame(ctx,x,y,w,h,x0,x1,y0,y1,title){
+  const X=v=>x+(v-x0)/(x1-x0)*w, Y=v=>y+h-(v-y0)/(y1-y0)*h;
+  ctx.strokeStyle='#30363d'; ctx.lineWidth=1; ctx.strokeRect(x,y,w,h);
+  if(title) txt(ctx,title,x+w/2,y-12,'#8b949e','bold 11px Segoe UI');
+  return {X,Y,x,y,w,h,x0,x1,y0,y1};
+}
+function axesXY(ctx,Fr,xf,yf,nx,ny){
+  niceTicks(Fr.x0,Fr.x1,nx||8).forEach(v=>{ const xx=Fr.X(v);
+    if(xx<Fr.x-1||xx>Fr.x+Fr.w+1) return;
+    line(ctx,xx,Fr.y,xx,Fr.y+Fr.h,Math.abs(v)<1e-12?'#484f58':'#1b222b',1);
+    txt(ctx,xf?xf(v):String(+v.toFixed(2)),xx,Fr.y+Fr.h+12,'#6e7681','9px Segoe UI'); });
+  if(ny!==0) niceTicks(Fr.y0,Fr.y1,ny||4).forEach(v=>{ const yy=Fr.Y(v);
+    if(yy<Fr.y-1||yy>Fr.y+Fr.h+1) return;
+    line(ctx,Fr.x,yy,Fr.x+Fr.w,yy,Math.abs(v)<1e-12?'#484f58':'#1b222b',1);
+    txt(ctx,yf?yf(v):String(+v.toFixed(2)),Fr.x-6,yy,'#6e7681','9px Segoe UI','right'); });
+}
+let spare=null;
+function randn(){
+  if(spare!==null){ const v=spare; spare=null; return v; }
+  let u,v,s;
+  do{ u=2*Math.random()-1; v=2*Math.random()-1; s=u*u+v*v; }while(s===0||s>=1);
+  const f=Math.sqrt(-2*Math.log(s)/s);
+  spare=v*f; return u*f;
+}
+
+/* ================= the pulses (symbol period T = 1) ================= */
+/* Raised cosine. The removable singularity at |t| = T/2β needs its limit. */
+function rc(t,beta){
+  if(Math.abs(t)<1e-10) return 1;
+  if(beta>1e-9){
+    const d=1-Math.pow(2*beta*t,2);
+    if(Math.abs(d)<1e-6) return (PI/4)*sinc(1/(2*beta));
+    return sinc(t)*Math.cos(PI*beta*t)/d;
+  }
+  return sinc(t);
+}
+/* Root raised cosine, normalised so h(0) = 1 − β + 4β/π */
+function rrc(t,beta){
+  if(beta<1e-9) return sinc(t);
+  if(Math.abs(t)<1e-10) return 1-beta+4*beta/PI;
+  if(Math.abs(Math.abs(t)-1/(4*beta))<1e-6){
+    const a=beta/Math.SQRT2;
+    return a*((1+2/PI)*Math.sin(PI/(4*beta))+(1-2/PI)*Math.cos(PI/(4*beta)));
+  }
+  const num=Math.sin(PI*t*(1-beta))+4*beta*t*Math.cos(PI*t*(1+beta));
+  const den=PI*t*(1-Math.pow(4*beta*t,2));
+  return num/den;
+}
+const rect=t=>Math.abs(t)<=0.5?1:0;
+/* a first-order RC-limited channel response, as a stand-in for a lazy channel */
+function limited(t,beta){
+  // a rectangle smeared by a slow exponential tail: deliberately ISI-prone.
+  // beta doubles as "how fast the channel is" — larger beta, less smearing.
+  const a=1+3*beta;
+  const g=x=>{
+    if(x<-0.5) return 0;
+    const on=Math.min(x+0.5,1);
+    return (1-Math.exp(-a*on))*Math.exp(-a*Math.max(0,x-0.5));
+  };
+  const norm=g(0);
+  return norm>1e-9?g(t)/norm:0;
+}
+const SHAPES={
+  rect:{name:'Rectangular NRZ',p:(t)=>rect(t),
+    eq:'p(t) = rect(t/T)',
+    spec:f=>Math.abs(sinc(f)),
+    note:'no shaping at all — infinite bandwidth, but zero ISI on an ideal channel'},
+  sinc:{name:'Sinc (ideal Nyquist)',p:(t)=>sinc(t),
+    eq:'p(t) = sinc(t/T),&nbsp; P(f) = T·rect(fT)',
+    spec:f=>rcSpec(f,0),
+    note:'the minimum possible bandwidth, but it decays only as 1/t'},
+  rc:{name:'Raised cosine',p:(t)=>rc(t,S.beta),
+    eq:'p(t) = sinc(t/T)·cos(πβt/T)/(1 − (2βt/T)²)',
+    spec:f=>rcSpec(f,S.beta),
+    note:'the standard choice: zero ISI, with decay you can trade against bandwidth'},
+  rrc:{name:'Root raised cosine',p:(t)=>rrc(t,S.beta),
+    eq:'√ of the raised-cosine spectrum — used at BOTH ends',
+    spec:f=>Math.sqrt(rcSpec(f,S.beta)),
+    note:'alone it has ISI; cascaded with its match at the receiver it does not'},
+  limited:{name:'Bandwidth-starved',p:(t)=>limited(t,S.beta),
+    eq:'a rectangle smeared by the channel',
+    spec:f=>Math.abs(sinc(f))/(1+Math.pow(f/(0.5+S.beta),2)),
+    note:'what happens when nobody shapes anything: the pulse runs into its neighbours'}
+};
+function rcSpec(f,beta){
+  const a=Math.abs(f);
+  if(beta<1e-9){
+    // half at the jump, so the shifted copies still sum to exactly 1 at the fold
+    if(Math.abs(a-0.5)<1e-12) return 0.5;
+    return a<0.5?1:0;
+  }
+  const lo=(1-beta)/2, hi=(1+beta)/2;
+  if(a<=lo) return 1;
+  if(a>=hi) return 0;
+  return 0.5*(1+Math.cos(PI/beta*(a-lo)));
+}
+function P(){ return SHAPES[S.shape]; }
+const pulse=t=>P().p(t);
+
+/* ================= state ================= */
+const S={ tab:0, shape:'rc', beta:0.35, noise:0, tau:0, n:150, mask:true, bits:[] };
+const SPS=40, SPAN=8;          // samples per symbol, and the pulse half-length in symbols
+
+const mainC=document.getElementById('mainCanvas'), mx=mainC.getContext('2d');
+const auxC=document.getElementById('auxCanvas'),  ax=auxC.getContext('2d');
+
+function newBits(){ S.bits=Array.from({length:S.n},()=>Math.random()<0.5?-1:1); }
+/* the transmitted waveform, sampled at SPS per symbol */
+function waveform(){
+  const N=S.bits.length, L=N*SPS;
+  const out=new Float64Array(L);
+  for(let k=0;k<N;k++){
+    const a=S.bits[k];
+    if(a===0) continue;
+    const i0=Math.max(0,(k-SPAN)*SPS), i1=Math.min(L-1,(k+SPAN)*SPS);
+    for(let i=i0;i<=i1;i++){
+      out[i]+=a*pulse(i/SPS-k);
+    }
+  }
+  if(S.noise>0) for(let i=0;i<L;i++) out[i]+=S.noise*randn();
+  return out;
+}
+
+/* ================= TAB 0 : the pulse itself ================= */
+function drawPulse(){
+  clear(mx,mainC);
+  const A=frame(mx,80,52,930,200,-SPAN/2,SPAN/2,-0.45,1.2,
+    P().name+'  —  one pulse, with the neighbouring sampling instants marked');
+  axesXY(mx,A,v=>v.toFixed(0),null,9,4);
+  // sampling instants
+  for(let k=-4;k<=4;k++){
+    line(mx,A.X(k),A.y,A.X(k),A.y+A.h,k===0?'#484f58':'#21262d',1,k===0?null:[3,3]);
+  }
+  mx.strokeStyle='#58a6ff'; mx.lineWidth=2.6; mx.beginPath();
+  for(let i=0;i<=3000;i++){
+    const t=-SPAN/2+SPAN*i/3000;
+    i?mx.lineTo(A.X(t),A.Y(pulse(t))):mx.moveTo(A.X(t),A.Y(pulse(t)));
+  }
+  mx.stroke();
+  // the values at the neighbouring sampling instants are the ISI this pulse causes
+  let isi=0;
+  for(let k=-4;k<=4;k++){
+    const v=pulse(k);
+    if(k!==0) isi+=Math.abs(v);
+    dot(mx,A.X(k),A.Y(v),4.5,(k===0)?'#3fb950':(Math.abs(v)>1e-3?'#f85149':'#e3b341'));
+  }
+  txt(mx,'t / T',A.x+A.w/2,A.y+A.h+27,'#6e7681','10px Segoe UI');
+  txt(mx, isi<1e-3
+      ? 'every neighbouring sample is zero — this pulse causes no ISI'
+      : 'the red dots are non-zero at neighbouring sampling instants: Σ|p(kT)| = '+isi.toFixed(4),
+      A.x+A.w/2,A.y+16, isi<1e-3?'#3fb950':'#f85149','bold 11px Segoe UI');
+
+  // spectrum
+  const B=frame(mx,80,318,930,80,-1.2,1.2,0,1.15,'|P(f)| — bandwidth in units of the symbol rate');
+  axesXY(mx,B,v=>v.toFixed(2),null,10,2);
+  mx.strokeStyle='#3fb950'; mx.lineWidth=2.4; mx.beginPath();
+  for(let i=0;i<=1200;i++){
+    const f=-1.2+2.4*i/1200;
+    i?mx.lineTo(B.X(f),B.Y(P().spec(f))):mx.moveTo(B.X(f),B.Y(P().spec(f)));
+  }
+  mx.stroke();
+  [-0.5,0.5].forEach(f=>{ line(mx,B.X(f),B.y,B.X(f),B.y+B.h,'#e3b341',1.4,[4,3]); });
+  txt(mx,'±1/2T = the Nyquist bandwidth',B.X(0),B.y+12,'#e3b341','10px Segoe UI');
+  txt(mx,'f · T',B.x+B.w/2,B.y+B.h+26,'#6e7681','10px Segoe UI');
+
+  /* the Nyquist criterion, checked by folding the spectrum */
+  clear(ax,auxC);
+  const G=frame(ax,90,48,920,170,-0.6,0.6,0,1.35,
+    'the Nyquist ISI test: shifted copies of P(f) must add to a constant');
+  axesXY(ax,G,v=>v.toFixed(2),null,8,4);
+  for(let k=-3;k<=3;k++){
+    ax.save(); ax.globalAlpha=k===0?0.85:0.42;
+    ax.strokeStyle=k===0?'#58a6ff':'#8957e5'; ax.lineWidth=1.4; ax.beginPath();
+    for(let i=0;i<=600;i++){ const f=-0.6+1.2*i/600;
+      const v=P().spec(f-k);
+      i?ax.lineTo(G.X(f),G.Y(v)):ax.moveTo(G.X(f),G.Y(v)); }
+    ax.stroke(); ax.restore();
+  }
+  ax.strokeStyle='#e6edf3'; ax.lineWidth=2.6; ax.beginPath();
+  let dev=0;
+  for(let i=0;i<=600;i++){
+    const f=-0.6+1.2*i/600;
+    let s=0; for(let k=-3;k<=3;k++) s+=P().spec(f-k);
+    dev=Math.max(dev,Math.abs(s-1));
+    i?ax.lineTo(G.X(f),G.Y(s)):ax.moveTo(G.X(f),G.Y(s));
+  }
+  ax.stroke();
+  line(ax,G.x,G.Y(1),G.x+G.w,G.Y(1),'#3fb950',1.4,[5,4]);
+  txt(ax,'f · T',G.x+G.w/2,G.y+G.h+28,'#6e7681','10px Segoe UI');
+  txt(ax, dev<0.02
+      ? 'the folded sum is flat (deviation '+dev.toFixed(4)+') — the Nyquist criterion is satisfied'
+      : 'the folded sum is NOT flat (deviation '+dev.toFixed(3)+') — this shape causes ISI',
+      G.x+G.w/2,G.y+G.h+46, dev<0.02?'#3fb950':'#f85149','bold 11.5px Segoe UI');
+}
+
+/* ================= TAB 1 : the eye ================= */
+function drawEye(){
+  clear(mx,mainC);
+  const w=waveform();
+  const X0=150, W=760, Y0=46, H=330;
+  const Fr=frame(mx,X0,Y0,W,H,-1,1,-1.8,1.8,
+    'eye diagram — every two-symbol stretch of the waveform, drawn on top of the others');
+  axesXY(mx,Fr,v=>v.toFixed(1),null,8,4);
+  // overlay the traces
+  mx.strokeStyle='rgba(88,166,255,0.30)'; mx.lineWidth=1;
+  const span=2*SPS;
+  for(let k=SPAN;k<S.bits.length-SPAN-2;k++){
+    const start=Math.round((k-1+S.tau)*SPS);
+    if(start<0||start+span>=w.length) continue;
+    mx.beginPath();
+    for(let i=0;i<=span;i++){
+      const t=-1+2*i/span;
+      const v=w[start+i];
+      i?mx.lineTo(Fr.X(t),Fr.Y(v)):mx.moveTo(Fr.X(t),Fr.Y(v));
+    }
+    mx.stroke();
+  }
+  // measurements at the decision instant (t = 0 in eye coordinates)
+  const centre=[];
+  for(let k=SPAN;k<S.bits.length-SPAN-2;k++){
+    const idx=Math.round((k+S.tau)*SPS);
+    if(idx<0||idx>=w.length) continue;
+    centre.push({v:w[idx],a:S.bits[k]});
+  }
+  let hiMin=Infinity, loMax=-Infinity;
+  centre.forEach(c=>{ if(c.a>0) hiMin=Math.min(hiMin,c.v); else loMax=Math.max(loMax,c.v); });
+  const opening=hiMin-loMax;
+  if(S.mask&&isFinite(opening)){
+    mx.fillStyle=opening>0?'rgba(63,185,80,0.14)':'rgba(248,81,73,0.16)';
+    mx.fillRect(Fr.X(-0.16),Fr.Y(hiMin),Fr.X(0.16)-Fr.X(-0.16),Fr.Y(loMax)-Fr.Y(hiMin));
+    line(mx,Fr.X(-0.3),Fr.Y(hiMin),Fr.X(0.3),Fr.Y(hiMin),'#3fb950',1.6,[4,3]);
+    line(mx,Fr.X(-0.3),Fr.Y(loMax),Fr.X(0.3),Fr.Y(loMax),'#f85149',1.6,[4,3]);
+    line(mx,Fr.X(0),Fr.y,Fr.X(0),Fr.y+Fr.h,'#e3b341',1.6);
+    txt(mx,'decision instant',Fr.X(0),Fr.y+12,'#e3b341','bold 10px Segoe UI');
+    txt(mx,'eye opening = '+opening.toFixed(4),Fr.X(0),Fr.Y((hiMin+loMax)/2),
+        opening>0?'#3fb950':'#f85149','bold 12px Courier New');
+  }
+  txt(mx,'t / T   (two symbol periods)',Fr.x+Fr.w/2,Fr.y+Fr.h+27,'#6e7681','10px Segoe UI');
+
+  // the readout
+  const px=950;
+  const errs=centre.filter(c=>Math.sign(c.v)!==Math.sign(c.a)).length;
+  const rows=[
+    ['pulse',P().name,'#e6edf3'],
+    ['β',S.shape==='rc'||S.shape==='rrc'||S.shape==='limited'?S.beta.toFixed(2):'—','#58a6ff'],
+    ['eye opening',isFinite(opening)?opening.toFixed(4):'—',opening>0?'#3fb950':'#f85149'],
+    ['worst-case ISI',worstISI().toFixed(4),'#f0883e'],
+    ['timing offset',S.tau.toFixed(2)+' T','#e3b341'],
+    ['noise σ',S.noise.toFixed(3),'#8b949e'],
+    ['decisions',String(centre.length),'#8b949e'],
+    ['errors',String(errs),errs?'#f85149':'#3fb950']
+  ];
+  rows.forEach((r,i)=>{
+    const y=Y0+20+i*38;
+    txt(mx,r[0],px-160,y,'#8b949e','11px Segoe UI','left');
+    txt(mx,r[1],px+110,y,r[2],'bold 12px Courier New','right');
+  });
+
+  /* the transmitted waveform itself */
+  clear(ax,auxC);
+  const G=frame(ax,80,46,930,180,0,14,-2,2,'the transmitted waveform, with the symbol decisions marked');
+  axesXY(ax,G,v=>v.toFixed(0),null,14,4);
+  ax.strokeStyle='#58a6ff'; ax.lineWidth=1.8; ax.beginPath();
+  for(let i=0;i<=14*SPS&&i<w.length;i++){
+    const t=i/SPS;
+    i?ax.lineTo(G.X(t),G.Y(w[i])):ax.moveTo(G.X(t),G.Y(w[i]));
+  }
+  ax.stroke();
+  for(let k=0;k<=14;k++){
+    const idx=Math.round((k+S.tau)*SPS);
+    if(idx<0||idx>=w.length||k>=S.bits.length) continue;
+    const ok=Math.sign(w[idx])===Math.sign(S.bits[k]);
+    dot(ax,G.X(k+S.tau),G.Y(w[idx]),4,ok?'#3fb950':'#f85149');
+    txt(ax,S.bits[k]>0?'1':'0',G.X(k),G.y+14,'#6e7681','9px Courier New');
+  }
+  txt(ax,'t / T',G.x+G.w/2,G.y+G.h+28,'#6e7681','10px Segoe UI');
+}
+/* the worst possible ISI: every neighbour conspiring against you */
+function worstISI(){
+  let s=0;
+  for(let k=-SPAN;k<=SPAN;k++) if(k!==0) s+=Math.abs(pulse(k));
+  return s;
+}
+
+/* ================= TAB 2 : ISI up close ================= */
+function drawISI(){
+  clear(mx,mainC);
+  // a fixed, deliberately awkward pattern
+  const pat=[1,-1,1,1,-1,1,-1,-1,1,-1,1];
+  const A=frame(mx,80,54,930,320,-1,pat.length,-2.4,2.4,
+    'the individual pulses and their sum — the sample values are what the receiver sees');
+  axesXY(mx,A,v=>v.toFixed(0),null,12,5);
+  for(let k=0;k<pat.length;k++){
+    line(mx,A.X(k),A.y,A.X(k),A.y+A.h,'#21262d',1,[3,3]);
+    mx.save(); mx.globalAlpha=0.55;
+    mx.strokeStyle=pat[k]>0?'#3fb950':'#f0883e'; mx.lineWidth=1.2; mx.beginPath();
+    for(let i=0;i<=800;i++){
+      const t=-1+(pat.length+1)*i/800;
+      const v=pat[k]*pulse(t-k);
+      i?mx.lineTo(A.X(t),A.Y(v)):mx.moveTo(A.X(t),A.Y(v));
+    }
+    mx.stroke(); mx.restore();
+  }
+  const sum=t=>{ let s=0; for(let k=0;k<pat.length;k++) s+=pat[k]*pulse(t-k); return s; };
+  mx.strokeStyle='#e6edf3'; mx.lineWidth=2.6; mx.beginPath();
+  for(let i=0;i<=2000;i++){
+    const t=-1+(pat.length+1)*i/2000;
+    i?mx.lineTo(A.X(t),A.Y(sum(t))):mx.moveTo(A.X(t),A.Y(sum(t)));
+  }
+  mx.stroke();
+  let worst=0;
+  for(let k=0;k<pat.length;k++){
+    const v=sum(k+S.tau);
+    const err=Math.abs(v-pat[k]);
+    worst=Math.max(worst,err);
+    dot(mx,A.X(k+S.tau),A.Y(v),5,Math.sign(v)===Math.sign(pat[k])?'#3fb950':'#f85149');
+    txt(mx,v.toFixed(2),A.X(k+S.tau),A.Y(v)-14,
+        err>0.25?'#f85149':'#8b949e','9.5px Courier New');
+  }
+  txt(mx,'t / T',A.x+A.w/2,A.y+A.h+27,'#6e7681','10px Segoe UI');
+  txt(mx,'largest deviation from the intended ±1 at a sampling instant: '+worst.toFixed(4),
+      A.x+A.w/2,A.y+16, worst<0.05?'#3fb950':'#f85149','bold 11.5px Segoe UI');
+
+  clear(ax,auxC);
+  const G=frame(ax,90,48,920,170,-0.5,0.5,0,1.25,
+    'eye opening against timing offset — how much clock error the shape tolerates');
+  axesXY(ax,G,v=>v.toFixed(2),null,8,4);
+  ax.strokeStyle='#58a6ff'; ax.lineWidth=2.6; ax.beginPath();
+  for(let i=0;i<=200;i++){
+    const off=-0.5+i/200;
+    // worst case: 1 at the centre, every neighbour pulling the wrong way
+    let isi=0;
+    for(let k=-SPAN;k<=SPAN;k++) if(k!==0) isi+=Math.abs(pulse(off-k));
+    const open=2*(pulse(off)-isi);
+    i?ax.lineTo(G.X(off),G.Y(Math.max(open,0))):ax.moveTo(G.X(off),G.Y(Math.max(open,0)));
+  }
+  ax.stroke();
+  line(ax,G.X(S.tau),G.y,G.X(S.tau),G.y+G.h,'#e3b341',1.6,[4,3]);
+  line(ax,G.x,G.Y(0),G.x+G.w,G.Y(0),'#484f58',1);
+  txt(ax,'timing offset  τ / T',G.x+G.w/2,G.y+G.h+28,'#6e7681','10px Segoe UI');
+  txt(ax,'where this curve hits zero, a worst-case bit pattern closes the eye completely',
+      G.x+G.w/2,G.y+G.h+44,'#6e7681','11px Segoe UI');
+}
+
+/* ================= TAB 3 : bandwidth cost ================= */
+function drawBandwidth(){
+  clear(mx,mainC);
+  const A=frame(mx,80,52,460,320,-1,1,0,1.2,'|P(f)| for several roll-offs');
+  axesXY(mx,A,v=>v.toFixed(2),null,8,4);
+  [0,0.25,0.5,1].forEach((b,i)=>{
+    const col=['#1f4f6f','#2a9d8f','#e9c46a','#f0883e'][i];
+    mx.strokeStyle=col; mx.lineWidth=1.8; mx.beginPath();
+    for(let j=0;j<=800;j++){ const f=-1+2*j/800;
+      j?mx.lineTo(A.X(f),A.Y(rcSpec(f,b))):mx.moveTo(A.X(f),A.Y(rcSpec(f,b))); }
+    mx.stroke();
+    txt(mx,'β = '+b,A.x+A.w-10,A.y+16+i*14,col,'10px Segoe UI','right');
+  });
+  mx.strokeStyle='#58a6ff'; mx.lineWidth=3; mx.beginPath();
+  for(let j=0;j<=800;j++){ const f=-1+2*j/800;
+    j?mx.lineTo(A.X(f),A.Y(rcSpec(f,S.beta))):mx.moveTo(A.X(f),A.Y(rcSpec(f,S.beta))); }
+  mx.stroke();
+  [-0.5,0.5].forEach(f=>line(mx,A.X(f),A.y,A.X(f),A.y+A.h,'#e3b341',1.2,[4,3]));
+  txt(mx,'f · T',A.x+A.w/2,A.y+A.h+27,'#6e7681','10px Segoe UI');
+
+  const B=frame(mx,600,52,410,150,0,1,0,1.1,'tail decay: |p(t)| at t = 3T');
+  axesXY(mx,B,v=>v.toFixed(2),null,5,4);
+  mx.strokeStyle='#d2a8ff'; mx.lineWidth=2.6; mx.beginPath();
+  for(let i=0;i<=200;i++){ const b=i/200;
+    const v=Math.abs(rc(3.5,b))/Math.abs(rc(3.5,0)||1);
+    i?mx.lineTo(B.X(b),B.Y(v)):mx.moveTo(B.X(b),B.Y(v)); }
+  mx.stroke();
+  dot(mx,B.X(S.beta),B.Y(Math.abs(rc(3.5,S.beta))/Math.abs(rc(3.5,0)||1)),5,'#fff');
+  txt(mx,'β',B.x+B.w/2,B.y+B.h+26,'#6e7681','10px Segoe UI');
+  txt(mx,'bigger β ⇒ the tails die faster ⇒ less sensitivity to timing error',
+      B.x+B.w/2,B.y+B.h+42,'#6e7681','9.5px Segoe UI');
+
+  const C=frame(mx,600,262,410,110,0,1,0,1.1,'bandwidth  B·T = (1+β)/2');
+  axesXY(mx,C,v=>v.toFixed(2),null,5,3);
+  mx.strokeStyle='#f0883e'; mx.lineWidth=2.6; mx.beginPath();
+  for(let i=0;i<=200;i++){ const b=i/200;
+    i?mx.lineTo(C.X(b),C.Y((1+b)/2)):mx.moveTo(C.X(b),C.Y((1+b)/2)); }
+  mx.stroke();
+  dot(mx,C.X(S.beta),C.Y((1+S.beta)/2),5,'#fff');
+  txt(mx,'β',C.x+C.w/2,C.y+C.h+26,'#6e7681','10px Segoe UI');
+
+  clear(ax,auxC);
+  const G=frame(ax,110,48,880,170,0,1,0,1.25,
+    'the trade, on one axis: bandwidth (orange) against timing tolerance (blue)');
+  axesXY(ax,G,v=>v.toFixed(2),null,10,4);
+  ax.strokeStyle='#f0883e'; ax.lineWidth=2.6; ax.beginPath();
+  for(let i=0;i<=200;i++){ const b=i/200;
+    i?ax.lineTo(G.X(b),G.Y((1+b)/2)):ax.moveTo(G.X(b),G.Y((1+b)/2)); }
+  ax.stroke();
+  txt(ax,'bandwidth B·T',G.x+G.w-10,G.Y(0.95),'#f0883e','10px Segoe UI','right');
+  // timing tolerance: how far you can slide before a worst-case pattern closes the eye
+  ax.strokeStyle='#58a6ff'; ax.lineWidth=2.6; ax.beginPath();
+  for(let i=0;i<=100;i++){
+    const b=i/100;
+    let tol=0;
+    for(let j=0;j<=50;j++){
+      const off=j/100;
+      let isi=0;
+      for(let k=-SPAN;k<=SPAN;k++) if(k!==0) isi+=Math.abs(rc(off-k,b));
+      if(rc(off,b)-isi>0) tol=off; else break;
+    }
+    i?ax.lineTo(G.X(b),G.Y(tol*2)):ax.moveTo(G.X(b),G.Y(tol*2));
+  }
+  ax.stroke();
+  txt(ax,'timing tolerance (×2)',G.x+10,G.Y(0.25),'#58a6ff','10px Segoe UI','left');
+  line(ax,G.X(S.beta),G.y,G.X(S.beta),G.y+G.h,'#e3b341',1.6,[4,3]);
+  txt(ax,'roll-off β',G.x+G.w/2,G.y+G.h+28,'#6e7681','10px Segoe UI');
+  txt(ax,'β = 0 is the narrowest possible signal and the least forgiving clock; '+
+        'β = 1 costs 50% more spectrum and tolerates almost half a symbol of error',
+      G.x+G.w/2,G.y+G.h+44,'#6e7681','11px Segoe UI');
+}
+
+/* ================= tab metadata ================= */
+const TABS=[
+{title:'One Pulse, and Whether It Behaves',aux:'The Nyquist folding test',
+ eq:'zero ISI &nbsp;⟺&nbsp; p(kT) = 0 for every k ≠ 0 &nbsp;⟺&nbsp; Σ<sub>k</sub> P(f − k/T) = constant',
+ desc:'A pulse may spread over many symbol periods and still cause no interference, provided it passes through zero at every other sampling instant.',
+ legend:[['#58a6ff','p(t)'],['#3fb950','the wanted sample'],['#f85149','ISI at a neighbour'],
+         ['#8957e5','shifted spectral copies'],['#e6edf3','their sum']]},
+{title:'The Eye',aux:'The waveform it came from',
+ eq:'eye opening = min(high samples) − max(low samples)',
+ desc:'Chop the waveform into two-symbol stretches and lay them on top of one another. What is left open in the middle is the margin you have against noise and timing error.',
+ legend:[['#58a6ff','traces'],['#3fb950','upper rail'],['#f85149','lower rail'],['#e3b341','decision instant']]},
+{title:'Where the Interference Comes From',aux:'Eye opening against timing offset',
+ eq:'y(kT) = a<sub>k</sub>·p(0) + Σ<sub>m≠k</sub> a<sub>m</sub>·p((k−m)T)',
+ desc:'Each pulse drawn separately, with their sum on top. The second term is the ISI — and every neighbour contributes to it.',
+ legend:[['#3fb950','a +1 pulse'],['#f0883e','a −1 pulse'],['#e6edf3','the sum'],['#f85149','a bad sample']]},
+{title:'What Roll-off Costs',aux:'Bandwidth against timing tolerance',
+ eq:'B = (1 + β)/(2T) &nbsp;&nbsp;·&nbsp;&nbsp; β = 0 gives the Nyquist minimum 1/(2T)',
+ desc:'Roll-off buys faster-decaying tails and a more forgiving clock, and pays for it in spectrum. Real systems sit between 0.2 and 0.35.',
+ legend:[['#58a6ff','your β'],['#f0883e','bandwidth'],['#d2a8ff','tail decay'],['#e9c46a','other roll-offs']]}
+];
+const INFO=[
+`<strong>Zero ISI does not mean a short pulse.</strong> It means a pulse that happens to be zero at every sampling instant except its own.
+<ul>
+<li><strong>Start with the rectangle.</strong> It is confined to one symbol period, so of course it causes no ISI — but its spectrum is a sinc that never really ends, which is unusable in a band-limited channel.</li>
+<li><strong>Now the sinc pulse.</strong> The opposite extreme: the narrowest spectrum physically possible, exactly 1/2T. It stretches across dozens of symbols yet still hits zero at every neighbour. Beautiful, and almost unusable — its tails decay as 1/t, so the tiniest timing error lets a thousand distant symbols leak in.</li>
+<li><strong>The raised cosine is the compromise</strong>, and the β slider is the dial. It keeps the exact zero crossings while making the tails decay as 1/t³.</li>
+<li><strong>The lower panel is the real test.</strong> Nyquist's criterion says a pulse causes no ISI exactly when its spectrum, shifted by every multiple of the symbol rate and summed, is flat. Watch the purple copies overlap and add to a constant — and watch the bandwidth-starved shape fail it.</li>
+<li><strong>Root raised cosine fails this test on its own</strong>, and that is correct. It is designed to be used at both ends: RRC × RRC = RC, so the ISI vanishes only after the receiver's matched filter.</li>
+</ul>`,
+`<strong>The single most useful picture in digital communications.</strong> Slice the waveform every two symbol periods and overlay the slices; the pattern that emerges shows every impairment at once.
+<ul>
+<li><strong>Vertical opening is noise margin.</strong> It is the gap between the lowest "1" and the highest "0" at the decision instant — how much noise it takes to cause an error.</li>
+<li><strong>Horizontal opening is timing margin.</strong> A wide eye means the sampling clock can drift without the decision going wrong. Drag the timing offset and watch the margin disappear.</li>
+<li><strong>Add noise and the traces fur up</strong> but the eye closes symmetrically. Add ISI instead — choose the bandwidth-starved pulse — and the eye closes in a structured, lopsided way. The shape of the closure tells you which impairment you have.</li>
+<li><strong>Try β = 0 with a timing offset of 0.2T.</strong> The sinc-like tails mean distant symbols still contribute, and the eye collapses far faster than raised cosine with β = 0.35 does.</li>
+<li>An oscilloscope triggered on the symbol clock draws exactly this picture from a live signal, which is why eye masks are written into standards as pass/fail templates.</li>
+</ul>`,
+`<strong>ISI is just superposition.</strong> The receiver samples the sum of all the pulses, and every pulse other than the wanted one contributes an error term at that instant.
+<ul>
+<li><strong>Each faint curve is one symbol's pulse</strong>; the white curve is their sum. At a well-behaved sampling instant every faint curve except one is passing through zero, so the sum equals the symbol you wanted.</li>
+<li><strong>The printed number above each sample</strong> is what the receiver actually measures. With a good pulse they are all ±1.00; with a bad one they wander, and once one crosses zero you have a bit error with no noise present at all.</li>
+<li><strong>Worst-case ISI</strong> assumes every neighbouring symbol takes the sign that hurts most: Σ|p(kT)| over k ≠ 0. If that exceeds p(0), some data pattern closes the eye completely, and no amount of transmit power will fix it.</li>
+<li><strong>Slide the timing offset.</strong> Away from the exact instant, the neighbouring pulses are no longer zero — which is why ISI and timing recovery are the same problem wearing different hats.</li>
+<li>Equalisers exist to undo precisely this term, by estimating the channel's pulse response and subtracting the interference it predicts.</li>
+</ul>`,
+`<strong>Bandwidth is the price of a forgiving clock.</strong> The raised cosine's bandwidth is (1+β)/2T, so β is literally the fraction of excess bandwidth you are buying.
+<ul>
+<li><strong>β = 0</strong> is the Nyquist minimum, 1/2T — one hertz per symbol per second, the theoretical floor. It is also unbuildable: the filter is non-causal and the timing tolerance is essentially nil.</li>
+<li><strong>β = 1</strong> doubles the occupied bandwidth from the minimum and gives you tails that die away quickly and a clock that can be sloppy.</li>
+<li><strong>Real systems land between 0.2 and 0.35</strong> — 20 to 35% excess bandwidth. DVB-S uses 0.35, LTE around 0.22, and the choice is exactly this curve.</li>
+<li><strong>The two curves below cross the interesting region together.</strong> Going from β = 0.2 to 0.5 buys a large improvement in timing tolerance for a modest bandwidth increase; past about 0.6 you are paying spectrum for very little extra margin.</li>
+<li>Combine this with the <a href="digital-modulation.html">BER demo</a> and you have the whole link budget: constellation size sets bits per symbol, roll-off sets hertz per symbol, and E<sub>b</sub>/N₀ sets whether any of it survives the noise.</li>
+</ul>`
+];
+
+/* ================= meters ================= */
+const MET=[
+  ['pulse',()=>P().name],
+  ['β',()=>(S.shape==='rc'||S.shape==='rrc'||S.shape==='limited')?S.beta.toFixed(2):'—'],
+  ['bandwidth B·T',()=>{
+    if(S.shape==='rc'||S.shape==='rrc') return ((1+S.beta)/2).toFixed(3);
+    if(S.shape==='sinc') return '0.500';
+    return '∞'; }],
+  ['p(0)',()=>pulse(0).toFixed(4)],
+  ['p(T)',()=>pulse(1).toFixed(6)],
+  ['p(2T)',()=>pulse(2).toFixed(6)],
+  ['worst-case ISI',()=>worstISI().toFixed(4)],
+  ['Nyquist test',()=>{
+    let dev=0;
+    for(let i=0;i<=200;i++){ const f=-0.5+i/200;
+      let s=0; for(let k=-3;k<=3;k++) s+=P().spec(f-k);
+      dev=Math.max(dev,Math.abs(s-1)); }
+    return dev<0.02?'passes':'fails ('+dev.toFixed(3)+')'; }],
+  ['timing offset',()=>S.tau.toFixed(2)+' T'],
+  ['noise σ',()=>S.noise.toFixed(3)]
+];
+document.getElementById('meters').innerHTML=MET.map((m,i)=>
+  `<div class="meter"><div class="ml">${m[0]}</div><div class="mv" id="mv${i}">—</div></div>`).join('');
+function updateMeters(){ MET.forEach((m,i)=>{
+  const el=document.getElementById('mv'+i); if(el) el.textContent=String(m[1]()); }); }
+
+/* ================= presets ================= */
+document.getElementById('presets').innerHTML=Object.keys(SHAPES).map(k=>
+  `<div class="preset" data-s="${k}">${SHAPES[k].name}</div>`).join('');
+document.querySelectorAll('.preset').forEach(el=>el.addEventListener('click',()=>{
+  S.shape=el.dataset.s; markShape(); draw();
+}));
+function markShape(){ document.querySelectorAll('.preset').forEach(el=>
+  el.classList.toggle('active',el.dataset.s===S.shape)); }
+
+/* ================= dispatch ================= */
+function draw(){
+  if(S.tab===0) drawPulse();
+  else if(S.tab===1) drawEye();
+  else if(S.tab===2) drawISI();
+  else drawBandwidth();
+  updateMeters();
+}
+const $=id=>document.getElementById(id);
+const TAB_SLUGS=['pulse','eye','isi','bandwidth'];
+function setTab(t,skipHash){
+  S.tab=t;
+  if(!skipHash && typeof location!=='undefined' && typeof history!=='undefined' && history.replaceState){
+    try{ history.replaceState(null,'','#'+TAB_SLUGS[t]); }catch(e){}
+  }
+  document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active',+el.dataset.tab===t));
+  const T=TABS[t];
+  $('mainTitle').textContent=T.title; $('auxTitle').textContent=T.aux;
+  $('eqText').innerHTML=T.eq; $('eqDesc').textContent=T.desc;
+  $('legend').innerHTML=T.legend.map(l=>
+    `<div class="legend-item"><div class="legend-dot" style="background:${l[0]}"></div>${l[1]}</div>`).join('');
+  $('info').innerHTML=INFO[t];
+  document.querySelectorAll('.cg[data-tabs]').forEach(el=>
+    el.classList.toggle('hidden',!el.dataset.tabs.split(',').includes(String(t))));
+  document.getElementById('presets').classList.toggle('hidden',t===3);
+  draw();
+}
+document.querySelectorAll('.tab').forEach(el=>el.addEventListener('click',()=>setTab(+el.dataset.tab)));
+
+/* ================= controls ================= */
+$('slBeta').addEventListener('input',e=>{ S.beta=+e.target.value; $('vBeta').textContent=S.beta.toFixed(2); draw(); });
+$('slNoise').addEventListener('input',e=>{ S.noise=+e.target.value; $('vNoise').textContent=S.noise.toFixed(3); draw(); });
+$('slTau').addEventListener('input',e=>{ S.tau=+e.target.value; $('vTau').textContent=S.tau.toFixed(2)+' T'; draw(); });
+$('slN').addEventListener('input',e=>{ S.n=+e.target.value; $('vN').textContent=S.n; newBits(); draw(); });
+$('ckMask').addEventListener('change',e=>{ S.mask=e.target.checked; draw(); });
+$('btnRerun').addEventListener('click',()=>{ newBits(); draw(); });
+$('btnReset').addEventListener('click',()=>{
+  Object.assign(S,{shape:'rc',beta:0.35,noise:0,tau:0,n:150,mask:true});
+  $('slBeta').value=0.35; $('vBeta').textContent='0.35';
+  $('slNoise').value=0; $('vNoise').textContent='0.000';
+  $('slTau').value=0; $('vTau').textContent='0.00 T';
+  $('slN').value=150; $('vN').textContent='150';
+  $('ckMask').checked=true; newBits(); markShape(); draw(); });
+
+let startTab=0;
+if(typeof location!=='undefined' && location.hash){
+  const i=TAB_SLUGS.indexOf(location.hash.replace('#','').toLowerCase());
+  if(i>=0) startTab=i;
+}
+newBits(); markShape(); setTab(startTab,true);
+</script>
+</body>
+</html>
