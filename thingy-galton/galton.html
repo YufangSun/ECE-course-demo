@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Galton Board</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',system-ui,sans-serif;
+    display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:14px}
+  h1{font-size:1.35em;color:#e0e0ff}
+  .subtitle{color:#7d8590;margin-bottom:8px;font-size:.9em;text-align:center;max-width:880px}
+  canvas{display:block;border-radius:10px;max-width:100%}
+  .eq-box{background:#161b22;border:1px solid #30363d;border-radius:10px;
+    padding:8px 14px;margin:6px 0;max-width:1080px;width:100%;text-align:center}
+  .eq{font-size:1.02em;font-family:'Times New Roman',serif;color:#e0e0ff}
+  .eq-desc{font-size:.78em;color:#7d8590;margin-top:3px}
+  .legend{display:flex;gap:12px;justify-content:center;margin:6px 0;flex-wrap:wrap}
+  .legend-item{display:flex;align-items:center;gap:4px;font-size:.76em;color:#8b949e}
+  .legend-dot{width:9px;height:9px;border-radius:50%}
+  .row{display:flex;gap:12px;justify-content:center;margin-top:8px;max-width:1080px;width:100%}
+  .panel{background:#161b22;border-radius:12px;padding:12px;border:1px solid #30363d;width:100%}
+  .panel h2{font-size:.86em;color:#8b949e;margin-bottom:6px;text-align:center}
+  .meters{display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap;max-width:1080px}
+  .meter{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:4px 10px;text-align:center;min-width:94px}
+  .meter .ml{font-size:.68em;color:#8b949e}
+  .meter .mv{font-size:.88em;font-weight:bold;font-family:'Courier New',monospace;color:#e6edf3}
+  .controls{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;justify-content:center;align-items:center;
+    max-width:1080px;width:100%;background:#161b22;border:1px solid #30363d;border-radius:12px;padding:12px}
+  .cg{display:flex;align-items:center;gap:5px}
+  .cg label{font-size:.78em;color:#8b949e;white-space:nowrap}
+  input[type="range"]{width:120px;accent-color:#58a6ff}
+  .val{font-size:.78em;color:#58a6ff;min-width:46px;font-family:'Courier New',monospace}
+  button{background:#238636;color:white;border:none;padding:6px 14px;border-radius:6px;
+    cursor:pointer;font-size:.82em;transition:.2s}
+  button:hover{background:#2ea043}
+  button.sec{background:#30363d}
+  button.sec:hover{background:#484f58}
+  .info{max-width:1080px;width:100%;background:#161b22;border-radius:12px;
+    padding:14px 18px;border:1px solid #30363d;margin-top:14px;font-size:.83em;line-height:1.65;color:#8b949e}
+  .info strong{color:#e0e0ff}
+  .info code{color:#f0883e;background:#21262d;padding:1px 5px;border-radius:3px}
+  .info ul{margin:6px 0 0 20px}
+  .info li{margin:3px 0}
+</style>
+</head>
+<body>
+
+<h1>Galton Board</h1>
+<p class="subtitle">Every peg is one coin flip. The bin a ball lands in counts its right turns &mdash; so the pile that builds up is a binomial distribution, and for many rows, a bell curve.</p>
+
+<div class="eq-box">
+  <div class="eq">bin = &Sigma; Bernoulli(p) ~ Binomial(n, p) &nbsp;&rarr;&nbsp; N(np, np(1&minus;p)) &nbsp;(de Moivre&ndash;Laplace)</div>
+  <div class="eq-desc">Set the fall speed to <em>slow</em> and a single ball falls on its own, trailing the route it took.</div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#d2a8ff"></div>falling ball</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#58a6ff"></div>accumulated bins</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#3fb950"></div>exact Binomial pmf</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f0883e"></div>Normal approximation</div>
+</div>
+
+<div class="row"><div class="panel">
+  <h2>Galton Board &mdash; Binomial Built One Bounce at a Time</h2>
+  <canvas id="mainCanvas" width="1080" height="600"></canvas>
+</div></div>
+<div class="row"><div class="panel">
+  <h2>Convergence to the pmf, and the normal approximation</h2>
+  <canvas id="auxCanvas" width="1080" height="250"></canvas>
+</div></div>
+
+<div class="meters" id="meters"></div>
+
+<div class="controls">
+  <div class="cg"><label>Rows:</label>
+    <input type="range" id="slRows" min="4" max="20" step="1" value="12">
+    <span class="val" id="vRows">12</span></div>
+  <div class="cg"><label>P(bounce right):</label>
+    <input type="range" id="slGp" min="0.1" max="0.9" step="0.01" value="0.5">
+    <span class="val" id="vGp">0.50</span></div>
+  <div class="cg"><label>Fall speed:</label>
+    <input type="range" id="slFall" min="0.015" max="0.3" step="0.005" value="0.1">
+    <span class="val" id="vFall">normal</span></div>
+  <div class="cg"><button id="btnRun">&#9208; Pause</button></div>
+  <div class="cg"><button class="sec" id="btnDrop1">Drop 1 ball</button></div>
+  <div class="cg"><button class="sec" id="btnDrop">Drop 200</button></div>
+  <div class="cg"><button class="sec" id="btnReset">Reset</button></div>
+</div>
+
+<div class="info">
+<strong>A mechanical proof of the binomial.</strong> A ball meeting a peg goes right with probability p, and the row it lands in counts how many rights it took. That is the definition of a binomial random variable, built out of physical Bernoulli trials.
+<ul>
+<li><strong>Follow one ball.</strong> Set the fall speed to <em>slow</em> (or press &ldquo;Drop 1 ball&rdquo;) and a single ball falls on its own, trailing its route. The letters under the board are its left/right sequence, and the bin it ends in is nothing more than the number of R&rsquo;s.</li>
+<li><strong>Watch the exact pmf appear.</strong> The green steps are C(n,k)p<sup>k</sup>(1&minus;p)<sup>n&minus;k</sup>, drawn before any ball falls. The blue bars climb to meet them &mdash; that is the law of large numbers acting on each bin&rsquo;s relative frequency.</li>
+<li><strong>The dashed orange curve is de Moivre&ndash;Laplace</strong>, the central limit theorem&rsquo;s first historical special case: Binomial(n, p) &asymp; N(np, np(1&minus;p)). Set rows to 4 and the fit is poor; at 20 rows it is excellent.</li>
+<li><strong>Skew the pegs.</strong> With p = 0.1 the pile bunches against the left wall and the normal approximation overhangs into impossible negative bins &mdash; the usual guidance is that np and n(1&minus;p) should both exceed about 5.</li>
+<li><strong>Total variation distance</strong> between the measured histogram and the true pmf is plotted below; it shrinks like 1/&radic;(balls), independently of how good the normal approximation is. Two different convergences, happening at once.</li>
+</ul>
+</div>
+
+<script>
+const SQ2PI=Math.sqrt(2*Math.PI);
+const normPdf=z=>Math.exp(-z*z/2)/SQ2PI;
+function logGamma(x){
+  const g=[76.18009172947146,-86.50532032941677,24.01409824083091,-1.231739572450155,0.1208650973866179e-2,-0.5395239384953e-5];
+  let y=x, tmp=x+5.5; tmp-=(x+0.5)*Math.log(tmp); let ser=1.000000000190015;
+  for(let j=0;j<6;j++) ser+=g[j]/++y;
+  return -tmp+Math.log(2.5066282746310005*ser/x);
+}
+
+function clear(ctx,c){ ctx.fillStyle='#0d1117'; ctx.fillRect(0,0,c.width,c.height); }
+function txt(ctx,s,x,y,col,font,align){
+  ctx.fillStyle=col||'#8b949e'; ctx.font=font||'11px Segoe UI';
+  ctx.textAlign=align||'center'; ctx.textBaseline='middle'; ctx.fillText(s,x,y);
+}
+
+function txt(ctx,s,x,y,col,font,align){
+  ctx.fillStyle=col||'#8b949e'; ctx.font=font||'11px Segoe UI';
+  ctx.textAlign=align||'center'; ctx.textBaseline='middle'; ctx.fillText(s,x,y);
+}
+
+function line(ctx,x1,y1,x2,y2,col,w,dash){
+  ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=w||1; if(dash)ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); ctx.restore();
+}
+
+function dot(ctx,x,y,r,col){ ctx.fillStyle=col; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); }
+function roundRect(ctx,x,y,w,h,r,fill,stroke){
+  ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+  if(fill){ctx.fillStyle=fill;ctx.fill();} if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1.4;ctx.stroke();}
+}
+
+function roundRect(ctx,x,y,w,h,r,fill,stroke){
+  ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+  if(fill){ctx.fillStyle=fill;ctx.fill();} if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1.4;ctx.stroke();}
+}
+
+function frame(ctx,x,y,w,h,x0,x1,y0,y1,xlabel,ylabel,title){
+  const X=v=>x+(v-x0)/(x1-x0)*w, Y=v=>y+h-(v-y0)/(y1-y0)*h;
+  ctx.strokeStyle='#30363d'; ctx.lineWidth=1; ctx.strokeRect(x,y,w,h);
+  if(title) txt(ctx,title,x+w/2,y-12,'#8b949e','bold 11px Segoe UI');
+  if(xlabel) txt(ctx,xlabel,x+w/2,y+h+26,'#6e7681','10px Segoe UI');
+  if(ylabel){ ctx.save(); ctx.translate(x-34,y+h/2); ctx.rotate(-Math.PI/2);
+    txt(ctx,ylabel,0,0,'#6e7681','10px Segoe UI'); ctx.restore(); }
+  return {X,Y,x,y,w,h,x0,x1,y0,y1};
+}
+
+function xticks(ctx,F,vals,fmt){
+  vals.forEach(v=>{ const xx=F.X(v);
+    line(ctx,xx,F.y,xx,F.y+F.h,'#21262d',1);
+    line(ctx,xx,F.y+F.h,xx,F.y+F.h+4,'#484f58',1);
+    txt(ctx,fmt?fmt(v):String(+v.toFixed(3)),xx,F.y+F.h+13,'#6e7681','9px Segoe UI'); });
+}
+
+function yticks(ctx,F,vals,fmt){
+  vals.forEach(v=>{ const yy=F.Y(v);
+    line(ctx,F.x,yy,F.x+F.w,yy,'#21262d',1);
+    txt(ctx,fmt?fmt(v):String(+v.toFixed(2)),F.x-6,yy,'#6e7681','9px Segoe UI','right'); });
+}
+
+function niceTicks(a,b,count){
+  const span=b-a, raw=span/count, mag=Math.pow(10,Math.floor(Math.log10(raw)));
+  const norm=raw/mag, step=(norm<1.5?1:norm<3?2:norm<7?5:10)*mag;
+  const out=[]; for(let v=Math.ceil(a/step)*step; v<=b+1e-9; v+=step) out.push(+v.toFixed(10));
+  return out;
+}
+
+function galtonGeom(){
+  const R=S.rows;
+  const boardTop=34, boardH=228, pegGap=boardH/R;
+  const colW=Math.min(54,990/(R+1));
+  const cx=mainC.width/2;
+  const hy=boardTop+boardH+40, hh=mainC.height-hy-48;
+  const hx=cx-(R*colW)/2-colW/2, hw=(R+1)*colW;
+  return {R,boardTop,boardH,pegGap,colW,cx,hy,hh,hx,hw,
+    pegX:(row,k)=>cx+(k-row/2)*colW, pegY:row=>boardTop+row*pegGap};
+}
+
+function galtonTV(){
+  if(!S.dropped) return null;
+  let tv=0;
+  for(let b=0;b<=S.rows;b++) tv+=Math.abs(S.bins[b]/S.dropped-binomPmf(b,S.rows,S.gp));
+  return tv/2;
+}
+
+function drawGalton(){
+  clear(mx,mainC);
+  const G=galtonGeom(), R=G.R;
+  const mu=R*S.gp, sg=Math.sqrt(R*S.gp*(1-S.gp));
+
+  // ---------- peg board ----------
+  for(let row=0;row<R;row++)
+    for(let k=0;k<=row;k++) dot(mx,G.pegX(row,k),G.pegY(row),2.6,'#484f58');
+  txt(mx,S.dropped.toLocaleString()+' balls',G.cx,15,'#e6edf3','bold 13px Segoe UI');
+  txt(mx,'each peg: go right with probability p = '+S.gp.toFixed(2),G.cx,G.boardTop-6,'#6e7681','10px Segoe UI');
+
+  // ---------- histogram, on a probability axis ----------
+  let ymax=0;
+  for(let b=0;b<=R;b++)
+    ymax=Math.max(ymax,binomPmf(b,R,S.gp),S.dropped?S.bins[b]/S.dropped:0);
+  ymax*=1.22; if(!(ymax>0)) ymax=1;
+  const Y=v=>G.hy+G.hh-(v/ymax)*G.hh;
+
+  mx.strokeStyle='#30363d'; mx.lineWidth=1; mx.strokeRect(G.hx,G.hy,G.hw,G.hh);
+  niceTicks(0,ymax,5).forEach(v=>{
+    const yy=Y(v); if(yy<G.hy-1) return;
+    line(mx,G.hx,yy,G.hx+G.hw,yy,'#21262d',1);
+    txt(mx,v.toFixed(2),G.hx-7,yy,'#6e7681','9px Segoe UI','right');
+  });
+  txt(mx,'probability',G.hx-7,G.hy-11,'#8b949e','10px Segoe UI','right');
+
+  // empirical bars
+  const bw=G.colW*0.74;
+  for(let b=0;b<=R;b++){
+    const x=G.pegX(R,b);
+    if(S.dropped){
+      const f=S.bins[b]/S.dropped;
+      const g=mx.createLinearGradient(0,Y(f),0,G.hy+G.hh);
+      g.addColorStop(0,'#79c0ff'); g.addColorStop(1,'#1f6feb');
+      mx.fillStyle=g; mx.fillRect(x-bw/2,Y(f),bw,G.hy+G.hh-Y(f));
+      if(R<=14&&f>0.004) txt(mx,S.bins[b].toLocaleString(),x,Y(f)-8,'#8b949e','9px Segoe UI');
+    }
+    if(R<=16||b%2===0) txt(mx,String(b),x,G.hy+G.hh+13,'#6e7681','9px Segoe UI');
+  }
+  txt(mx,'bin k  =  number of right turns',G.cx,G.hy+G.hh+30,'#6e7681','10px Segoe UI');
+
+  // exact binomial pmf, drawn as a step outline so it reads against the bars
+  mx.strokeStyle='#3fb950'; mx.lineWidth=2.4; mx.beginPath();
+  for(let b=0;b<=R;b++){
+    const x=G.pegX(R,b), y=Y(binomPmf(b,R,S.gp));
+    if(b===0) mx.moveTo(x-bw/2,y); else mx.lineTo(x-bw/2,y);
+    mx.lineTo(x+bw/2,y);
+  }
+  mx.stroke();
+  for(let b=0;b<=R;b++) dot(mx,G.pegX(R,b),Y(binomPmf(b,R,S.gp)),2.8,'#3fb950');
+
+  // normal approximation
+  mx.save(); mx.beginPath(); mx.rect(G.hx,G.hy,G.hw,G.hh); mx.clip();
+  mx.strokeStyle='#f0883e'; mx.lineWidth=2; mx.setLineDash([5,4]); mx.beginPath();
+  for(let i=0;i<=300;i++){
+    const b=-0.5+(R+1)*i/300;
+    const x=G.pegX(R,b), y=Y(normPdf((b-mu)/sg)/sg);
+    i?mx.lineTo(x,y):mx.moveTo(x,y);
+  }
+  mx.stroke(); mx.setLineDash([]); mx.restore();
+
+  // ---------- falling balls (one extra unit of travel = the drop into the bin) ----------
+  const trace=S.balls.length<=3;      // few enough in flight to draw each path without clutter
+  S.balls.forEach(B=>{
+    if(B.done) return;
+    B.t+=S.fallSpeed;
+    if(B.t>=R+1){ B.done=true; S.bins[B.bin]++; S.dropped++; return; }
+    const row=Math.min(Math.floor(B.t),R);
+    let k=0; for(let j=0;j<row;j++) k+=B.path[j];
+    let x,y;
+    if(B.t<R){
+      const f=B.t-row;
+      const x0=G.pegX(row,k), y0=G.pegY(row);
+      const k1=k+B.path[row], x1=G.pegX(row+1,k1), y1=G.pegY(row+1);
+      x=x0+(x1-x0)*f; y=y0+(y1-y0)*f-Math.sin(f*Math.PI)*4;
+    } else {
+      const f=B.t-R;
+      x=G.pegX(R,B.bin);
+      y=G.pegY(R)+(G.hy-G.pegY(R))*f*f;
+    }
+    if(trace){
+      // the route taken so far, peg to peg
+      mx.save(); mx.strokeStyle='rgba(210,168,255,0.5)'; mx.lineWidth=1.6;
+      mx.beginPath(); mx.moveTo(G.pegX(0,0),G.pegY(0));
+      let kk=0;
+      for(let j=0;j<row;j++){ kk+=B.path[j]; mx.lineTo(G.pegX(j+1,kk),G.pegY(j+1)); }
+      mx.lineTo(x,y); mx.stroke(); mx.restore();
+      for(let j=0;j<row;j++){ let k2=0; for(let q=0;q<j;q++) k2+=B.path[q];
+        dot(mx,G.pegX(j,k2),G.pegY(j),3.2,'rgba(210,168,255,0.55)'); }
+      if(S.balls.length===1&&R<=20){
+        const seq=B.path.slice(0,row).map(v=>v?'R':'L').join('');
+        txt(mx,(seq||'—')+'    rights so far: '+k,G.cx,G.boardTop+G.boardH+16,'#d2a8ff','bold 11px Courier New');
+      }
+    }
+    dot(mx,x,y,trace?4.6:3.6,'#d2a8ff');
+  });
+  S.balls=S.balls.filter(B=>!B.done);
+
+  // record the convergence trace at roughly log-spaced intervals
+  if(S.dropped>=S.nextRec){
+    S.tvHistory.push({n:S.dropped,tv:galtonTV()});
+    S.nextRec=Math.max(S.nextRec+1,Math.ceil(S.nextRec*1.12));
+  }
+  drawGaltonAux(mu,sg);
+}
+
+function drawGaltonAux(mu,sg){
+  clear(ax,auxC);
+  const R=S.rows;
+
+  // ----- left: how fast the histogram converges to the true pmf -----
+  const nMax=Math.max(200,S.dropped*1.3);
+  const F=frame(ax,80,34,430,180,1,Math.log10(nMax),-3,0,
+    'balls dropped  (log scale)','log₁₀ total-variation distance','Histogram → exact pmf  (LLN)');
+  const tks=[];
+  for(let e=1;e<=Math.ceil(Math.log10(nMax));e++) for(const m of [1,2,5]){ const v=m*Math.pow(10,e); if(v<=nMax) tks.push(v); }
+  tks.forEach(v=>{ const xx=F.X(Math.log10(v)); line(ax,xx,F.y,xx,F.y+F.h,'#21262d',1);
+    txt(ax,v>=1000?(v/1000)+'k':String(v),xx,F.y+F.h+13,'#6e7681','9px Segoe UI'); });
+  [-3,-2,-1,0].forEach(v=>{ const yy=F.Y(v); line(ax,F.x,yy,F.x+F.w,yy,'#21262d',1);
+    txt(ax,'10^'+v,F.x-6,yy,'#6e7681','9px Segoe UI','right'); });
+  // 1/sqrt(n) reference
+  ax.strokeStyle='#3fb950'; ax.lineWidth=1.8; ax.setLineDash([5,4]); ax.beginPath();
+  for(let i=0;i<=100;i++){ const L=1+(Math.log10(nMax)-1)*i/100;
+    const v=Math.log10(0.8/Math.sqrt(Math.pow(10,L)));
+    i?ax.lineTo(F.X(L),F.Y(v)):ax.moveTo(F.X(L),F.Y(v)); }
+  ax.stroke(); ax.setLineDash([]);
+  txt(ax,'∝ 1/√(balls)',F.x+F.w-12,F.Y(Math.log10(0.8/Math.sqrt(nMax)))-10,'#3fb950','9px Segoe UI','right');
+  if(S.tvHistory.length>1){
+    ax.strokeStyle='#58a6ff'; ax.lineWidth=2; ax.beginPath();
+    let st=false;
+    S.tvHistory.forEach(h=>{ if(h.n<10||!h.tv) return;
+      const X=F.X(Math.log10(h.n)), Yv=F.Y(Math.max(Math.log10(h.tv),-3));
+      st?ax.lineTo(X,Yv):ax.moveTo(X,Yv); st=true; });
+    ax.stroke();
+    const last=S.tvHistory[S.tvHistory.length-1];
+    if(last.tv) dot(ax,F.X(Math.log10(last.n)),F.Y(Math.max(Math.log10(last.tv),-3)),4,'#58a6ff');
+  } else {
+    txt(ax,'drop some balls',F.x+F.w/2,F.y+F.h/2,'#484f58','11px Segoe UI');
+  }
+
+  // ----- right: the same pmf standardized, against N(0,1) -----
+  const G=frame(ax,620,34,390,180,-4,4,0,1,'z = (k − np)/√(np(1−p))','density',
+    'Standardized — de Moivre–Laplace');
+  let dm=normPdf(0);
+  for(let b=0;b<=R;b++) dm=Math.max(dm,binomPmf(b,R,S.gp)*sg);
+  dm*=1.2;
+  const Y2=v=>G.y+G.h-(v/dm)*G.h;
+  xticks(ax,G,[-4,-3,-2,-1,0,1,2,3,4]);
+  yticks(ax,G,niceTicks(0,dm,4),v=>v.toFixed(2));
+  ax.strokeStyle='#3fb950'; ax.lineWidth=2.2; ax.beginPath();
+  for(let i=0;i<=200;i++){ const z=-4+8*i/200; i?ax.lineTo(G.X(z),Y2(normPdf(z))):ax.moveTo(G.X(z),Y2(normPdf(z))); }
+  ax.stroke();
+  for(let b=0;b<=R;b++){
+    const z=(b-mu)/sg; if(Math.abs(z)>4) continue;
+    const h=binomPmf(b,R,S.gp)*sg;                      // pmf → density on the z axis
+    line(ax,G.X(z),G.y+G.h,G.X(z),Y2(h),'#d2a8ff',2);
+    dot(ax,G.X(z),Y2(h),2.6,'#d2a8ff');
+    if(S.dropped){
+      const he=S.bins[b]/S.dropped*sg;
+      dot(ax,G.X(z),Y2(he),2.4,'#58a6ff');
+    }
+  }
+  txt(ax,'stems = exact pmf × σ    dots = measured    curve = N(0,1)',G.x+G.w/2,G.y+G.h+30,'#6e7681','9px Segoe UI');
+
+  let em=0,ev=0;
+  if(S.dropped){
+    for(let b=0;b<=R;b++) em+=b*S.bins[b]/S.dropped;
+    for(let b=0;b<=R;b++) ev+=(b-em)*(b-em)*S.bins[b]/S.dropped;
+  }
+  const tv=galtonTV();
+  txt(ax,'np = '+mu.toFixed(3)+'   σ = '+sg.toFixed(3)+
+        (S.dropped?('      measured mean = '+em.toFixed(3)+'   sd = '+Math.sqrt(ev).toFixed(3)+
+                    '      total-variation distance = '+tv.toFixed(4)):''),
+      auxC.width/2,auxC.height-9,'#8b949e','11px Courier New');
+}
+
+function resetGalton(){ S.balls=[]; S.bins=new Array(S.rows+1).fill(0); S.dropped=0;
+  S.tvHistory=[]; S.nextRec=10; }
+function dropBalls(k){
+  for(let i=0;i<k;i++){
+    const path=[]; let r=0;
+    for(let j=0;j<S.rows;j++){ const right=Math.random()<S.gp; path.push(right?1:0); r+=right?1:0; }
+    S.balls.push({path,bin:r,row:0,t:Math.random()*0.4,done:false});
+  }
+}
+
+function dropBalls(k){
+  for(let i=0;i<k;i++){
+    const path=[]; let r=0;
+    for(let j=0;j<S.rows;j++){ const right=Math.random()<S.gp; path.push(right?1:0); r+=right?1:0; }
+    S.balls.push({path,bin:r,row:0,t:Math.random()*0.4,done:false});
+  }
+}
+const logFact=n=>logGamma(n+1);
+const binomPmf=(k,n,p)=>Math.exp(logFact(n)-logFact(k)-logFact(n-k)+k*Math.log(p)+(n-k)*Math.log(1-p));
+
+const S={ rows:12, gp:0.5, fallSpeed:0.1, balls:[], bins:[], dropped:0,
+          tvHistory:[], nextRec:10, running:true };
+const mainC=document.getElementById('mainCanvas'), mx=mainC.getContext('2d');
+const auxC=document.getElementById('auxCanvas'),  ax=auxC.getContext('2d');
+
+const MET=[
+  ['Rows n',()=>S.rows],
+  ['p',()=>S.gp.toFixed(2)],
+  ['Balls',()=>S.dropped.toLocaleString()],
+  ['np',()=>(S.rows*S.gp).toFixed(3)],
+  ['sigma',()=>Math.sqrt(S.rows*S.gp*(1-S.gp)).toFixed(3)],
+  ['Measured mean',()=>{ if(!S.dropped) return '-';
+    let m=0; for(let b=0;b<=S.rows;b++) m+=b*S.bins[b]/S.dropped; return m.toFixed(3); }],
+  ['Measured sd',()=>{ if(!S.dropped) return '-';
+    let m=0,v=0;
+    for(let b=0;b<=S.rows;b++) m+=b*S.bins[b]/S.dropped;
+    for(let b=0;b<=S.rows;b++) v+=(b-m)*(b-m)*S.bins[b]/S.dropped;
+    return Math.sqrt(v).toFixed(3); }],
+  ['Total variation',()=>{ const t=galtonTV(); return t===null?'-':t.toFixed(4); }],
+  ['In flight',()=>S.balls.length],
+  ['Fall speed',()=>S.fallSpeed<0.05?'slow':S.fallSpeed<0.12?'normal':'fast']
+];
+document.getElementById('meters').innerHTML=MET.map((m,i)=>
+  '<div class="meter"><div class="ml">'+m[0]+'</div><div class="mv" id="mv'+i+'">-</div></div>').join('');
+function updateMeters(){ MET.forEach((m,i)=>{
+  const el=document.getElementById('mv'+i); if(el) el.textContent=String(m[1]()); }); }
+
+const $=id=>document.getElementById(id);
+$('slRows').addEventListener('input',e=>{ S.rows=+e.target.value; $('vRows').textContent=S.rows;
+  resetGalton(); });
+$('slGp').addEventListener('input',e=>{ S.gp=+e.target.value; $('vGp').textContent=S.gp.toFixed(2);
+  resetGalton(); });
+$('slFall').addEventListener('input',e=>{ S.fallSpeed=+e.target.value;
+  $('vFall').textContent=S.fallSpeed<0.05?'slow':S.fallSpeed<0.12?'normal':'fast'; });
+$('btnRun').addEventListener('click',()=>{ S.running=!S.running;
+  $('btnRun').textContent=S.running?'\u23F8 Pause':'\u25B6 Run'; });
+$('btnDrop1').addEventListener('click',()=>dropBalls(1));
+$('btnDrop').addEventListener('click',()=>dropBalls(200));
+$('btnReset').addEventListener('click',()=>resetGalton());
+
+function loop(){
+  if(S.running&&S.balls.length<90) dropBalls(3);
+  drawGalton(); updateMeters();
+  requestAnimationFrame(loop);
+}
+resetGalton(); loop();
+</script>
+</body>
+</html>
