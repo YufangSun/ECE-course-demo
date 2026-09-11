@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sampling &amp; Aliasing — ECE 440</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',system-ui,sans-serif;
+    display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:18px}
+  h1{font-size:1.5em;color:#e0e0ff}
+  .subtitle{color:#7d8590;margin-bottom:10px;font-size:.92em;text-align:center;max-width:900px}
+  canvas{display:block;border-radius:10px;max-width:100%}
+  .tabs{display:flex;gap:6px;margin:10px 0;flex-wrap:wrap;justify-content:center}
+  .tab{padding:8px 18px;border-radius:8px;cursor:pointer;font-size:.86em;
+    background:#161b22;border:1px solid #30363d;color:#8b949e;transition:.2s}
+  .tab:hover{border-color:#58a6ff;color:#e6edf3}
+  .tab.active{background:#1f6feb;border-color:#1f6feb;color:white;font-weight:bold}
+  .eq-box{background:#161b22;border:1px solid #30363d;border-radius:10px;
+    padding:8px 14px;margin:6px 0;max-width:1120px;width:100%;text-align:center}
+  .eq{font-size:1.05em;font-family:'Times New Roman',serif;color:#e0e0ff}
+  .eq-desc{font-size:.78em;color:#7d8590;margin-top:3px}
+  .legend{display:flex;gap:12px;justify-content:center;margin:6px 0;flex-wrap:wrap}
+  .legend-item{display:flex;align-items:center;gap:4px;font-size:.76em;color:#8b949e}
+  .legend-dot{width:9px;height:9px;border-radius:3px}
+  .row{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:8px;max-width:1120px;width:100%}
+  .panel{background:#161b22;border-radius:12px;padding:12px;border:1px solid #30363d;width:100%}
+  .panel h2{font-size:.88em;color:#8b949e;margin-bottom:6px;text-align:center}
+  .meters{display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap;max-width:1120px}
+  .meter{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:4px 10px;text-align:center;min-width:96px}
+  .meter .ml{font-size:.68em;color:#8b949e}
+  .meter .mv{font-size:.88em;font-weight:bold;font-family:'Courier New',monospace;color:#e6edf3}
+  .meter.bad .mv{color:#f85149}
+  .meter.good .mv{color:#3fb950}
+  .controls{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;justify-content:center;align-items:center;
+    max-width:1120px;width:100%;background:#161b22;border:1px solid #30363d;border-radius:12px;padding:12px}
+  .cg{display:flex;align-items:center;gap:5px}
+  .cg label{font-size:.78em;color:#8b949e;white-space:nowrap}
+  input[type="range"]{width:130px;accent-color:#58a6ff}
+  .val{font-size:.78em;color:#58a6ff;min-width:54px;font-family:'Courier New',monospace}
+  button{background:#238636;color:white;border:none;padding:6px 14px;border-radius:6px;
+    cursor:pointer;font-size:.82em;transition:.2s}
+  button:hover{background:#2ea043}
+  button.sec{background:#30363d}
+  button.sec:hover{background:#484f58}
+  .chk{display:flex;align-items:center;gap:4px;font-size:.76em;color:#8b949e;cursor:pointer;user-select:none}
+  .chk input{accent-color:#58a6ff;cursor:pointer}
+  .presets{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:10px;max-width:1120px}
+  .preset{padding:5px 12px;border-radius:6px;cursor:pointer;font-size:.76em;
+    background:#21262d;border:1px solid #30363d;color:#8b949e;transition:.2s}
+  .preset:hover{border-color:#58a6ff;color:#e6edf3}
+  .preset.active{background:#1f6feb;border-color:#1f6feb;color:white}
+  .preset.warn.active{background:#9e3b2e;border-color:#f85149}
+  .info{max-width:1120px;width:100%;background:#161b22;border-radius:12px;
+    padding:14px 18px;border:1px solid #30363d;margin-top:14px;font-size:.84em;line-height:1.65;color:#8b949e}
+  .info strong{color:#e0e0ff}
+  .info code{color:#f0883e;background:#21262d;padding:1px 5px;border-radius:3px;font-size:.95em}
+  .info ul{margin:6px 0 0 20px}
+  .info li{margin:3px 0}
+  .hidden{display:none!important}
+  a{color:#58a6ff}
+  .back{margin-top:16px;font-size:.82em}
+</style>
+</head>
+<body>
+
+<h1>Sampling &amp; Aliasing</h1>
+<p class="subtitle">Sample a signal too slowly and the frequencies you lose do not simply vanish — they come back wearing a disguise, and nothing downstream can tell them from the real thing.</p>
+
+<div class="tabs">
+  <div class="tab active" data-tab="0">Sampling a Tone</div>
+  <div class="tab" data-tab="1">Spectral Images</div>
+  <div class="tab" data-tab="2">Reconstruction</div>
+  <div class="tab" data-tab="3">The Folding Map</div>
+</div>
+
+<div class="eq-box">
+  <div class="eq" id="eqText"></div>
+  <div class="eq-desc" id="eqDesc"></div>
+</div>
+
+<div class="presets" id="presets"></div>
+<div class="legend" id="legend"></div>
+
+<div class="row"><div class="panel"><h2 id="mainTitle">Signal</h2>
+  <canvas id="mainCanvas" width="1080" height="430"></canvas></div></div>
+<div class="row"><div class="panel"><h2 id="auxTitle">Detail</h2>
+  <canvas id="auxCanvas" width="1080" height="260"></canvas></div></div>
+
+<div class="meters" id="meters"></div>
+
+<div class="controls">
+  <div class="cg" data-tabs="0,3"><label>signal f₀:</label>
+    <input type="range" id="slF0" min="0.25" max="40" step="0.25" value="7">
+    <span class="val" id="vF0">7.00 Hz</span></div>
+  <div class="cg"><label>sample rate f<sub>s</sub>:</label>
+    <input type="range" id="slFs" min="2" max="60" step="0.5" value="20">
+    <span class="val" id="vFs">20.0 Hz</span></div>
+  <div class="cg" data-tabs="0"><label>phase φ:</label>
+    <input type="range" id="slPh" min="0" max="360" step="1" value="0">
+    <span class="val" id="vPh">0°</span></div>
+  <div class="cg" data-tabs="1"><label>bandwidth B:</label>
+    <input type="range" id="slB" min="1" max="30" step="0.5" value="8">
+    <span class="val" id="vB">8.0 Hz</span></div>
+  <div class="cg" data-tabs="1"><label class="chk"><input type="checkbox" id="ckAA"> anti-alias filter first</label></div>
+  <div class="cg" data-tabs="2"><label>reconstruction:</label>
+    <button class="sec" id="btnRecon">ideal sinc</button></div>
+  <div class="cg" data-tabs="0"><button id="btnPlay">⏸ Pause</button></div>
+  <div class="cg"><button class="sec" id="btnReset">Reset</button></div>
+</div>
+
+<div class="info" id="info"></div>
+<div class="back"><a href="index.html">← All demos</a> &nbsp;·&nbsp; <a href="fourier.html">Fourier</a> &nbsp;·&nbsp; <a href="modulation.html">AM &amp; FM</a></div>
+
+<script>
+/* ================= helpers ================= */
+const PI=Math.PI, TAU=2*PI;
+const sinc=x=>Math.abs(x)<1e-9?1:Math.sin(PI*x)/(PI*x);
+function clear(ctx,c){ ctx.fillStyle='#0d1117'; ctx.fillRect(0,0,c.width,c.height); }
+function txt(ctx,s,x,y,col,font,align){
+  ctx.fillStyle=col||'#8b949e'; ctx.font=font||'11px Segoe UI';
+  ctx.textAlign=align||'center'; ctx.textBaseline='middle'; ctx.fillText(s,x,y);
+}
+function line(ctx,x1,y1,x2,y2,col,w,dash){
+  ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=w||1; if(dash)ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); ctx.restore();
+}
+function dot(ctx,x,y,r,col){ ctx.fillStyle=col; ctx.beginPath(); ctx.arc(x,y,r,0,TAU); ctx.fill(); }
+function niceTicks(a,b,count){
+  const span=b-a||1, raw=span/count, mag=Math.pow(10,Math.floor(Math.log10(raw)));
+  const norm=raw/mag, step=(norm<1.5?1:norm<3?2:norm<7?5:10)*mag;
+  const out=[]; for(let v=Math.ceil(a/step)*step; v<=b+1e-9; v+=step) out.push(+v.toFixed(10));
+  return out;
+}
+function frame(ctx,x,y,w,h,x0,x1,y0,y1,title){
+  const X=v=>x+(v-x0)/(x1-x0)*w, Y=v=>y+h-(v-y0)/(y1-y0)*h;
+  ctx.strokeStyle='#30363d'; ctx.lineWidth=1; ctx.strokeRect(x,y,w,h);
+  if(title) txt(ctx,title,x+w/2,y-12,'#8b949e','bold 11px Segoe UI');
+  return {X,Y,x,y,w,h,x0,x1,y0,y1};
+}
+function axesXY(ctx,Fr,xf,yf,nx,ny){
+  niceTicks(Fr.x0,Fr.x1,nx||8).forEach(v=>{ const xx=Fr.X(v);
+    if(xx<Fr.x-1||xx>Fr.x+Fr.w+1) return;
+    line(ctx,xx,Fr.y,xx,Fr.y+Fr.h,Math.abs(v)<1e-12?'#484f58':'#1b222b',1);
+    txt(ctx,xf?xf(v):String(+v.toFixed(2)),xx,Fr.y+Fr.h+12,'#6e7681','9px Segoe UI'); });
+  if(ny!==0) niceTicks(Fr.y0,Fr.y1,ny||4).forEach(v=>{ const yy=Fr.Y(v);
+    if(yy<Fr.y-1||yy>Fr.y+Fr.h+1) return;
+    line(ctx,Fr.x,yy,Fr.x+Fr.w,yy,Math.abs(v)<1e-12?'#484f58':'#1b222b',1);
+    txt(ctx,yf?yf(v):String(+v.toFixed(2)),Fr.x-6,yy,'#6e7681','9px Segoe UI','right'); });
+}
+function plot(ctx,Fr,fn,col,lw,dash,M){
+  ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=lw||2; if(dash)ctx.setLineDash(dash);
+  ctx.beginPath();
+  const n=M||1400;
+  for(let i=0;i<=n;i++){
+    const x=Fr.x0+(Fr.x1-Fr.x0)*i/n;
+    const Y=Math.max(Fr.y-30,Math.min(Fr.y+Fr.h+30,Fr.Y(fn(x))));
+    i?ctx.lineTo(Fr.X(x),Y):ctx.moveTo(Fr.X(x),Y);
+  }
+  ctx.stroke(); ctx.restore();
+}
+
+/* ================= state ================= */
+const S={ tab:0, f0:7, fs:20, phase:0, B:8, aa:false, recon:'sinc',
+          running:true, t:0, span:1 };
+
+const mainC=document.getElementById('mainCanvas'), mx=mainC.getContext('2d');
+const auxC=document.getElementById('auxCanvas'),  ax=auxC.getContext('2d');
+
+/* ================= the core arithmetic =================
+   Sampling cos(2*pi*f0*t + phi) at fs gives samples indistinguishable from a tone
+   at the FOLDED frequency fa, which lies in [-fs/2, fs/2]. Negative fa means the
+   reconstruction runs backwards: the phase is conjugated. */
+function foldedSigned(f0,fs){
+  const k=Math.round(f0/fs);
+  return f0-k*fs;
+}
+const folded=(f0,fs)=>Math.abs(foldedSigned(f0,fs));
+const isAliased=()=>S.f0>S.fs/2+1e-12;
+
+const xTrue=t=>Math.cos(TAU*S.f0*t+S.phase*PI/180);
+function xAlias(t){
+  const fa=foldedSigned(S.f0,S.fs);
+  // cos(2*pi*fa*t + phi) reproduces every sample exactly
+  return Math.cos(TAU*fa*t+S.phase*PI/180);
+}
+function samples(span){
+  const out=[];
+  for(let n=0;n*(1/S.fs)<=span+1e-12;n++){
+    const t=n/S.fs;
+    out.push({t,v:xTrue(t)});
+  }
+  return out;
+}
+
+/* ================= TAB 0 : sampling a tone ================= */
+function drawTone(){
+  clear(mx,mainC);
+  const span=S.span, X0=80, W=700;
+  const A=frame(mx,X0,52,W,190,0,span,-1.35,1.35,
+    'the tone, the samples taken from it, and what those samples actually say');
+  axesXY(mx,A,v=>(v*1000).toFixed(0),null,8,4);
+  plot(mx,A,xTrue,'#3fb950',2.2,null,4000);
+  const sm=samples(span);
+  sm.forEach(s=>{
+    line(mx,A.X(s.t),A.Y(0),A.X(s.t),A.Y(s.v),'#8b949e',1);
+    dot(mx,A.X(s.t),A.Y(s.v),3.4,'#e3b341');
+  });
+  const al=isAliased();
+  plot(mx,A,xAlias,al?'#f85149':'#58a6ff',2.4,[6,4],4000);
+  txt(mx,'true signal  f₀ = '+S.f0.toFixed(2)+' Hz',A.x+8,A.y+14,'#3fb950','10px Segoe UI','left');
+  txt(mx,'samples at f_s = '+S.fs.toFixed(1)+' Hz',A.x+8,A.y+28,'#e3b341','10px Segoe UI','left');
+  txt(mx,(al?'ALIAS':'reconstruction')+'  f = '+folded(S.f0,S.fs).toFixed(2)+' Hz',
+      A.x+8,A.y+42,al?'#f85149':'#58a6ff','bold 10px Segoe UI','left');
+  txt(mx,'time (ms)',A.x+A.w/2,A.y+A.h+27,'#6e7681','10px Segoe UI');
+  if(al){
+    txt(mx,'every yellow dot sits on BOTH curves — the samples cannot tell them apart',
+        A.x+A.w/2,A.y+A.h-12,'#f85149','bold 11px Segoe UI');
+  }
+
+  /* ---- the wagon wheel ---- */
+  const cx=910, cy=150, R=78;
+  txt(mx,'a wheel turning at f₀, photographed f_s times a second',cx,cy-R-30,'#8b949e','bold 10px Segoe UI');
+  mx.strokeStyle='#30363d'; mx.lineWidth=1.5;
+  mx.beginPath(); mx.arc(cx,cy,R,0,TAU); mx.stroke();
+  // the true spoke
+  const th=TAU*S.f0*S.t+S.phase*PI/180;
+  line(mx,cx,cy,cx+R*Math.cos(-th),cy+R*Math.sin(-th),'#3fb950',2.6);
+  dot(mx,cx+R*Math.cos(-th),cy+R*Math.sin(-th),5,'#3fb950');
+  // the apparent spoke
+  const fa=foldedSigned(S.f0,S.fs);
+  const tha=TAU*fa*S.t+S.phase*PI/180;
+  line(mx,cx,cy,cx+R*0.62*Math.cos(-tha),cy+R*0.62*Math.sin(-tha),al?'#f85149':'#58a6ff',2.4);
+  // the last few photographs
+  const nNow=Math.floor(S.t*S.fs);
+  for(let k=0;k<8;k++){
+    const n=nNow-k; if(n<0) continue;
+    const a=TAU*S.f0*(n/S.fs)+S.phase*PI/180;
+    dot(mx,cx+R*Math.cos(-a),cy+R*Math.sin(-a),3.2,'rgba(227,179,65,'+(0.85-k*0.1).toFixed(2)+')');
+  }
+  dot(mx,cx,cy,4,'#484f58');
+  txt(mx,fa<-1e-9?'appears to turn BACKWARDS':(Math.abs(fa)<1e-9?'appears to stand STILL':'appears to turn forwards'),
+      cx,cy+R+22,fa<-1e-9?'#f85149':(Math.abs(fa)<1e-9?'#e3b341':'#58a6ff'),'bold 10px Segoe UI');
+  txt(mx,'apparent rate '+fa.toFixed(2)+' Hz',cx,cy+R+38,'#8b949e','10px Courier New');
+
+  /* ---- the Nyquist line ---- */
+  const G=frame(mx,X0,306,W+230,92,0,60,-1,1,null);
+  mx.fillStyle='rgba(63,185,80,0.10)';
+  mx.fillRect(G.X(0),G.y,G.X(Math.min(S.fs/2,60))-G.X(0),G.h);
+  mx.fillStyle='rgba(248,81,73,0.10)';
+  mx.fillRect(G.X(Math.min(S.fs/2,60)),G.y,G.x+G.w-G.X(Math.min(S.fs/2,60)),G.h);
+  niceTicks(0,60,10).forEach(v=>{ const xx=G.X(v);
+    line(mx,xx,G.y,xx,G.y+G.h,'#1b222b',1);
+    txt(mx,String(v),xx,G.y+G.h+12,'#6e7681','9px Segoe UI'); });
+  line(mx,G.X(S.fs/2),G.y,G.X(S.fs/2),G.y+G.h,'#e3b341',2);
+  txt(mx,'f_s/2 = '+(S.fs/2).toFixed(2)+' Hz',G.X(S.fs/2),G.y-8,'#e3b341','bold 10px Segoe UI');
+  txt(mx,'safe: f₀ < f_s/2',G.X(Math.min(S.fs/4,30)),G.y+18,'#3fb950','10px Segoe UI');
+  if(S.fs/2<58) txt(mx,'aliased',G.X(Math.min((S.fs/2+60)/2,58)),G.y+18,'#f85149','10px Segoe UI');
+  dot(mx,G.X(Math.min(S.f0,60)),G.Y(0),6,al?'#f85149':'#3fb950');
+  txt(mx,'f₀',G.X(Math.min(S.f0,60)),G.Y(0)-16,al?'#f85149':'#3fb950','bold 10px Segoe UI');
+  const fold=folded(S.f0,S.fs);
+  if(al){
+    dot(mx,G.X(fold),G.Y(0),5,'#58a6ff');
+    line(mx,G.X(Math.min(S.f0,60)),G.Y(0.45),G.X(fold),G.Y(0.45),'#f85149',1.4,[4,3]);
+    txt(mx,'folds down to '+fold.toFixed(2)+' Hz',(G.X(Math.min(S.f0,60))+G.X(fold))/2,G.Y(0.75),'#f85149','10px Segoe UI');
+  }
+  txt(mx,'frequency (Hz)',G.x+G.w/2,G.y+G.h+27,'#6e7681','10px Segoe UI');
+
+  drawToneAux();
+}
+function drawToneAux(){
+  clear(ax,auxC);
+  /* what the samples look like on their own — the only thing the receiver ever sees */
+  const span=S.span;
+  const A=frame(ax,80,44,930,150,0,span,-1.35,1.35,
+    'the samples alone — this is all that is stored, and it is genuinely ambiguous');
+  axesXY(ax,A,v=>(v*1000).toFixed(0),null,8,4);
+  const sm=samples(span);
+  sm.forEach(s=>{
+    line(ax,A.X(s.t),A.Y(0),A.X(s.t),A.Y(s.v),'#484f58',1.4);
+    dot(ax,A.X(s.t),A.Y(s.v),3.6,'#e3b341');
+  });
+  // all the candidate tones that fit these samples
+  const fa=foldedSigned(S.f0,S.fs);
+  for(let k=-2;k<=2;k++){
+    const f=fa+k*S.fs;
+    if(Math.abs(f)>62) continue;
+    const isTrue=Math.abs(Math.abs(f)-S.f0)<1e-9;
+    ax.save(); ax.globalAlpha=isTrue?0.95:0.34;
+    plot(ax,A,t=>Math.cos(TAU*f*t+S.phase*PI/180),
+         isTrue?'#3fb950':'#58a6ff',isTrue?2.2:1.2,isTrue?null:[3,3],4000);
+    ax.restore();
+  }
+  txt(ax,'every one of these tones passes through every sample: f = f_a + k·f_s for any integer k',
+      A.x+A.w/2,A.y+A.h+28,'#6e7681','11px Segoe UI');
+  txt(ax,'sampling alone cannot choose between them — only a promise that f₀ < f_s/2 can',
+      A.x+A.w/2,A.y+A.h+44,'#e3b341','11px Segoe UI');
+}
+
+/* ================= TAB 1 : spectral images ================= */
+/* a triangular baseband spectrum of half-width B, optionally band-limited first */
+function baseSpec(f){
+  const lim=S.aa?Math.min(S.B,S.fs/2):S.B;
+  const a=Math.abs(f);
+  return a<=lim?1-a/S.B:0;
+}
+function drawImages(){
+  clear(mx,mainC);
+  const fmax=Math.max(S.fs*2.2,S.B*2.4);
+  const A=frame(mx,80,52,930,150,-fmax,fmax,0,1.3,'baseband spectrum  X(f)  before sampling');
+  axesXY(mx,A,v=>v.toFixed(0),null,10,3);
+  plot(mx,A,baseSpec,'#3fb950',2.4,null,3000);
+  if(S.aa&&S.B>S.fs/2){
+    plot(mx,A,f=>Math.abs(f)<=S.B?1-Math.abs(f)/S.B:0,'#484f58',1.4,[4,3],3000);
+    txt(mx,'the dashed part is what the anti-alias filter removed — lost, but harmless',
+        A.x+A.w/2,A.y+18,'#8b949e','10px Segoe UI');
+  }
+  line(mx,A.X(S.fs/2),A.y,A.X(S.fs/2),A.y+A.h,'#e3b341',1.4,[4,3]);
+  line(mx,A.X(-S.fs/2),A.y,A.X(-S.fs/2),A.y+A.h,'#e3b341',1.4,[4,3]);
+  txt(mx,'±f_s/2',A.X(S.fs/2)+26,A.y+14,'#e3b341','10px Segoe UI');
+
+  const B=frame(mx,80,272,930,126,-fmax,fmax,0,1.3,
+    'after sampling: the spectrum repeats every f_s');
+  axesXY(mx,B,v=>v.toFixed(0),null,10,3);
+  const K=Math.ceil(fmax/S.fs)+1;
+  // individual images
+  for(let k=-K;k<=K;k++){
+    if(k===0) continue;
+    plot(mx,B,f=>baseSpec(f-k*S.fs),'rgba(88,166,255,0.45)',1.4,null,1500);
+  }
+  plot(mx,B,f=>baseSpec(f),'rgba(63,185,80,0.6)',1.6,null,1500);
+  // the sum, and where images overlap
+  const sum=f=>{ let s=0; for(let k=-K;k<=K;k++) s+=baseSpec(f-k*S.fs); return s; };
+  plot(mx,B,sum,'#e6edf3',2.2,null,3000);
+  const lim=S.aa?Math.min(S.B,S.fs/2):S.B;
+  const overlap=lim>S.fs/2+1e-9;
+  if(overlap){
+    // shade the region where a neighbouring image reaches back inside the band
+    const lo=S.fs-lim, hi=lim;
+    for(const sgn of [1,-1]){
+      const x1=B.X(sgn>0?lo:-hi), x2=B.X(sgn>0?hi:-lo);
+      mx.fillStyle='rgba(248,81,73,0.22)';
+      mx.fillRect(Math.min(x1,x2),B.y,Math.abs(x2-x1),B.h);
+    }
+    txt(mx,'overlap — the shaded energy belongs to a neighbour and can never be separated again',
+        B.x+B.w/2,B.y+16,'#f85149','bold 11px Segoe UI');
+  }
+  line(mx,B.X(S.fs/2),B.y,B.X(S.fs/2),B.y+B.h,'#e3b341',1.6);
+  line(mx,B.X(-S.fs/2),B.y,B.X(-S.fs/2),B.y+B.h,'#e3b341',1.6);
+  txt(mx,'frequency (Hz)',B.x+B.w/2,B.y+B.h+27,'#6e7681','10px Segoe UI');
+
+  clear(ax,auxC);
+  const G=frame(ax,80,46,930,150,-fmax,fmax,0,1.3,
+    'what the reconstruction filter (brick wall at ±f_s/2) lets through');
+  axesXY(ax,G,v=>v.toFixed(0),null,10,3);
+  ax.fillStyle='rgba(227,179,65,0.10)';
+  ax.fillRect(G.X(-S.fs/2),G.y,G.X(S.fs/2)-G.X(-S.fs/2),G.h);
+  const out=f=>Math.abs(f)<S.fs/2-1e-9?sum(f):0;
+  plot(ax,G,out,'#e6edf3',2.4,null,3000);
+  plot(ax,G,f=>Math.abs(f)<S.fs/2-1e-9?baseSpec(f):0,'#3fb950',1.8,[5,3],2000);
+  txt(ax,'recovered',G.x+8,G.y+14,'#e6edf3','10px Segoe UI','left');
+  txt(ax,'what it should have been',G.x+8,G.y+28,'#3fb950','10px Segoe UI','left');
+  txt(ax, overlap
+      ? 'they differ: the recovered spectrum is corrupted at the band edges and no filter can undo it'
+      : 'they coincide exactly — perfect reconstruction, which is the sampling theorem',
+      G.x+G.w/2,G.y+G.h+30, overlap?'#f85149':'#3fb950','bold 11.5px Segoe UI');
+}
+
+/* ================= TAB 2 : reconstruction ================= */
+const TONES=[[1,1],[2.5,0.6],[4,0.35]];     // [frequency, amplitude], all inside the band
+function xMulti(t){ let s=0; TONES.forEach(([f,a])=>s+=a*Math.cos(TAU*f*t)); return s/1.95; }
+function reconstruct(t,sm){
+  if(S.recon==='zoh'){
+    const n=Math.floor(t*S.fs);
+    const k=Math.max(0,Math.min(sm.length-1,n));
+    return sm[k].v;
+  }
+  if(S.recon==='linear'){
+    const n=Math.floor(t*S.fs);
+    const a=Math.max(0,Math.min(sm.length-1,n)), b=Math.max(0,Math.min(sm.length-1,n+1));
+    const frac=t*S.fs-n;
+    return sm[a].v+(sm[b].v-sm[a].v)*Math.max(0,Math.min(1,frac));
+  }
+  let s=0;
+  sm.forEach((p,n)=>{ s+=p.v*sinc((t-p.t)*S.fs); });
+  return s;
+}
+function drawRecon(){
+  clear(mx,mainC);
+  const span=2, X0=80, W=930;
+  const sm=[];
+  for(let n=0;n*(1/S.fs)<=span+1e-12;n++){ const t=n/S.fs; sm.push({t,v:xMulti(t)}); }
+  const A=frame(mx,X0,52,W,200,0,span,-1.3,1.3,
+    'a band-limited signal (tones at 1, 2.5 and 4 Hz), its samples, and the reconstruction');
+  axesXY(mx,A,v=>v.toFixed(2),null,8,4);
+  plot(mx,A,xMulti,'#3fb950',2.2,null,4000);
+  sm.forEach(p=>{
+    line(mx,A.X(p.t),A.Y(0),A.X(p.t),A.Y(p.v),'#484f58',1);
+    dot(mx,A.X(p.t),A.Y(p.v),3,'#e3b341');
+  });
+  plot(mx,A,t=>reconstruct(t,sm),'#58a6ff',2.2,null,4000);
+  txt(mx,'original',A.x+8,A.y+14,'#3fb950','10px Segoe UI','left');
+  txt(mx,'reconstructed ('+({sinc:'ideal sinc',zoh:'zero-order hold',linear:'linear'})[S.recon]+')',
+      A.x+8,A.y+28,'#58a6ff','10px Segoe UI','left');
+  txt(mx,'time (s)',A.x+A.w/2,A.y+A.h+27,'#6e7681','10px Segoe UI');
+
+  /* error, computed away from the edges where the finite sinc sum is truncated */
+  const B=frame(mx,X0,312,W,86,0,span,-0.52,0.52,'reconstruction error');
+  axesXY(mx,B,v=>v.toFixed(2),null,8,2);
+  plot(mx,B,t=>Math.max(-0.5,Math.min(0.5,reconstruct(t,sm)-xMulti(t))),'#f0883e',1.8,null,4000);
+  let err=0,cnt=0;
+  for(let i=0;i<2000;i++){
+    const t=span*0.25+span*0.5*i/2000;
+    const e=reconstruct(t,sm)-xMulti(t); err+=e*e; cnt++;
+  }
+  const rms=Math.sqrt(err/cnt);
+  txt(mx,'RMS error over the middle half = '+rms.toFixed(5),B.x+B.w/2,B.y+B.h+26,
+      rms<0.01?'#3fb950':'#f0883e','bold 11px Courier New');
+
+  /* ---- the sinc kernels, and the ZOH droop ---- */
+  clear(ax,auxC);
+  if(S.recon==='sinc'){
+    const G=frame(ax,80,44,930,160,0,span,-0.7,1.15,
+      'each sample contributes a sinc centred on itself; they sum to the curve above');
+    axesXY(ax,G,v=>v.toFixed(2),null,8,3);
+    sm.forEach((p,n)=>{
+      if(n%1!==0) return;
+      ax.save(); ax.globalAlpha=0.5;
+      plot(ax,G,t=>p.v*sinc((t-p.t)*S.fs),'#8957e5',1.1,null,1200);
+      ax.restore();
+      dot(ax,G.X(p.t),G.Y(p.v),3,'#e3b341');
+    });
+    plot(ax,G,t=>reconstruct(t,sm),'#58a6ff',2.2,null,3000);
+    txt(ax,'every sinc is zero at every other sample instant — that is why the sum passes through all of them',
+        G.x+G.w/2,G.y+G.h+30,'#6e7681','11px Segoe UI');
+  } else {
+    const G=frame(ax,80,44,930,160,0,3,0,1.1,
+      'the hold’s frequency response  |sinc(f/f_s)|  —  the droop a real DAC must equalise');
+    axesXY(ax,G,v=>(v*S.fs).toFixed(0),null,6,3);
+    plot(ax,G,r=>Math.abs(sinc(r)),'#f0883e',2.4,null,2000);
+    line(ax,G.X(0.5),G.y,G.X(0.5),G.y+G.h,'#e3b341',1.4,[4,3]);
+    txt(ax,'at f_s/2 the hold has already lost '+
+          ((1-Math.abs(sinc(0.5)))*100).toFixed(1)+'%  ('+
+          (20*Math.log10(Math.abs(sinc(0.5)))).toFixed(2)+' dB)',
+        G.X(0.5)+8,G.Y(0.75),'#e3b341','10px Segoe UI','left');
+    txt(ax,'frequency (Hz)',G.x+G.w/2,G.y+G.h+28,'#6e7681','10px Segoe UI');
+    txt(ax,'the nulls at multiples of f_s suppress the images, which is why a ZOH is a usable first stage',
+        G.x+G.w/2,G.y+G.h+44,'#6e7681','10px Segoe UI');
+  }
+}
+
+/* ================= TAB 3 : the folding map ================= */
+function drawFolding(){
+  clear(mx,mainC);
+  const fmax=Math.max(60,S.fs*3);
+  const A=frame(mx,80,52,930,300,0,fmax,0,S.fs/2*1.15,
+    'apparent frequency after sampling, against the true input frequency');
+  axesXY(mx,A,v=>v.toFixed(0),v=>v.toFixed(1),10,5);
+  // the identity line, for reference
+  plot(mx,A,f=>Math.min(f,S.fs/2*1.15),'#30363d',1.4,[4,3],1000);
+  // the folding triangle
+  mx.strokeStyle='#58a6ff'; mx.lineWidth=2.6; mx.beginPath();
+  for(let i=0;i<=3000;i++){
+    const f=fmax*i/3000, v=folded(f,S.fs);
+    i?mx.lineTo(A.X(f),A.Y(v)):mx.moveTo(A.X(f),A.Y(v));
+  }
+  mx.stroke();
+  // Nyquist zones
+  for(let k=0;k*S.fs/2<fmax;k++){
+    const f=k*S.fs/2;
+    line(mx,A.X(f),A.y,A.X(f),A.y+A.h,'#21262d',1);
+    if(k>0&&k<8) txt(mx,'zone '+k,A.X(f-S.fs/4),A.y+14,'#484f58','9px Segoe UI');
+  }
+  line(mx,A.x,A.Y(S.fs/2),A.x+A.w,A.Y(S.fs/2),'#e3b341',1.4,[4,3]);
+  txt(mx,'f_s/2',A.x+8,A.Y(S.fs/2)-10,'#e3b341','10px Segoe UI','left');
+  // the current tone
+  const fa=folded(S.f0,S.fs);
+  line(mx,A.X(S.f0),A.y+A.h,A.X(S.f0),A.Y(fa),'#f85149',1.6,[3,3]);
+  line(mx,A.x,A.Y(fa),A.X(S.f0),A.Y(fa),'#f85149',1.6,[3,3]);
+  dot(mx,A.X(S.f0),A.Y(fa),6,'#f85149');
+  txt(mx,S.f0.toFixed(2)+' Hz  →  '+fa.toFixed(2)+' Hz',A.X(S.f0),A.Y(fa)-16,'#f85149','bold 11px Courier New');
+  txt(mx,'true input frequency (Hz)',A.x+A.w/2,A.y+A.h+27,'#6e7681','10px Segoe UI');
+  txt(mx,'the ramp is the identity: below f_s/2 nothing moves. Above it, everything folds back and forth.',
+      A.x+A.w/2,A.y+A.h+44,'#6e7681','11px Segoe UI');
+
+  /* a comb of input tones, and where each one lands */
+  clear(ax,auxC);
+  const G=frame(ax,80,52,930,130,0,fmax,0,1.25,
+    'a comb of equally spaced input tones and the frequencies they come back as');
+  axesXY(ax,G,v=>v.toFixed(0),null,10,0);
+  const step=Math.max(S.fs/8,1);
+  for(let f=step;f<fmax;f+=step){
+    const v=folded(f,S.fs);
+    const al=f>S.fs/2+1e-12;
+    line(ax,G.X(f),G.Y(0),G.X(f),G.Y(0.55),al?'#f85149':'#3fb950',2);
+    line(ax,G.X(v),G.Y(0.72),G.X(v),G.Y(1.2),'#58a6ff',2);
+    if(al){
+      ax.save(); ax.strokeStyle='rgba(248,81,73,0.35)'; ax.lineWidth=1;
+      ax.beginPath(); ax.moveTo(G.X(f),G.Y(0.57)); ax.lineTo(G.X(v),G.Y(0.70)); ax.stroke(); ax.restore();
+    }
+  }
+  txt(ax,'input tones',G.x+6,G.Y(0.3),'#8b949e','9px Segoe UI','left');
+  txt(ax,'what you get',G.x+6,G.Y(0.95),'#58a6ff','9px Segoe UI','left');
+  line(ax,G.X(S.fs/2),G.y,G.X(S.fs/2),G.y+G.h,'#e3b341',1.6);
+  txt(ax,'f_s/2',G.X(S.fs/2),G.y-8,'#e3b341','bold 10px Segoe UI');
+  txt(ax,'everything above f_s/2 piles into the band below it — that is why the anti-alias filter comes FIRST',
+      G.x+G.w/2,G.y+G.h+30,'#6e7681','11px Segoe UI');
+}
+
+/* ================= tab metadata ================= */
+const TABS=[
+{title:'One Tone, Sampled',aux:'What the samples alone can tell you',
+ eq:'x[n] = cos(2πf₀n/f<sub>s</sub> + φ) &nbsp;&nbsp;·&nbsp;&nbsp; f<sub>a</sub> = | f₀ − f<sub>s</sub>·round(f₀/f<sub>s</sub>) |',
+ desc:'Slide f₀ past half the sample rate and watch the reconstruction detach from the truth. The samples never change their story — they were always ambiguous.',
+ legend:[['#3fb950','true signal'],['#e3b341','samples'],['#58a6ff','reconstruction'],['#f85149','alias']]},
+{title:'Sampling Repeats the Spectrum',aux:'Through the reconstruction filter',
+ eq:'x(t)·Σδ(t−nT<sub>s</sub>) &nbsp;⟷&nbsp; f<sub>s</sub>·Σ<sub>k</sub> X(f − k f<sub>s</sub>)',
+ desc:'Multiplying by an impulse train in time convolves with an impulse train in frequency, so the spectrum is copied at every multiple of f_s. Aliasing is those copies overlapping.',
+ legend:[['#3fb950','baseband X(f)'],['#58a6ff','images'],['#e6edf3','their sum'],['#f85149','overlap'],['#e3b341','±f_s/2']]},
+{title:'Putting the Signal Back Together',aux:'Sinc kernels, or the hold’s droop',
+ eq:'x(t) = Σ<sub>n</sub> x[n]·sinc( (t − nT<sub>s</sub>) / T<sub>s</sub> )',
+ desc:'Ideal reconstruction weights a sinc by each sample and adds them up. A real converter holds each sample instead, and pays for it with droop and leftover images.',
+ legend:[['#3fb950','original'],['#e3b341','samples'],['#58a6ff','reconstruction'],['#8957e5','individual sincs'],['#f0883e','error / droop']]},
+{title:'Where Every Frequency Lands',aux:'A comb of tones, folded',
+ eq:'f<sub>a</sub> = | f₀ − f<sub>s</sub>·round(f₀/f<sub>s</sub>) | &nbsp;∈&nbsp; [0, f<sub>s</sub>/2]',
+ desc:'The map from true frequency to apparent frequency is a triangle wave. Every Nyquist zone folds onto the first, alternating direction as it goes.',
+ legend:[['#58a6ff','folding map'],['#30363d','identity (no aliasing)'],['#f85149','your tone'],['#e3b341','f_s/2']]}
+];
+const INFO=[
+`<strong>The samples are the whole story — and the story is ambiguous.</strong> A tone at f₀ and a tone at f₀ ± k·f<sub>s</sub> produce byte-for-byte identical samples.
+<ul>
+<li><strong>Start below Nyquist.</strong> With f₀ = 7 Hz and f<sub>s</sub> = 20 Hz the dashed reconstruction sits exactly on the green original. Now drag f₀ past 10 Hz and it peels away — while every yellow dot still lands on both curves.</li>
+<li><strong>The lower panel is the honest view:</strong> the samples with no original to compare against. Several tones are drawn through them, and nothing in the data prefers one. Only a prior promise that f₀ &lt; f<sub>s</sub>/2 picks a winner.</li>
+<li><strong>The wagon wheel</strong> is the same fact in pictures. As f₀ climbs past f<sub>s</sub> the spokes appear to slow, freeze, then turn backwards — the folded frequency has gone negative. That is why film wheels spin the wrong way.</li>
+<li><strong>Exactly at f₀ = f<sub>s</sub>/2</strong> you sample twice per cycle. Set φ = 90° there and every sample lands on a zero crossing: the signal vanishes. The sampling theorem's strict inequality is not pedantry.</li>
+<li>Aliasing is not a distortion you can filter out afterwards. Once two frequencies share the same samples, no amount of processing can separate them.</li>
+</ul>`,
+`<strong>Why the spectrum repeats.</strong> Sampling is multiplication by an impulse train, and multiplication in time is convolution in frequency. Since the transform of an impulse train is another impulse train (spacing 1/T<sub>s</sub> = f<sub>s</sub>), convolving with it copies the spectrum to every multiple of f<sub>s</sub>.
+<ul>
+<li><strong>The condition falls straight out of the picture.</strong> Copies centred at 0 and at f<sub>s</sub> stay clear of each other exactly when B &lt; f<sub>s</sub> − B, i.e. <code>f_s > 2B</code>. That is the Nyquist rate, derived by looking rather than by algebra.</li>
+<li><strong>Push B past f<sub>s</sub>/2</strong> and the shaded overlap appears. The energy in that region belongs to two different copies added together, and addition is not invertible — this is precisely why aliasing is unrecoverable.</li>
+<li><strong>Now tick the anti-alias filter.</strong> The overlap disappears because the offending content was removed <em>before</em> sampling. You still lose it, but you lose it cleanly instead of having it corrupt the band you kept.</li>
+<li><strong>That ordering is the entire design rule:</strong> the anti-alias filter must be analogue and must come before the converter. Afterwards is too late, always.</li>
+<li>The bottom panel compares what the reconstruction filter delivers against what it should have been. When f<sub>s</sub> &gt; 2B they lie on top of each other exactly — the sampling theorem, verified rather than asserted.</li>
+</ul>`,
+`<strong>Reconstruction is interpolation with the right kernel.</strong> The ideal one is the sinc, because its transform is exactly the brick-wall filter that keeps the baseband copy and rejects every image.
+<ul>
+<li><strong>Look at the individual sincs.</strong> Each is 1 at its own sample and exactly 0 at every other sample instant, so the sum is guaranteed to pass through all of them — and being band-limited, it is the <em>only</em> such signal.</li>
+<li><strong>The ideal sinc is not realisable:</strong> it extends infinitely in both directions, so exact reconstruction requires all past and future samples. The error trace here is worst at the edges of the window for exactly that reason.</li>
+<li><strong>A zero-order hold is what converters actually do.</strong> Switch to it and the output is a staircase whose error is plainly visible. Its frequency response is sinc(f/f<sub>s</sub>): about 3.9 dB of droop at f<sub>s</sub>/2, which real designs equalise digitally or oversample away.</li>
+<li><strong>The hold is not all bad</strong> — its nulls sit exactly on multiples of f<sub>s</sub>, which is where the images are, so it suppresses them for free. That is why it is the standard first stage.</li>
+<li><strong>Linear interpolation</strong> sits between the two: smoother than a hold, still not band-limited. Its kernel is a triangle, so its response is sinc², which rolls off faster but droops more.</li>
+</ul>`,
+`<strong>Everything above f<sub>s</sub>/2 folds back down.</strong> The map from true to apparent frequency is a triangle wave of period f<sub>s</sub>, and it is worth being able to draw it from memory.
+<ul>
+<li><strong>Read off the zones.</strong> Zone 1 (0 to f<sub>s</sub>/2) maps to itself. Zone 2 folds back <em>reversed</em>, so a rising input produces a falling output — spectral inversion. Zone 3 maps straight again, and so on alternately.</li>
+<li><strong>The comb below makes the damage concrete.</strong> Equally spaced input tones arrive as an interleaved mess, with high tones landing between low ones. There is no pattern in the output that reveals which was which.</li>
+<li><strong>Undersampling on purpose</strong> uses exactly this. A bandpass signal sitting in zone 3 can be folded deliberately down to baseband, letting a slow converter handle a high-frequency band — bandpass sampling, and it needs a bandpass anti-alias filter rather than a lowpass one.</li>
+<li><strong>Practical rule:</strong> real filters are not brick walls, so systems sample well above 2B. Audio uses 44.1 kHz for a 20 kHz band — a 10% guard would be tight, and 2.2× leaves the filter somewhere to roll off.</li>
+<li>Everything on this tab assumes uniform sampling. Deliberately non-uniform sampling breaks the periodicity and scatters the aliases into noise instead, which is the basis of several converter architectures.</li>
+</ul>`
+];
+
+/* ================= meters ================= */
+const MET=[
+  ['f₀',()=>S.f0.toFixed(2)+' Hz',()=>''],
+  ['f_s',()=>S.fs.toFixed(1)+' Hz',()=>''],
+  ['Nyquist f_s/2',()=>(S.fs/2).toFixed(2)+' Hz',()=>''],
+  ['samples/cycle',()=>S.f0>0?(S.fs/S.f0).toFixed(2):'∞',()=>S.fs/S.f0<2?'bad':'good'],
+  ['apparent f_a',()=>folded(S.f0,S.fs).toFixed(3)+' Hz',()=>isAliased()?'bad':'good'],
+  ['signed f_a',()=>foldedSigned(S.f0,S.fs).toFixed(3)+' Hz',()=>foldedSigned(S.f0,S.fs)<0?'bad':''],
+  ['aliased?',()=>isAliased()?'YES':'no',()=>isAliased()?'bad':'good'],
+  ['Nyquist zone',()=>String(Math.floor(S.f0/(S.fs/2))+1),()=>''],
+  ['bandwidth B',()=>S.tab===1?S.B.toFixed(1)+' Hz':'—',()=>''],
+  ['f_s vs 2B',()=>{ if(S.tab!==1) return '—';
+    const lim=S.aa?Math.min(S.B,S.fs/2):S.B;
+    return S.fs>2*lim-1e-9?'OK':'too slow'; },
+   ()=>{ if(S.tab!==1) return '';
+    const lim=S.aa?Math.min(S.B,S.fs/2):S.B;
+    return S.fs>2*lim-1e-9?'good':'bad'; }]
+];
+document.getElementById('meters').innerHTML=MET.map((m,i)=>
+  `<div class="meter" id="mc${i}"><div class="ml">${m[0]}</div><div class="mv" id="mv${i}">—</div></div>`).join('');
+function updateMeters(){
+  MET.forEach((m,i)=>{
+    const el=document.getElementById('mv'+i); if(el) el.textContent=String(m[1]());
+    const c=document.getElementById('mc'+i);
+    if(c){ const s=m[2]?m[2]():''; c.classList.toggle('bad',s==='bad'); c.classList.toggle('good',s==='good'); }
+  });
+}
+
+/* ================= presets ================= */
+const PRESETS=[
+  ['Well sampled',      {f0:7,  fs:20},false],
+  ['Exactly Nyquist',   {f0:10, fs:20},true],
+  ['Just aliased',      {f0:11, fs:20},true],
+  ['Looks stationary',  {f0:20, fs:20},true],
+  ['Turns backwards',   {f0:18, fs:20},true],
+  ['Badly undersampled',{f0:37, fs:20},true],
+  ['Audio-like 2.2×',   {f0:9,  fs:20},false]
+];
+document.getElementById('presets').innerHTML=PRESETS.map((p,i)=>
+  `<div class="preset${p[2]?' warn':''}" data-p="${i}">${p[0]}</div>`).join('');
+document.querySelectorAll('.preset').forEach(el=>el.addEventListener('click',()=>{
+  Object.assign(S,PRESETS[+el.dataset.p][1]); syncControls(); markPreset(); draw();
+}));
+function markPreset(){
+  document.querySelectorAll('.preset').forEach(el=>{
+    const p=PRESETS[+el.dataset.p][1];
+    el.classList.toggle('active',Math.abs(S.f0-p.f0)<1e-9&&Math.abs(S.fs-p.fs)<1e-9);
+  });
+}
+
+/* ================= dispatch ================= */
+function draw(){
+  if(S.tab===0) drawTone();
+  else if(S.tab===1) drawImages();
+  else if(S.tab===2) drawRecon();
+  else drawFolding();
+  updateMeters();
+}
+const $=id=>document.getElementById(id);
+const TAB_SLUGS=['tone','images','reconstruction','folding'];
+function setTab(t,skipHash){
+  S.tab=t;
+  if(!skipHash && typeof location!=='undefined' && typeof history!=='undefined' && history.replaceState){
+    try{ history.replaceState(null,'','#'+TAB_SLUGS[t]); }catch(e){}
+  }
+  document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active',+el.dataset.tab===t));
+  const T=TABS[t];
+  $('mainTitle').textContent=T.title; $('auxTitle').textContent=T.aux;
+  $('eqText').innerHTML=T.eq; $('eqDesc').textContent=T.desc;
+  $('legend').innerHTML=T.legend.map(l=>
+    `<div class="legend-item"><div class="legend-dot" style="background:${l[0]}"></div>${l[1]}</div>`).join('');
+  $('info').innerHTML=INFO[t];
+  document.querySelectorAll('.cg[data-tabs]').forEach(el=>
+    el.classList.toggle('hidden',!el.dataset.tabs.split(',').includes(String(t))));
+  document.getElementById('presets').classList.toggle('hidden',t===2);
+  draw();
+}
+document.querySelectorAll('.tab').forEach(el=>el.addEventListener('click',()=>setTab(+el.dataset.tab)));
+
+/* ================= controls ================= */
+function syncControls(){
+  $('slF0').value=S.f0; $('vF0').textContent=S.f0.toFixed(2)+' Hz';
+  $('slFs').value=S.fs; $('vFs').textContent=S.fs.toFixed(1)+' Hz';
+  $('slPh').value=S.phase; $('vPh').textContent=S.phase+'°';
+  $('slB').value=S.B; $('vB').textContent=S.B.toFixed(1)+' Hz';
+}
+$('slF0').addEventListener('input',e=>{ S.f0=+e.target.value; syncControls(); markPreset(); draw(); });
+$('slFs').addEventListener('input',e=>{ S.fs=+e.target.value; syncControls(); markPreset(); draw(); });
+$('slPh').addEventListener('input',e=>{ S.phase=+e.target.value; syncControls(); draw(); });
+$('slB').addEventListener('input',e=>{ S.B=+e.target.value; syncControls(); draw(); });
+$('ckAA').addEventListener('change',e=>{ S.aa=e.target.checked; draw(); });
+$('btnRecon').addEventListener('click',()=>{
+  const o=['sinc','zoh','linear'];
+  S.recon=o[(o.indexOf(S.recon)+1)%o.length];
+  $('btnRecon').textContent={sinc:'ideal sinc',zoh:'zero-order hold',linear:'linear'}[S.recon];
+  draw(); });
+$('btnPlay').addEventListener('click',()=>{
+  S.running=!S.running; $('btnPlay').textContent=S.running?'⏸ Pause':'▶ Play'; });
+$('btnReset').addEventListener('click',()=>{
+  Object.assign(S,{f0:7,fs:20,phase:0,B:8,aa:false,recon:'sinc',t:0});
+  $('ckAA').checked=false; $('btnRecon').textContent='ideal sinc';
+  syncControls(); markPreset(); draw(); });
+
+/* ================= animation (the wagon wheel) ================= */
+function loop(){
+  if(S.running&&S.tab===0){ S.t+=0.006; if(S.t>1000) S.t=0; draw(); }
+  requestAnimationFrame(loop);
+}
+let startTab=0;
+if(typeof location!=='undefined' && location.hash){
+  const i=TAB_SLUGS.indexOf(location.hash.replace('#','').toLowerCase());
+  if(i>=0) startTab=i;
+}
+syncControls(); markPreset(); setTab(startTab,true); loop();
+</script>
+</body>
+</html>
