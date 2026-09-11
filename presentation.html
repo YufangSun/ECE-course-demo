@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>AI-Empowered Teaching — UH ECE</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:#f7f8fb;color:#1f2330;
+    font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden}
+  .deck{position:relative;width:100vw;height:100vh}
+  .slide{position:absolute;inset:0;padding:48px 64px;display:none;
+    flex-direction:column;animation:fade .35s ease}
+  .slide.active{display:flex}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  h1{font-size:2.4em;color:#1a1f3a;margin-bottom:14px;letter-spacing:.5px}
+  h2{font-size:1.8em;color:#1f6feb;margin-bottom:20px;border-bottom:1px solid #d0d7de;padding-bottom:10px}
+  h3{font-size:1.2em;color:#57606a;margin:14px 0 8px;font-weight:500}
+  p,li{font-size:1.15em;line-height:1.6;color:#24292f}
+  ul{list-style:none;padding-left:0}
+  li{margin:8px 0;padding-left:22px;position:relative}
+  li::before{content:"▸";color:#1f6feb;position:absolute;left:0}
+  strong{color:#1a1f3a}
+  .sub{color:#57606a;font-size:1.05em;margin-bottom:18px}
+
+  /* Title slide */
+  .title-slide{justify-content:center;align-items:center;text-align:center}
+  .title-slide h1{font-size:3.2em;background:linear-gradient(90deg,#1f6feb,#8957e5);
+    -webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:24px}
+  .title-slide .author{color:#57606a;font-size:1.15em;margin-top:30px}
+
+  /* Two-column */
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:32px;flex:1;min-height:0}
+  .col{display:flex;flex-direction:column;min-height:0}
+
+  /* Demo grid */
+  .demo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:14px}
+  .chip{background:#ffffff;border:1px solid #d0d7de;border-radius:8px;
+    padding:10px 14px;font-size:.95em;color:#24292f;
+    box-shadow:0 1px 2px rgba(31,35,40,.04)}
+  .chip b{color:#1f6feb;display:block;font-size:.78em;margin-bottom:2px;letter-spacing:.6px}
+
+  /* Live demo iframe */
+  .demo-frame{flex:1;min-height:0;width:100%;border:1px solid #d0d7de;
+    border-radius:10px;background:#ffffff}
+  .frame-label{font-size:.9em;color:#57606a;margin-bottom:8px}
+
+  /* Workflow / pipeline */
+  .pipe{display:flex;align-items:center;justify-content:space-between;margin:20px 0;gap:12px}
+  .pipe .step{flex:1;background:#ffffff;border:1px solid #d0d7de;border-radius:10px;
+    padding:16px;text-align:center;box-shadow:0 1px 2px rgba(31,35,40,.04)}
+  .pipe .step b{display:block;color:#1f6feb;font-size:.85em;letter-spacing:.8px;margin-bottom:6px}
+  .pipe .arrow{color:#1f6feb;font-size:1.6em}
+
+  /* Stats */
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin:18px 0}
+  .stat{background:#ffffff;border:1px solid #d0d7de;border-radius:12px;padding:20px;text-align:center;
+    box-shadow:0 1px 2px rgba(31,35,40,.04)}
+  .stat .n{font-size:2.6em;color:#8957e5;font-weight:600;display:block}
+  .stat .l{color:#57606a;font-size:.95em;margin-top:6px}
+
+  /* Code-ish blocks */
+  .quote{background:#eef4ff;border-left:3px solid #1f6feb;padding:14px 18px;
+    border-radius:6px;color:#24292f;font-style:italic;margin:10px 0}
+
+  /* Nav */
+  .nav{position:fixed;bottom:14px;right:18px;color:#8c959f;font-size:.9em}
+  .nav b{color:#57606a}
+  .hint{position:fixed;bottom:14px;left:18px;color:#8c959f;font-size:.85em}
+
+  /* Section badge */
+  .badge{display:inline-block;background:#eef4ff;color:#1f6feb;
+    padding:4px 10px;border-radius:999px;font-size:.8em;letter-spacing:.8px;
+    margin-bottom:12px;border:1px solid #cfe0ff}
+
+  /* Example grading comparison */
+  .grade-card{background:#fff;border:1px solid #d0d7de;border-radius:10px;padding:14px 16px;
+    box-shadow:0 1px 2px rgba(31,35,40,.04)}
+  .grade-card h4{font-size:.95em;color:#57606a;margin-bottom:6px;
+    text-transform:uppercase;letter-spacing:.8px;font-weight:600}
+  .crit{display:flex;align-items:flex-start;gap:10px;padding:8px 0;
+    border-top:1px solid #eef2f7}
+  .crit:first-of-type{border-top:0}
+  .crit .mark{width:22px;height:22px;border-radius:50%;display:inline-flex;
+    align-items:center;justify-content:center;font-weight:700;font-size:.85em;flex-shrink:0;
+    margin-top:1px}
+  .crit .mark.ok{background:#e6f4ea;color:#1a7f37;border:1px solid #b6dfb8}
+  .crit .mark.partial{background:#fff4e0;color:#bf6a02;border:1px solid #f5d193}
+  .crit .mark.bad{background:#ffe5e5;color:#cf222e;border:1px solid #f5b7b7}
+  .crit .body{flex:1}
+  .crit .body b{display:block;color:#1a1f3a;font-size:.95em}
+  .crit .body span{font-size:.88em;color:#57606a}
+  .grade-total{display:flex;justify-content:space-between;align-items:center;
+    margin-top:10px;padding-top:10px;border-top:2px solid #d0d7de;font-weight:600}
+  .grade-total .pts{font-size:1.4em;color:#1f6feb}
+  .scan-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .scan-row img{width:100%;height:auto;max-height:340px;object-fit:contain;
+    border:1px solid #d0d7de;border-radius:6px;background:#fff}
+
+  /* Overview cards */
+  .overview-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;flex:1;
+    align-items:stretch;margin-top:8px}
+  .ocard{position:relative;background:#fff;border:1px solid #d0d7de;border-radius:14px;
+    padding:24px 22px 22px;display:flex;flex-direction:column;
+    box-shadow:0 4px 12px rgba(31,35,40,.06);overflow:hidden;transition:transform .2s}
+  .ocard::before{content:"";position:absolute;top:0;left:0;right:0;height:5px}
+  .ocard.p1::before{background:linear-gradient(90deg,#1f6feb,#58a6ff)}
+  .ocard.p2::before{background:linear-gradient(90deg,#8957e5,#bc8cff)}
+  .ocard.p3::before{background:linear-gradient(90deg,#bf6a02,#fbbf24)}
+  .ocard .num{position:absolute;top:14px;right:18px;font-size:3.4em;font-weight:700;
+    color:#eef2f7;line-height:1;letter-spacing:-2px;user-select:none}
+  .ocard .icon{width:54px;height:54px;border-radius:12px;display:flex;
+    align-items:center;justify-content:center;margin-bottom:14px;
+    font-size:1.8em}
+  .ocard.p1 .icon{background:#eef4ff;color:#1f6feb}
+  .ocard.p2 .icon{background:#f3edff;color:#8957e5}
+  .ocard.p3 .icon{background:#fff4e0;color:#bf6a02}
+  .ocard h3{color:#1a1f3a;font-size:1.45em;font-weight:700;margin-bottom:10px;
+    border:0;padding:0}
+  .ocard p{font-size:1.02em;line-height:1.55;color:#24292f;margin-bottom:14px;flex:1}
+  .ocard .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:auto;padding-top:12px;
+    border-top:1px solid #eef2f7}
+  .ocard .tag-pill{font-size:.78em;padding:4px 10px;border-radius:999px;
+    background:#f6f8fa;color:#57606a;border:1px solid #d0d7de;font-weight:500}
+  .ocard.p1 .tag-pill{background:#eef4ff;color:#1f6feb;border-color:#cfe0ff}
+  .ocard.p2 .tag-pill{background:#f3edff;color:#8957e5;border-color:#dccdf7}
+  .ocard.p3 .tag-pill{background:#fff4e0;color:#bf6a02;border-color:#f5d193}
+  /* Versus comparison — paired columns with a vs. axis */
+  .vs-grid{display:grid;grid-template-columns:1fr auto 1fr;gap:0;flex:1;
+    margin-top:8px;min-height:0;align-items:stretch}
+  .vs-col{display:flex;flex-direction:column;background:#fff;border:1px solid #d0d7de;
+    border-radius:14px;padding:18px 20px;box-shadow:0 4px 12px rgba(31,35,40,.05);
+    overflow:hidden;position:relative}
+  .vs-col::before{content:"";position:absolute;top:0;left:0;right:0;height:5px}
+  .vs-col.left{border-radius:14px 0 0 14px;border-right:0}
+  .vs-col.right{border-radius:0 14px 14px 0;border-left:0}
+  .vs-col.left::before{background:linear-gradient(90deg,#bf6a02,#fbbf24)}
+  .vs-col.right::before{background:linear-gradient(90deg,#1f6feb,#58a6ff)}
+  .vs-head{display:flex;align-items:center;gap:12px;padding-bottom:12px;
+    border-bottom:1px solid #eef2f7;margin-bottom:10px}
+  .vs-head .vs-icon{width:42px;height:42px;border-radius:10px;display:flex;
+    align-items:center;justify-content:center;font-size:1.4em;flex-shrink:0}
+  .vs-col.left .vs-head .vs-icon{background:#fff4e0;color:#bf6a02}
+  .vs-col.right .vs-head .vs-icon{background:#eef4ff;color:#1f6feb}
+  .vs-head h3{margin:0;font-size:1.15em;border:0;padding:0;color:#1a1f3a}
+  .vs-head .vs-sub{font-size:.78em;color:#57606a;letter-spacing:.6px;text-transform:uppercase}
+  .vs-row{display:flex;gap:10px;padding:9px 0;align-items:flex-start;
+    border-bottom:1px solid #f6f8fa}
+  .vs-row:last-of-type{border-bottom:0}
+  .vs-row .vs-key{font-size:.74em;text-transform:uppercase;letter-spacing:.7px;
+    color:#8c959f;width:108px;flex-shrink:0;padding-top:3px;font-weight:600}
+  .vs-row .vs-val{font-size:.98em;color:#24292f;line-height:1.45;flex:1}
+  .vs-row .vs-val strong{color:#1a1f3a}
+  .vs-axis{display:flex;flex-direction:column;align-items:center;justify-content:center;
+    width:46px;background:#f6f8fa;border-top:1px solid #d0d7de;border-bottom:1px solid #d0d7de;
+    color:#57606a;font-weight:700;font-size:.85em;letter-spacing:1.5px;writing-mode:vertical-rl}
+  .vs-axis::before{content:"";display:block;flex:1;width:1px;background:#d0d7de;margin:8px 0}
+  .vs-axis::after{content:"";display:block;flex:1;width:1px;background:#d0d7de;margin:8px 0}
+
+  /* Section-divider variant: dim non-active cards, pop the active one. */
+  .overview-grid.divider .ocard.dim{opacity:.32;filter:grayscale(.6);transform:scale(.96)}
+  .overview-grid.divider .ocard.active{transform:scale(1.04);
+    box-shadow:0 10px 28px rgba(31,35,40,.14)}
+  .overview-grid.divider .ocard.active::after{content:"YOU ARE HERE";
+    position:absolute;bottom:14px;right:18px;font-size:.7em;letter-spacing:1.4px;
+    font-weight:700;color:#57606a;background:#fff;padding:3px 8px;border-radius:999px;
+    border:1px dashed #d0d7de}
+
+  /* Inline code & code block */
+  code{font-family:'SF Mono','Menlo','Consolas',monospace;font-size:.92em;
+    background:#eef2f7;color:#1a1f3a;padding:2px 6px;border-radius:4px;
+    border:1px solid #d6dde6}
+  pre{background:#0f1521;color:#e6edf3;border-radius:8px;padding:14px 16px;
+    font-family:'SF Mono','Menlo','Consolas',monospace;font-size:.95em;
+    overflow:auto;margin:8px 0}
+  pre code{background:transparent;color:inherit;border:0;padding:0}
+</style>
+</head>
+<body>
+<div class="deck">
+
+  <!-- 1. Title -->
+  <section class="slide active title-slide">
+    <h1>AI-Empowered Teaching</h1>
+    <p class="sub" style="font-size:1.3em">Interactive Demos · Auto-Grading · Custom Textbooks</p>
+    <p class="author">Yufang Sun &nbsp;·&nbsp; UH ECE &nbsp;·&nbsp; April 2026</p>
+  </section>
+
+  <!-- 2. Overview -->
+  <section class="slide">
+    <h2>What I'll Show in 10 Minutes</h2>
+    <p class="sub" style="margin-top:-10px;margin-bottom:18px">Three places AI is changing how I teach ECE at UH.</p>
+    <div class="overview-grid">
+      <div class="ocard p1">
+        <span class="num">01</span>
+        <div class="icon">⚡</div>
+        <h3>Concept Demos</h3>
+        <p>Interactive HTML visualizations students can <em>touch</em> — built with AI in minutes, not weeks.</p>
+        <div class="tags">
+          <span class="tag-pill">24 demos</span>
+          <span class="tag-pill">3 courses</span>
+          <span class="tag-pill">~30 min each</span>
+        </div>
+      </div>
+      <div class="ocard p2">
+        <span class="num">02</span>
+        <div class="icon">✓</div>
+        <h3>AI Grading</h3>
+        <p>Consistent, fast feedback on homework and exams — with a <strong>human in the loop</strong>.</p>
+        <div class="tags">
+          <span class="tag-pill">71 students</span>
+          <span class="tag-pill">5× faster</span>
+          <span class="tag-pill">per-criterion comments</span>
+        </div>
+      </div>
+      <div class="ocard p3">
+        <span class="num">03</span>
+        <div class="icon">📖</div>
+        <h3>Custom Textbook</h3>
+        <p>Slides + lecture notes → a textbook tailored to <em>my</em> class, not a generic one.</p>
+        <div class="tags">
+          <span class="tag-pill">22 chapters</span>
+          <span class="tag-pill">my notation</span>
+          <span class="tag-pill">free for students</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Section divider — Part 1 -->
+  <section class="slide">
+    <h2 style="color:#1f6feb">Part 1 · Concept Demos</h2>
+    <p class="sub" style="margin-top:-12px;margin-bottom:18px">Interactive HTML built with AI — students touch the math, not just look at it.</p>
+    <div class="overview-grid divider">
+      <div class="ocard p1 active">
+        <span class="num">01</span><div class="icon">⚡</div>
+        <h3>Concept Demos</h3>
+        <p>Interactive HTML visualizations students can <em>touch</em> — built with AI in minutes, not weeks.</p>
+        <div class="tags"><span class="tag-pill">24 demos</span><span class="tag-pill">3 courses</span><span class="tag-pill">~30 min each</span></div>
+      </div>
+      <div class="ocard p2 dim">
+        <span class="num">02</span><div class="icon">✓</div>
+        <h3>AI Grading</h3>
+        <p>Consistent, fast feedback on homework and exams — with a human in the loop.</p>
+        <div class="tags"><span class="tag-pill">71 students</span><span class="tag-pill">5× faster</span><span class="tag-pill">per-criterion comments</span></div>
+      </div>
+      <div class="ocard p3 dim">
+        <span class="num">03</span><div class="icon">📖</div>
+        <h3>Custom Textbook</h3>
+        <p>Slides + lecture notes → a textbook tailored to my class.</p>
+        <div class="tags"><span class="tag-pill">22 chapters</span><span class="tag-pill">my notation</span><span class="tag-pill">free for students</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Why demos — combined motivation + library -->
+  <section class="slide">
+    <span class="badge">PART 1 — DEMOS</span>
+    <h2>Why Demos? Some Concepts Won't Sit Still</h2>
+    <p class="sub" style="margin-top:-6px;margin-bottom:18px">
+      Bounces, rotations, and oscillations are animations. Arrows on a printout can't capture them — and students can't ask <em>"what if I change Z_L?"</em> on paper.
+    </p>
+    <div class="quote" style="margin:0">
+      "Tell me and I forget. Show me and I remember. <strong>Involve me and I understand.</strong>"
+    </div>
+  </section>
+
+  <!-- 5. AI-Assisted Demo Build Workflow (moved before live demos) -->
+  <section class="slide">
+    <h2>AI-Assisted Demo Build Workflow</h2>
+    <div class="pipe">
+      <div class="step"><b>1 · DESCRIBE (PROMPT)</b>"Make a demo to show how an EM wave propagates on a plane, show polarization, and let me change ε_r and frequency."</div>
+      <div class="arrow">→</div>
+      <div class="step"><b>2 · GENERATE</b>Claude writes HTML + Canvas + math in one pass</div>
+      <div class="arrow">→</div>
+      <div class="step"><b>3 · ITERATE</b>"Make the H-field 90° out of phase, fix the axis labels"</div>
+      <div class="arrow">→</div>
+      <div class="step"><b>4 · DEPLOY</b>One file — open offline, or publish online via GitHub Pages</div>
+    </div>
+  </section>
+
+  <!-- 6. LIVE DEMO 1 - Bounce Diagram -->
+  <section class="slide">
+    <span class="badge">LIVE DEMO</span>
+    <h2>Bounce Diagram — Transmission Line Reflections</h2>
+    <p class="frame-label">Students see voltage waves bounce between source and load, with Γ_S and Γ_L shaping each round trip — the thing that's nearly impossible to visualize on a static x-t diagram.</p>
+    <iframe class="demo-frame" src="bounce-diagram.html" title="Bounce Diagram"></iframe>
+  </section>
+
+  <!-- 6. LIVE DEMO 2 - EM Wave -->
+  <section class="slide">
+    <span class="badge">LIVE DEMO</span>
+    <h2>EM Wave Propagation</h2>
+    <p class="frame-label">E and H fields, time-animated. The thing that takes 20 minutes to draw on a chalkboard.</p>
+    <iframe class="demo-frame" src="em-wave.html" title="EM Wave"></iframe>
+  </section>
+
+  <!-- 7. LIVE DEMO 3 - 3-Phase Circuit  (HIDDEN — change class back to "slide" to re-enable) -->
+  <section class="slide-hidden" hidden>
+    <span class="badge">LIVE DEMO</span>
+    <h2>3-Phase Circuit — Y-Y, Y-Δ, Δ-Δ, Δ-Y</h2>
+    <p class="frame-label">One of the hardest topics in ECE 3364. Students switch between the four configurations and watch line/phase voltages and currents rotate at 120° in real time — far more intuitive than static phasor diagrams on paper.</p>
+    <iframe class="demo-frame" src="3phase-circuit.html" title="3-Phase Circuit"></iframe>
+  </section>
+
+  <!-- 8. LIVE DEMO 4 - K-map -->
+  <section class="slide">
+    <span class="badge">LIVE DEMO</span>
+    <h2>K-Map Simplifier</h2>
+    <p class="frame-label">Students try a minterm set, see the optimal grouping, and verify by hand.</p>
+    <iframe class="demo-frame" src="kmap.html" title="K-map"></iframe>
+  </section>
+
+
+  <!-- 9.5  Section divider — Part 2 -->
+  <section class="slide">
+    <h2 style="color:#8957e5">Part 2 · AI Grading</h2>
+    <p class="sub" style="margin-top:-12px;margin-bottom:18px">Consistent rubric, specific feedback, same-day turnaround — and I stay in the loop.</p>
+    <div class="overview-grid divider">
+      <div class="ocard p1 dim">
+        <span class="num">01</span><div class="icon">⚡</div>
+        <h3>Concept Demos</h3>
+        <p>Interactive HTML visualizations students can touch.</p>
+        <div class="tags"><span class="tag-pill">24 demos</span><span class="tag-pill">3 courses</span><span class="tag-pill">~30 min each</span></div>
+      </div>
+      <div class="ocard p2 active">
+        <span class="num">02</span><div class="icon">✓</div>
+        <h3>AI Grading</h3>
+        <p>Consistent, fast feedback on homework and exams — with a <strong>human in the loop</strong>.</p>
+        <div class="tags"><span class="tag-pill">71 students</span><span class="tag-pill">5× faster</span><span class="tag-pill">per-criterion comments</span></div>
+      </div>
+      <div class="ocard p3 dim">
+        <span class="num">03</span><div class="icon">📖</div>
+        <h3>Custom Textbook</h3>
+        <p>Slides + lecture notes → a textbook tailored to my class.</p>
+        <div class="tags"><span class="tag-pill">22 chapters</span><span class="tag-pill">my notation</span><span class="tag-pill">free for students</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9. PART 2 - Grading intro -->
+  <section class="slide">
+    <span class="badge">PART 2 — GRADING</span>
+    <h2>AI-Assisted Grading Workflow</h2>
+    <p class="sub" style="margin-bottom:18px">Upload exams + rubric → AI grades → I review the borderline cases → students get feedback the same day.</p>
+    <div class="pipe">
+      <div class="step"><b>INPUT</b>Student PDF / handwritten scan</div>
+      <div class="arrow">→</div>
+      <div class="step"><b>RUBRIC</b>My grading criteria + worked solution</div>
+      <div class="arrow">→</div>
+      <div class="step"><b>AI PASS</b>Per-criterion score, comments, confidence</div>
+      <div class="arrow">→</div>
+      <div class="step"><b>HUMAN</b>I review flagged / low-confidence items</div>
+      <div class="arrow">→</div>
+      <div class="step"><b>RETURN</b>Personalized feedback to each student</div>
+    </div>
+    <p class="sub" style="margin-top:18px;text-align:center">Human stays in the loop — AI does the first pass, I do the judgment calls.</p>
+  </section>
+
+  <!-- 12. AI vs Manual — real data scatter from ECE 3317 Exam 1 -->
+  <section class="slide">
+    <span class="badge">REAL DATA</span>
+    <h2>AI vs Manual Grading — ECE 3317 Exam 1 (N = 71)</h2>
+    <div class="cols" style="grid-template-columns:1.05fr 1fr;gap:24px">
+      <div class="col">
+        <h3>The numbers</h3>
+        <div class="stats" style="grid-template-columns:1fr 1fr;gap:12px;margin:6px 0 12px">
+          <div class="stat"><span class="n" style="font-size:1.9em">63.6</span><span class="l">AI mean (σ 13.4)</span></div>
+          <div class="stat"><span class="n" style="font-size:1.9em">77.2</span><span class="l">Manual mean (σ 10.9)</span></div>
+          <div class="stat"><span class="n" style="font-size:1.9em">0.69</span><span class="l">Pearson r &nbsp;·&nbsp; R² = 0.48</span></div>
+          <div class="stat"><span class="n" style="font-size:1.9em">90%</span><span class="l">cases where manual ≥ AI</span></div>
+        </div>
+        <h3>Agreement bands</h3>
+        <ul style="margin-top:4px">
+          <li>Within ±5 pts: <strong>15%</strong> &nbsp;·&nbsp; ±10 pts: <strong>39%</strong> &nbsp;·&nbsp; ±15 pts: <strong>61%</strong></li>
+          <li>Same letter grade: <strong>11%</strong> &nbsp;·&nbsp; within 1 letter: <strong>65%</strong></li>
+          <li>Mean gap (Manual − AI): <strong>+13.7 pts</strong></li>
+        </ul>
+        <div class="quote" style="margin-top:10px;font-size:.98em">
+          AI is <strong>systematically stricter</strong> — it ranks students well (r = 0.69) but applies the rubric without the partial-credit benefit-of-doubt I give. The orange curve <strong>y = 10·√x</strong> tracks the manual scores closely → manual grading effectively applies a <em>square-root curve</em> to the AI baseline.
+        </div>
+      </div>
+      <div class="col">
+        <h3 style="text-align:center">Per-student scatter (each dot = one exam)</h3>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center">
+          <svg viewBox="0 0 380 380" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;max-height:100%"><rect x="42" y="18" width="320" height="326" fill="#fff" stroke="#d0d7de"/><line x1="42" y1="18" x2="42" y2="344" stroke="#eef2f7"/><line x1="42" y1="344" x2="362" y2="344" stroke="#eef2f7"/><text x="42" y="358" font-size="9" fill="#57606a" text-anchor="middle">0</text><text x="36" y="347" font-size="9" fill="#57606a" text-anchor="end">0</text><line x1="106" y1="18" x2="106" y2="344" stroke="#eef2f7"/><line x1="42" y1="278.8" x2="362" y2="278.8" stroke="#eef2f7"/><text x="106" y="358" font-size="9" fill="#57606a" text-anchor="middle">20</text><text x="36" y="281.8" font-size="9" fill="#57606a" text-anchor="end">20</text><line x1="170" y1="18" x2="170" y2="344" stroke="#eef2f7"/><line x1="42" y1="213.6" x2="362" y2="213.6" stroke="#eef2f7"/><text x="170" y="358" font-size="9" fill="#57606a" text-anchor="middle">40</text><text x="36" y="216.6" font-size="9" fill="#57606a" text-anchor="end">40</text><line x1="234" y1="18" x2="234" y2="344" stroke="#eef2f7"/><line x1="42" y1="148.4" x2="362" y2="148.4" stroke="#eef2f7"/><text x="234" y="358" font-size="9" fill="#57606a" text-anchor="middle">60</text><text x="36" y="151.4" font-size="9" fill="#57606a" text-anchor="end">60</text><line x1="298" y1="18" x2="298" y2="344" stroke="#eef2f7"/><line x1="42" y1="83.2" x2="362" y2="83.2" stroke="#eef2f7"/><text x="298" y="358" font-size="9" fill="#57606a" text-anchor="middle">80</text><text x="36" y="86.2" font-size="9" fill="#57606a" text-anchor="end">80</text><line x1="362" y1="18" x2="362" y2="344" stroke="#eef2f7"/><line x1="42" y1="18" x2="362" y2="18" stroke="#eef2f7"/><text x="362" y="358" font-size="9" fill="#57606a" text-anchor="middle">100</text><text x="36" y="21" font-size="9" fill="#57606a" text-anchor="end">100</text><line x1="42" y1="344" x2="362" y2="18" stroke="#1a7f37" stroke-dasharray="4,3" stroke-width="1.2"/><text x="346" y="30.3" font-size="9" fill="#1a7f37">y = x</text><polyline points="42.0,344.0 45.2,311.4 48.4,297.9 51.6,287.5 54.8,278.8 58.0,271.1 61.2,264.1 64.4,257.7 67.6,251.8 70.8,246.2 74.0,240.9 77.2,235.9 80.4,231.1 83.6,226.5 86.8,222.0 90.0,217.7 93.2,213.6 96.4,209.6 99.6,205.7 102.8,201.9 106.0,198.2 109.2,194.6 112.4,191.1 115.6,187.7 118.8,184.3 122.0,181.0 125.2,177.8 128.4,174.6 131.6,171.5 134.8,168.4 138.0,165.4 141.2,162.5 144.4,159.6 147.6,156.7 150.8,153.9 154.0,151.1 157.2,148.4 160.4,145.7 163.6,143.0 166.8,140.4 170.0,137.8 173.2,135.3 176.4,132.7 179.6,130.2 182.8,127.8 186.0,125.3 189.2,122.9 192.4,120.5 195.6,118.1 198.8,115.8 202.0,113.5 205.2,111.2 208.4,108.9 211.6,106.7 214.8,104.4 218.0,102.2 221.2,100.0 224.4,97.9 227.6,95.7 230.8,93.6 234.0,91.5 237.2,89.4 240.4,87.3 243.6,85.2 246.8,83.2 250.0,81.2 253.2,79.2 256.4,77.2 259.6,75.2 262.8,73.2 266.0,71.2 269.2,69.3 272.4,67.4 275.6,65.5 278.8,63.6 282.0,61.7 285.2,59.8 288.4,57.9 291.6,56.1 294.8,54.2 298.0,52.4 301.2,50.6 304.4,48.8 307.6,47.0 310.8,45.2 314.0,43.4 317.2,41.7 320.4,39.9 323.6,38.2 326.8,36.5 330.0,34.7 333.2,33.0 336.4,31.3 339.6,29.6 342.8,27.9 346.0,26.3 349.2,24.6 352.4,22.9 355.6,21.3 358.8,19.6 362.0,18.0" fill="none" stroke="#bc4b00" stroke-width="1.6"/><text x="266" y="63.2" font-size="9" fill="#bc4b00">y = 10·√x</text><circle cx="240.4" cy="112.5" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="256.4" cy="63.6" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="218" cy="119.1" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="272.4" cy="83.2" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="221.2" cy="122.3" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="202" cy="132.1" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="211.6" cy="73.4" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="234" cy="154.9" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="208.4" cy="60.4" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="186" cy="122.3" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="186" cy="168" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="221.2" cy="145.1" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="291.6" cy="79.9" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="262.8" cy="93" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="307.6" cy="83.2" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="272.4" cy="76.7" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="195.6" cy="66.9" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="176.4" cy="161.4" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="301.2" cy="99.5" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="304.4" cy="73.4" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="266" cy="119.1" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="304.4" cy="50.6" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="250" cy="99.5" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="256.4" cy="109.3" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="243.6" cy="168" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="256.4" cy="93" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="230.8" cy="135.4" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="214.8" cy="109.3" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="227.6" cy="132.1" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="253.2" cy="99.5" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="278.8" cy="63.6" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="314" cy="70.2" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="266" cy="73.4" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="243.6" cy="89.7" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="160.4" cy="174.5" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="275.6" cy="76.7" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="262.8" cy="79.9" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="218" cy="106" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="230.8" cy="57.1" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="272.4" cy="73.4" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="179.6" cy="109.3" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="214.8" cy="122.3" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="330" cy="70.2" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="179.6" cy="106" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="262.8" cy="70.2" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="234" cy="60.4" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="221.2" cy="76.7" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="269.2" cy="40.8" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="307.6" cy="44.1" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="314" cy="34.3" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="291.6" cy="34.3" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="250" cy="66.9" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="243.6" cy="66.9" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="282" cy="83.2" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="189.2" cy="125.6" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="269.2" cy="76.7" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="269.2" cy="53.9" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="256.4" cy="44.1" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="214.8" cy="109.3" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="230.8" cy="93" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="291.6" cy="37.6" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="278.8" cy="57.1" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="262.8" cy="66.9" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="221.2" cy="102.8" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="195.6" cy="141.9" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="250" cy="63.6" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="227.6" cy="93" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="163.6" cy="125.6" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="118.8" cy="174.5" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="294.8" cy="66.9" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><circle cx="310.8" cy="60.4" r="4" fill="#1f6feb" fill-opacity="0.55" stroke="#1f6feb" stroke-width="0.8"/><text x="202" y="376" font-size="11" fill="#1a1f3a" text-anchor="middle" font-weight="600">AI score</text><text x="14" y="181" font-size="11" fill="#1a1f3a" text-anchor="middle" font-weight="600" transform="rotate(-90 14,181)">Manual score</text></svg>
+        </div>
+        <p class="sub" style="text-align:center;margin-top:6px;font-size:.95em">
+          Most dots sit <em>above</em> the green diagonal → manual score &gt; AI.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11. Per-student bars (all 71 students) -->
+  <section class="slide">
+    <span class="badge">REAL DATA</span>
+    <h2>Per-Student View — Every Exam, Sorted by AI Score</h2>
+    <p class="frame-label">Each student is one pair of bars. Manual (purple) is taller than AI (blue) for almost everyone — the orange gap line is the partial-credit cushion the human grader applies.</p>
+    <div style="flex:1;display:flex;align-items:center;justify-content:center;min-height:0">
+      <svg viewBox="0 0 1280 360" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;max-height:100%"><rect x="50" y="16" width="1212" height="260" fill="#fff" stroke="#d0d7de"/><line x1="50" y1="276" x2="1262" y2="276" stroke="#eef2f7"/><text x="44" y="279" font-size="10" fill="#57606a" text-anchor="end">0</text><line x1="50" y1="224" x2="1262" y2="224" stroke="#eef2f7"/><text x="44" y="227" font-size="10" fill="#57606a" text-anchor="end">20</text><line x1="50" y1="172" x2="1262" y2="172" stroke="#eef2f7"/><text x="44" y="175" font-size="10" fill="#57606a" text-anchor="end">40</text><line x1="50" y1="120" x2="1262" y2="120" stroke="#eef2f7"/><text x="44" y="123" font-size="10" fill="#57606a" text-anchor="end">60</text><line x1="50" y1="68" x2="1262" y2="68" stroke="#eef2f7"/><text x="44" y="71" font-size="10" fill="#57606a" text-anchor="end">80</text><line x1="50" y1="16" x2="1262" y2="16" stroke="#eef2f7"/><text x="44" y="19" font-size="10" fill="#57606a" text-anchor="end">100</text><rect x="51.4" y="213.6" width="6.1" height="62.4" fill="#1f6feb"/><rect x="59.5" y="140.8" width="6.1" height="135.2" fill="#bc8cff"/><line x1="54.5" y1="213.6" x2="62.6" y2="140.8" stroke="#bf6a02" stroke-width="0.8"/><text x="58.5" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 58.5,282)">DR</text></text></text><rect x="68.5" y="179.8" width="6.1" height="96.2" fill="#1f6feb"/><rect x="76.6" y="140.8" width="6.1" height="135.2" fill="#bc8cff"/><line x1="71.5" y1="179.8" x2="79.7" y2="140.8" stroke="#bf6a02" stroke-width="0.8"/><text x="75.6" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 75.6,282)">LN</text></text></text><rect x="85.5" y="177.2" width="6.1" height="98.8" fill="#1f6feb"/><rect x="93.7" y="101.8" width="6.1" height="174.2" fill="#bc8cff"/><line x1="88.6" y1="177.2" x2="96.7" y2="101.8" stroke="#bf6a02" stroke-width="0.8"/><text x="92.7" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 92.7,282)">ER</text></text></text><rect x="102.6" y="166.8" width="6.1" height="109.2" fill="#1f6feb"/><rect x="110.7" y="130.4" width="6.1" height="145.6" fill="#bc8cff"/><line x1="105.7" y1="166.8" x2="113.8" y2="130.4" stroke="#bf6a02" stroke-width="0.8"/><text x="109.7" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 109.7,282)">WR</text></text></text><rect x="119.7" y="164.2" width="6.1" height="111.8" fill="#1f6feb"/><rect x="127.8" y="88.8" width="6.1" height="187.2" fill="#bc8cff"/><line x1="122.7" y1="164.2" x2="130.9" y2="88.8" stroke="#bf6a02" stroke-width="0.8"/><text x="126.8" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 126.8,282)">IS</text></text></text><rect x="136.7" y="164.2" width="6.1" height="111.8" fill="#1f6feb"/><rect x="144.9" y="86.2" width="6.1" height="189.8" fill="#bc8cff"/><line x1="139.8" y1="164.2" x2="148.0" y2="86.2" stroke="#bf6a02" stroke-width="0.8"/><text x="143.9" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 143.9,282)">JG</text></text></text><rect x="153.8" y="159" width="6.1" height="117" fill="#1f6feb"/><rect x="162" y="99.2" width="6.1" height="176.8" fill="#bc8cff"/><line x1="156.9" y1="159" x2="165" y2="99.2" stroke="#bf6a02" stroke-width="0.8"/><text x="161" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 161,282)">OJ</text></text></text><rect x="170.9" y="159" width="6.1" height="117" fill="#1f6feb"/><rect x="179" y="135.6" width="6.1" height="140.4" fill="#bc8cff"/><line x1="174" y1="159" x2="182.1" y2="135.6" stroke="#bf6a02" stroke-width="0.8"/><text x="178" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 178,282)">EH</text></text></text><rect x="188" y="156.4" width="6.1" height="119.6" fill="#1f6feb"/><rect x="196.1" y="101.8" width="6.1" height="174.2" fill="#bc8cff"/><line x1="191" y1="156.4" x2="199.2" y2="101.8" stroke="#bf6a02" stroke-width="0.8"/><text x="195.1" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 195.1,282)">BH</text></text></text><rect x="205" y="151.2" width="6.1" height="124.8" fill="#1f6feb"/><rect x="213.2" y="55" width="6.1" height="221" fill="#bc8cff"/><line x1="208.1" y1="151.2" x2="216.2" y2="55" stroke="#bf6a02" stroke-width="0.8"/><text x="212.2" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 212.2,282)">ZH</text></text></text><rect x="222.1" y="151.2" width="6.1" height="124.8" fill="#1f6feb"/><rect x="230.2" y="114.8" width="6.1" height="161.2" fill="#bc8cff"/><line x1="225.2" y1="151.2" x2="233.3" y2="114.8" stroke="#bf6a02" stroke-width="0.8"/><text x="229.2" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 229.2,282)">MK</text></text></text><rect x="239.2" y="146" width="6.1" height="130" fill="#1f6feb"/><rect x="247.3" y="107" width="6.1" height="169" fill="#bc8cff"/><line x1="242.2" y1="146" x2="250.4" y2="107" stroke="#bf6a02" stroke-width="0.8"/><text x="246.3" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 246.3,282)">GS</text></text></text><rect x="256.2" y="140.8" width="6.1" height="135.2" fill="#1f6feb"/><rect x="264.4" y="49.8" width="6.1" height="226.2" fill="#bc8cff"/><line x1="259.3" y1="140.8" x2="267.5" y2="49.8" stroke="#bf6a02" stroke-width="0.8"/><text x="263.4" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 263.4,282)">JE</text></text></text><rect x="273.3" y="138.2" width="6.1" height="137.8" fill="#1f6feb"/><rect x="281.5" y="60.2" width="6.1" height="215.8" fill="#bc8cff"/><line x1="276.4" y1="138.2" x2="284.5" y2="60.2" stroke="#bf6a02" stroke-width="0.8"/><text x="280.5" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 280.5,282)">KO</text></text></text><rect x="290.4" y="135.6" width="6.1" height="140.4" fill="#1f6feb"/><rect x="298.5" y="88.8" width="6.1" height="187.2" fill="#bc8cff"/><line x1="293.4" y1="135.6" x2="301.6" y2="88.8" stroke="#bf6a02" stroke-width="0.8"/><text x="297.5" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 297.5,282)">JC</text></text></text><rect x="307.4" y="135.6" width="6.1" height="140.4" fill="#1f6feb"/><rect x="315.6" y="99.2" width="6.1" height="176.8" fill="#bc8cff"/><line x1="310.5" y1="135.6" x2="318.7" y2="99.2" stroke="#bf6a02" stroke-width="0.8"/><text x="314.6" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 314.6,282)">AB</text></text></text><rect x="324.5" y="135.6" width="6.1" height="140.4" fill="#1f6feb"/><rect x="332.7" y="88.8" width="6.1" height="187.2" fill="#bc8cff"/><line x1="327.6" y1="135.6" x2="335.7" y2="88.8" stroke="#bf6a02" stroke-width="0.8"/><text x="331.7" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 331.7,282)">JW</text></text></text><rect x="341.6" y="133" width="6.1" height="143" fill="#1f6feb"/><rect x="349.7" y="96.6" width="6.1" height="179.4" fill="#bc8cff"/><line x1="344.7" y1="133" x2="352.8" y2="96.6" stroke="#bf6a02" stroke-width="0.8"/><text x="348.7" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 348.7,282)">CO</text></text></text><rect x="358.7" y="133" width="6.1" height="143" fill="#1f6feb"/><rect x="366.8" y="86.2" width="6.1" height="189.8" fill="#bc8cff"/><line x1="361.7" y1="133" x2="369.9" y2="86.2" stroke="#bf6a02" stroke-width="0.8"/><text x="365.8" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 365.8,282)">LM</text></text></text><rect x="375.7" y="130.4" width="6.1" height="145.6" fill="#1f6feb"/><rect x="383.9" y="99.2" width="6.1" height="176.8" fill="#bc8cff"/><line x1="378.8" y1="130.4" x2="386.9" y2="99.2" stroke="#bf6a02" stroke-width="0.8"/><text x="382.9" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 382.9,282)">RS</text></text></text><rect x="392.8" y="130.4" width="6.1" height="145.6" fill="#1f6feb"/><rect x="400.9" y="117.4" width="6.1" height="158.6" fill="#bc8cff"/><line x1="395.9" y1="130.4" x2="404" y2="117.4" stroke="#bf6a02" stroke-width="0.8"/><text x="399.9" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 399.9,282)">AS1</text></text></text><rect x="409.9" y="130.4" width="6.1" height="145.6" fill="#1f6feb"/><rect x="418" y="62.8" width="6.1" height="213.2" fill="#bc8cff"/><line x1="412.9" y1="130.4" x2="421.1" y2="62.8" stroke="#bf6a02" stroke-width="0.8"/><text x="417" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 417,282)">BS1</text></text></text><rect x="426.9" y="130.4" width="6.1" height="145.6" fill="#1f6feb"/><rect x="435.1" y="83.6" width="6.1" height="192.4" fill="#bc8cff"/><line x1="430" y1="130.4" x2="438.2" y2="83.6" stroke="#bf6a02" stroke-width="0.8"/><text x="434.1" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 434.1,282)">DG</text></text></text><rect x="444" y="125.2" width="6.1" height="150.8" fill="#1f6feb"/><rect x="452.2" y="107" width="6.1" height="169" fill="#bc8cff"/><line x1="447.1" y1="125.2" x2="455.2" y2="107" stroke="#bf6a02" stroke-width="0.8"/><text x="451.2" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 451.2,282)">LL</text></text></text><rect x="461.1" y="125.2" width="6.1" height="150.8" fill="#1f6feb"/><rect x="469.2" y="75.8" width="6.1" height="200.2" fill="#bc8cff"/><line x1="464.2" y1="125.2" x2="472.3" y2="75.8" stroke="#bf6a02" stroke-width="0.8"/><text x="468.2" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 468.2,282)">YS</text></text></text><rect x="478.2" y="122.6" width="6.1" height="153.4" fill="#1f6feb"/><rect x="486.3" y="109.6" width="6.1" height="166.4" fill="#bc8cff"/><line x1="481.2" y1="122.6" x2="489.4" y2="109.6" stroke="#bf6a02" stroke-width="0.8"/><text x="485.3" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 485.3,282)">SF</text></text></text><rect x="495.2" y="122.6" width="6.1" height="153.4" fill="#1f6feb"/><rect x="503.4" y="47.2" width="6.1" height="228.8" fill="#bc8cff"/><line x1="498.3" y1="122.6" x2="506.4" y2="47.2" stroke="#bf6a02" stroke-width="0.8"/><text x="502.4" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 502.4,282)">TL</text></text></text><rect x="512.3" y="122.6" width="6.1" height="153.4" fill="#1f6feb"/><rect x="520.4" y="75.8" width="6.1" height="200.2" fill="#bc8cff"/><line x1="515.4" y1="122.6" x2="523.5" y2="75.8" stroke="#bf6a02" stroke-width="0.8"/><text x="519.4" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 519.4,282)">TP</text></text></text><rect x="529.4" y="120" width="6.1" height="156" fill="#1f6feb"/><rect x="537.5" y="125.2" width="6.1" height="150.8" fill="#bc8cff"/><line x1="532.4" y1="120" x2="540.6" y2="125.2" stroke="#bf6a02" stroke-width="0.8"/><text x="536.5" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 536.5,282)">JN</text></text></text><rect x="546.4" y="120" width="6.1" height="156" fill="#1f6feb"/><rect x="554.6" y="49.8" width="6.1" height="226.2" fill="#bc8cff"/><line x1="549.5" y1="120" x2="557.7" y2="49.8" stroke="#bf6a02" stroke-width="0.8"/><text x="553.6" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 553.6,282)">HA</text></text></text><rect x="563.5" y="114.8" width="6.1" height="161.2" fill="#1f6feb"/><rect x="571.6" y="91.4" width="6.1" height="184.6" fill="#bc8cff"/><line x1="566.6" y1="114.8" x2="574.7" y2="91.4" stroke="#bf6a02" stroke-width="0.8"/><text x="570.6" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 570.6,282)">AS2</text></text></text><rect x="580.6" y="112.2" width="6.1" height="163.8" fill="#1f6feb"/><rect x="588.7" y="135.6" width="6.1" height="140.4" fill="#bc8cff"/><line x1="583.6" y1="112.2" x2="591.8" y2="135.6" stroke="#bf6a02" stroke-width="0.8"/><text x="587.7" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 587.7,282)">FR</text></text></text><rect x="597.6" y="112.2" width="6.1" height="163.8" fill="#1f6feb"/><rect x="605.8" y="73.2" width="6.1" height="202.8" fill="#bc8cff"/><line x1="600.7" y1="112.2" x2="608.9" y2="73.2" stroke="#bf6a02" stroke-width="0.8"/><text x="604.8" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 604.8,282)">BS2</text></text></text><rect x="614.7" y="112.2" width="6.1" height="163.8" fill="#1f6feb"/><rect x="622.9" y="55" width="6.1" height="221" fill="#bc8cff"/><line x1="617.8" y1="112.2" x2="625.9" y2="55" stroke="#bf6a02" stroke-width="0.8"/><text x="621.9" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 621.9,282)">SE</text></text></text><rect x="631.8" y="107" width="6.1" height="169" fill="#1f6feb"/><rect x="639.9" y="81" width="6.1" height="195" fill="#bc8cff"/><line x1="634.9" y1="107" x2="643" y2="81" stroke="#bf6a02" stroke-width="0.8"/><text x="638.9" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 638.9,282)">HF</text></text></text><rect x="648.9" y="107" width="6.1" height="169" fill="#1f6feb"/><rect x="657" y="55" width="6.1" height="221" fill="#bc8cff"/><line x1="651.9" y1="107" x2="660.1" y2="55" stroke="#bf6a02" stroke-width="0.8"/><text x="656" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 656,282)">EC</text></text></text><rect x="665.9" y="107" width="6.1" height="169" fill="#1f6feb"/><rect x="674.1" y="52.4" width="6.1" height="223.6" fill="#bc8cff"/><line x1="669" y1="107" x2="677.1" y2="52.4" stroke="#bf6a02" stroke-width="0.8"/><text x="673.1" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 673.1,282)">ZM</text></text></text><rect x="683" y="104.4" width="6.1" height="171.6" fill="#1f6feb"/><rect x="691.1" y="81" width="6.1" height="195" fill="#bc8cff"/><line x1="686.1" y1="104.4" x2="694.2" y2="81" stroke="#bf6a02" stroke-width="0.8"/><text x="690.1" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 690.1,282)">CY</text></text></text><rect x="700.1" y="101.8" width="6.1" height="174.2" fill="#1f6feb"/><rect x="708.2" y="52.4" width="6.1" height="223.6" fill="#bc8cff"/><line x1="703.1" y1="101.8" x2="711.3" y2="52.4" stroke="#bf6a02" stroke-width="0.8"/><text x="707.2" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 707.2,282)">AK</text></text></text><rect x="717.1" y="101.8" width="6.1" height="174.2" fill="#1f6feb"/><rect x="725.3" y="88.8" width="6.1" height="187.2" fill="#bc8cff"/><line x1="720.2" y1="101.8" x2="728.4" y2="88.8" stroke="#bf6a02" stroke-width="0.8"/><text x="724.3" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 724.3,282)">AH</text></text></text><rect x="734.2" y="101.8" width="6.1" height="174.2" fill="#1f6feb"/><rect x="742.4" y="75.8" width="6.1" height="200.2" fill="#bc8cff"/><line x1="737.3" y1="101.8" x2="745.4" y2="75.8" stroke="#bf6a02" stroke-width="0.8"/><text x="741.4" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 741.4,282)">PM</text></text></text><rect x="751.3" y="101.8" width="6.1" height="174.2" fill="#1f6feb"/><rect x="759.4" y="36.8" width="6.1" height="239.2" fill="#bc8cff"/><line x1="754.3" y1="101.8" x2="762.5" y2="36.8" stroke="#bf6a02" stroke-width="0.8"/><text x="758.4" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 758.4,282)">CR</text></text></text><rect x="768.3" y="96.6" width="6.1" height="179.4" fill="#1f6feb"/><rect x="776.5" y="75.8" width="6.1" height="200.2" fill="#bc8cff"/><line x1="771.4" y1="96.6" x2="779.6" y2="75.8" stroke="#bf6a02" stroke-width="0.8"/><text x="775.5" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 775.5,282)">NH</text></text></text><rect x="785.4" y="96.6" width="6.1" height="179.4" fill="#1f6feb"/><rect x="793.6" y="65.4" width="6.1" height="210.6" fill="#bc8cff"/><line x1="788.5" y1="96.6" x2="796.6" y2="65.4" stroke="#bf6a02" stroke-width="0.8"/><text x="792.6" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 792.6,282)">NJ</text></text></text><rect x="802.5" y="96.6" width="6.1" height="179.4" fill="#1f6feb"/><rect x="810.6" y="57.6" width="6.1" height="218.4" fill="#bc8cff"/><line x1="805.6" y1="96.6" x2="813.7" y2="57.6" stroke="#bf6a02" stroke-width="0.8"/><text x="809.6" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 809.6,282)">AM</text></text></text><rect x="819.6" y="96.6" width="6.1" height="179.4" fill="#1f6feb"/><rect x="827.7" y="55" width="6.1" height="221" fill="#bc8cff"/><line x1="822.6" y1="96.6" x2="830.8" y2="55" stroke="#bf6a02" stroke-width="0.8"/><text x="826.7" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 826.7,282)">PS</text></text></text><rect x="836.6" y="94" width="6.1" height="182" fill="#1f6feb"/><rect x="844.8" y="96.6" width="6.1" height="179.4" fill="#bc8cff"/><line x1="839.7" y1="94" x2="847.8" y2="96.6" stroke="#bf6a02" stroke-width="0.8"/><text x="843.8" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 843.8,282)">SC</text></text></text><rect x="853.7" y="94" width="6.1" height="182" fill="#1f6feb"/><rect x="861.8" y="60.2" width="6.1" height="215.8" fill="#bc8cff"/><line x1="856.8" y1="94" x2="864.9" y2="60.2" stroke="#bf6a02" stroke-width="0.8"/><text x="860.8" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 860.8,282)">TV</text></text></text><rect x="870.8" y="91.4" width="6.1" height="184.6" fill="#1f6feb"/><rect x="878.9" y="34.2" width="6.1" height="241.8" fill="#bc8cff"/><line x1="873.8" y1="91.4" x2="882" y2="34.2" stroke="#bf6a02" stroke-width="0.8"/><text x="877.9" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 877.9,282)">TS1</text></text></text><rect x="887.8" y="91.4" width="6.1" height="184.6" fill="#1f6feb"/><rect x="896" y="62.8" width="6.1" height="213.2" fill="#bc8cff"/><line x1="890.9" y1="91.4" x2="899.1" y2="62.8" stroke="#bf6a02" stroke-width="0.8"/><text x="895" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 895,282)">DS1</text></text></text><rect x="904.9" y="91.4" width="6.1" height="184.6" fill="#1f6feb"/><rect x="913.1" y="44.6" width="6.1" height="231.4" fill="#bc8cff"/><line x1="908" y1="91.4" x2="916.1" y2="44.6" stroke="#bf6a02" stroke-width="0.8"/><text x="912.1" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 912.1,282)">LI</text></text></text><rect x="922" y="88.8" width="6.1" height="187.2" fill="#1f6feb"/><rect x="930.1" y="68" width="6.1" height="208" fill="#bc8cff"/><line x1="925.1" y1="88.8" x2="933.2" y2="68" stroke="#bf6a02" stroke-width="0.8"/><text x="929.1" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 929.1,282)">MH1</text></text></text><rect x="939.1" y="88.8" width="6.1" height="187.2" fill="#1f6feb"/><rect x="947.2" y="62.8" width="6.1" height="213.2" fill="#bc8cff"/><line x1="942.1" y1="88.8" x2="950.3" y2="62.8" stroke="#bf6a02" stroke-width="0.8"/><text x="946.2" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 946.2,282)">NN</text></text></text><rect x="956.1" y="88.8" width="6.1" height="187.2" fill="#1f6feb"/><rect x="964.3" y="60.2" width="6.1" height="215.8" fill="#bc8cff"/><line x1="959.2" y1="88.8" x2="967.3" y2="60.2" stroke="#bf6a02" stroke-width="0.8"/><text x="963.3" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 963.3,282)">RH</text></text></text><rect x="973.2" y="86.2" width="6.1" height="189.8" fill="#1f6feb"/><rect x="981.3" y="62.8" width="6.1" height="213.2" fill="#bc8cff"/><line x1="976.3" y1="86.2" x2="984.4" y2="62.8" stroke="#bf6a02" stroke-width="0.8"/><text x="980.3" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 980.3,282)">EW</text></text></text><rect x="990.3" y="83.6" width="6.1" height="192.4" fill="#1f6feb"/><rect x="998.4" y="52.4" width="6.1" height="223.6" fill="#bc8cff"/><line x1="993.3" y1="83.6" x2="1001.5" y2="52.4" stroke="#bf6a02" stroke-width="0.8"/><text x="997.4" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 997.4,282)">MH2</text></text></text><rect x="1007.3" y="83.6" width="6.1" height="192.4" fill="#1f6feb"/><rect x="1015.5" y="47.2" width="6.1" height="228.8" fill="#bc8cff"/><line x1="1010.4" y1="83.6" x2="1018.6" y2="47.2" stroke="#bf6a02" stroke-width="0.8"/><text x="1014.5" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 1014.5,282)">TS2</text></text></text><rect x="1024.4" y="81" width="6.1" height="195" fill="#1f6feb"/><rect x="1032.5" y="68" width="6.1" height="208" fill="#bc8cff"/><line x1="1027.5" y1="81" x2="1035.6" y2="68" stroke="#bf6a02" stroke-width="0.8"/><text x="1031.5" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 1031.5,282)">ZA</text></text></text><rect x="1041.5" y="73.2" width="6.1" height="202.8" fill="#1f6feb"/><rect x="1049.6" y="65.4" width="6.1" height="210.6" fill="#bc8cff"/><line x1="1044.5" y1="73.2" x2="1052.7" y2="65.4" stroke="#bf6a02" stroke-width="0.8"/><text x="1048.6" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 1048.6,282)">ZW</text></text></text><rect x="1058.5" y="73.2" width="6.1" height="202.8" fill="#1f6feb"/><rect x="1066.7" y="29" width="6.1" height="247" fill="#bc8cff"/><line x1="1061.6" y1="73.2" x2="1069.8" y2="29" stroke="#bf6a02" stroke-width="0.8"/><text x="1065.7" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 1065.7,282)">AS3</text></text></text><rect x="1075.6" y="73.2" width="6.1" height="202.8" fill="#1f6feb"/><rect x="1083.8" y="31.6" width="6.1" height="244.4" fill="#bc8cff"/><line x1="1078.7" y1="73.2" x2="1086.8" y2="31.6" stroke="#bf6a02" stroke-width="0.8"/><text x="1082.8" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 1082.8,282)">TD</text></text></text><rect x="1092.7" y="70.6" width="6.1" height="205.4" fill="#1f6feb"/><rect x="1100.8" y="55" width="6.1" height="221" fill="#bc8cff"/><line x1="1095.8" y1="70.6" x2="1103.9" y2="55" stroke="#bf6a02" stroke-width="0.8"/><text x="1099.8" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 1099.8,282)">BW</text></text></text><rect x="1109.8" y="65.4" width="6.1" height="210.6" fill="#1f6feb"/><rect x="1117.9" y="81" width="6.1" height="195" fill="#bc8cff"/><line x1="1112.8" y1="65.4" x2="1121" y2="81" stroke="#bf6a02" stroke-width="0.8"/><text x="1116.9" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 1116.9,282)">AP</text></text></text><rect x="1126.8" y="62.8" width="6.1" height="213.2" fill="#1f6feb"/><rect x="1135" y="60.2" width="6.1" height="215.8" fill="#bc8cff"/><line x1="1129.9" y1="62.8" x2="1138" y2="60.2" stroke="#bf6a02" stroke-width="0.8"/><text x="1134" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 1134,282)">DS2</text></text></text><rect x="1143.9" y="62.8" width="6.1" height="213.2" fill="#1f6feb"/><rect x="1152" y="42" width="6.1" height="234" fill="#bc8cff"/><line x1="1147" y1="62.8" x2="1155.1" y2="42" stroke="#bf6a02" stroke-width="0.8"/><text x="1151" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 1151,282)">NB</text></text></text><rect x="1161" y="60.2" width="6.1" height="215.8" fill="#1f6feb"/><rect x="1169.1" y="68" width="6.1" height="208" fill="#bc8cff"/><line x1="1164" y1="60.2" x2="1172.2" y2="68" stroke="#bf6a02" stroke-width="0.8"/><text x="1168.1" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 1168.1,282)">KK</text></text></text><rect x="1178" y="60.2" width="6.1" height="215.8" fill="#1f6feb"/><rect x="1186.2" y="36.8" width="6.1" height="239.2" fill="#bc8cff"/><line x1="1181.1" y1="60.2" x2="1189.3" y2="36.8" stroke="#bf6a02" stroke-width="0.8"/><text x="1185.2" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 1185.2,282)">JP</text></text></text><rect x="1195.1" y="57.6" width="6.1" height="218.4" fill="#1f6feb"/><rect x="1203.3" y="49.8" width="6.1" height="226.2" fill="#bc8cff"/><line x1="1198.2" y1="57.6" x2="1206.3" y2="49.8" stroke="#bf6a02" stroke-width="0.8"/><text x="1202.3" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 1202.3,282)">MA</text></text></text><rect x="1212.2" y="55" width="6.1" height="221" fill="#1f6feb"/><rect x="1220.3" y="57.6" width="6.1" height="218.4" fill="#bc8cff"/><line x1="1215.3" y1="55" x2="1223.4" y2="57.6" stroke="#bf6a02" stroke-width="0.8"/><text x="1219.3" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 1219.3,282)">MH3</text></text></text><rect x="1229.2" y="55" width="6.1" height="221" fill="#1f6feb"/><rect x="1237.4" y="29" width="6.1" height="247" fill="#bc8cff"/><line x1="1232.3" y1="55" x2="1240.5" y2="29" stroke="#bf6a02" stroke-width="0.8"/><text x="1236.4" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 1236.4,282)">NM</text></text></text><rect x="1246.3" y="42" width="6.1" height="234" fill="#1f6feb"/><rect x="1254.5" y="57.6" width="6.1" height="218.4" fill="#bc8cff"/><line x1="1249.4" y1="42" x2="1257.5" y2="57.6" stroke="#bf6a02" stroke-width="0.8"/><text x="1253.5" y="282" font-size="8" fill="#24292f" text-anchor="end" transform="rotate(-65 1253.5,282)">TK</text></text></text><text x="14" y="146" font-size="11" fill="#1a1f3a" text-anchor="middle" font-weight="600" transform="rotate(-90 14,146)">score</text><g transform="translate(60,26)"><rect x="0" y="0" width="14" height="14" fill="#1f6feb"/><text x="20" y="11" font-size="11" fill="#1a1f3a">AI score</text><rect x="90" y="0" width="14" height="14" fill="#bc8cff"/><text x="110" y="11" font-size="11" fill="#1a1f3a">Manual score</text><line x1="200" y1="7" x2="220" y2="7" stroke="#bf6a02" stroke-width="1.5"/><text x="226" y="11" font-size="11" fill="#1a1f3a">gap (Manual − AI)</text></g><text x="656" y="356" font-size="10" fill="#57606a" text-anchor="middle">students sorted by AI score (low → high)</text></svg>
+    </div>
+    <p class="sub" style="text-align:center;margin-top:8px">
+      Notice: only <strong>7 of 71</strong> students have AI ≥ Manual (their orange gap line slopes <em>down</em>) — the rest get the partial-credit cushion. → Use AI score + curve, not raw AI.
+    </p>
+  </section>
+
+  <!-- 13. Example: AI vs Manual side-by-side on Problem 3 -->
+  <section class="slide">
+    <span class="badge">EXAMPLE</span>
+    <h2>One Student, Problem 3 — Same Diagnosis, AI Slightly Stricter</h2>
+    <div class="cols" style="grid-template-columns:1fr 1fr;gap:20px">
+      <div class="col">
+        <div class="grade-card">
+          <h4 style="color:#bf6a02">Manual grade (handwritten)</h4>
+          <div class="scan-row">
+            <img src="grade/manual-1.png" alt="Manual grade page 1 — Problem 3 with red 25 mark">
+            <img src="grade/manual-2.png" alt="Manual grade page 2 — checkmarks on (b) and P=? on (c)">
+          </div>
+          <div class="grade-total">
+            <span style="color:#57606a">Final score</span>
+            <span class="pts">25 / 30</span>
+          </div>
+          <p class="sub" style="margin-top:6px;font-size:.88em">
+            Red ✓ on (a) and (b). Red <em>"P = ?"</em> on (c) — instructor noted (c) is incomplete but didn't write why.
+          </p>
+        </div>
+      </div>
+      <div class="col">
+        <div class="grade-card">
+          <h4 style="color:#1f6feb">AI grade (per-criterion)</h4>
+          <div class="crit">
+            <span class="mark ok">✓</span>
+            <div class="body">
+              <b>P3a — Complex Poynting vector  (10 / 10)</b>
+              <span>Correct. <code>S_c = ½ E × H* = −0.001327 x̂  [VA]</code>.</span>
+            </div>
+          </div>
+          <div class="crit">
+            <span class="mark ok">✓</span>
+            <div class="body">
+              <b>P3b — Instantaneous Poynting vector  (10 / 10)</b>
+              <span>Correct cos² form: <code>S(t) = −0.002654 cos²(ωt + kx) x̂</code>.</span>
+            </div>
+          </div>
+          <div class="crit">
+            <span class="mark partial">!</span>
+            <div class="body">
+              <b>P3c — Time-avg power through surface S  (3 / 10)</b>
+              <span>Wrote ⟨S⟩ correctly but the <em>surface integral over S is incomplete</em> — never evaluated <code>∫∫_S ⟨S⟩·n̂ dA</code>; final power not computed.</span>
+            </div>
+          </div>
+          <div class="grade-total">
+            <span style="color:#57606a">Final score</span>
+            <span class="pts">23 / 30</span>
+          </div>
+          <p class="sub" style="margin-top:6px;font-size:.88em">
+            AI deducted 2 more points on (c) — same diagnosis, less partial-credit benefit-of-doubt. Right in line with the +14-pt pattern from the scatter plot.
+          </p>
+        </div>
+      </div>
+    </div>
+    <p class="sub" style="text-align:center;margin-top:10px">
+      <strong>Manual 25  vs  AI 23.</strong> &nbsp;Same root cause identified — but AI says <em>why</em>: "incomplete surface integral — evaluate ∫∫_S ⟨S⟩·n̂ dA," instead of just a red question mark.
+    </p>
+  </section>
+
+  <!-- 13.5  Section divider — Part 3 -->
+  <section class="slide">
+    <h2 style="color:#bf6a02">Part 3 · Custom Textbook</h2>
+    <p class="sub" style="margin-top:-12px;margin-bottom:18px">Five textbooks in, one tailored book out — in <em>my</em> notation, matching <em>my</em> syllabus.</p>
+    <div class="overview-grid divider">
+      <div class="ocard p1 dim">
+        <span class="num">01</span><div class="icon">⚡</div>
+        <h3>Concept Demos</h3>
+        <p>Interactive HTML visualizations students can touch.</p>
+        <div class="tags"><span class="tag-pill">24 demos</span><span class="tag-pill">3 courses</span><span class="tag-pill">~30 min each</span></div>
+      </div>
+      <div class="ocard p2 dim">
+        <span class="num">02</span><div class="icon">✓</div>
+        <h3>AI Grading</h3>
+        <p>Consistent, fast feedback with a human in the loop.</p>
+        <div class="tags"><span class="tag-pill">71 students</span><span class="tag-pill">5× faster</span><span class="tag-pill">per-criterion comments</span></div>
+      </div>
+      <div class="ocard p3 active">
+        <span class="num">03</span><div class="icon">📖</div>
+        <h3>Custom Textbook</h3>
+        <p>Slides + lecture notes → a textbook tailored to <em>my</em> class, not a generic one.</p>
+        <div class="tags"><span class="tag-pill">22 chapters</span><span class="tag-pill">my notation</span><span class="tag-pill">free for students</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 14. PART 3 - Textbook -->
+  <section class="slide">
+    <span class="badge">PART 3 — TEXTBOOK</span>
+    <h2>Motivation</h2>
+    <p class="sub" style="margin-top:-8px;margin-bottom:16px">Why not just use a standard textbook?</p>
+    <ul style="font-size:1.15em;line-height:1.8">
+      <li><strong>2 required + 3 suggested</strong> textbooks for one course — students juggle five books</li>
+      <li><strong>Expensive</strong>, and several are <em>out of print</em> — hard to buy, hard to find</li>
+      <li><strong>Equations &amp; notation vary</strong> from book to book — same concept, three different symbols</li>
+      <li>Course content is <strong>stitched together</strong> from different books — no single source matches the syllabus</li>
+    </ul>
+  </section>
+
+  <!-- 12. Textbook pipeline -->
+  <section class="slide">
+    <h2>Textbook Generation Pipeline</h2>
+
+    <h3 style="margin-top:0;color:#bf6a02">Stage 1 · Data preparation</h3>
+    <div class="pipe" style="margin-top:6px">
+      <div class="step"><b>SOURCES</b>Dr. Jackson's lecture videos · slides · notes · HW · exams · demos</div>
+      <div class="arrow">→</div>
+      <div class="step"><b>TRANSCRIBE</b>Generate transcripts from the video recordings</div>
+      <div class="arrow">→</div>
+      <div class="step"><b>ALIGN</b>Match each transcript segment to the corresponding lecture notes &amp; slide</div>
+      <div class="arrow">→</div>
+      <div class="step"><b>MAP TO SYLLABUS</b>Bin all aligned material into syllabus topics</div>
+    </div>
+
+    <h3 style="margin-top:18px;color:#1f6feb">Stage 2 · Generation</h3>
+    <div class="pipe" style="margin-top:6px">
+      <div class="step"><b>STRUCTURE</b>AI proposes chapter outline matching the syllabus</div>
+      <div class="arrow">→</div>
+      <div class="step"><b>DRAFT</b>Each chapter written from the prepared materials, in a consistent style</div>
+      <div class="arrow">→</div>
+      <div class="step"><b>ENRICH</b>Worked examples, demo links, end-of-chapter problems</div>
+      <div class="arrow">→</div>
+      <div class="step"><b>REVIEW</b>I edit for accuracy → publish as PDF / web</div>
+    </div>
+
+    <div class="quote" style="margin-top:18px">
+      The textbook reads like <strong>the lectures</strong> — same notation, same examples,
+      same emphasis. Students read it because it answers what they actually got asked.
+    </div>
+  </section>
+
+  <!-- 13. LIVE TEXTBOOK -->
+  <section class="slide">
+    <span class="badge">LIVE TEXTBOOK</span>
+    <h2>Applied Electromagnetic Waves — ECE 3317</h2>
+    <p class="frame-label">22 chapters · 5 parts · generated from my lecture notes &amp; slides. Scroll inside the frame to browse.</p>
+    <iframe class="demo-frame" src="textbook/main.pdf#view=FitH" title="ECE 3317 Textbook"></iframe>
+  </section>
+
+  <!-- 15. Get Started -->
+  <section class="slide">
+    <span class="badge">GET STARTED</span>
+    <h2>Try Claude Code Yourself</h2>
+    <div class="cols">
+      <div class="col">
+        <h3>1 · Install (one command)</h3>
+        <pre><code>npm install -g @anthropic-ai/claude-code</code></pre>
+        <p class="sub" style="margin:6px 0 14px">Requires Node.js 18+ &nbsp;·&nbsp; <code>brew install node</code> on Mac</p>
+
+        <h3>2 · Sign in</h3>
+        <ul>
+          <li>Run <code>claude</code> — it opens a browser to log in</li>
+          <li>Use a Claude Pro / Max plan, or an API key</li>
+        </ul>
+
+        <h3>3 · Run it in your project</h3>
+        <pre><code>cd ~/my-course-materials
+claude</code></pre>
+      </div>
+      <div class="col">
+        <h3>What you can ask</h3>
+        <ul>
+          <li><em>"Make an interactive demo of plane-wave reflection at a dielectric boundary."</em></li>
+          <li><em>"Grade these student PDFs against this rubric and write feedback."</em></li>
+          <li><em>"Turn these lecture slides into a textbook chapter in LaTeX."</em></li>
+          <li><em>"Find the bug in my Smith Chart code."</em></li>
+        </ul>
+
+        <h3>Useful commands</h3>
+        <ul>
+          <li><code>/init</code> — scan repo &amp; create <code>CLAUDE.md</code></li>
+          <li><code>/help</code> — show all commands</li>
+          <li><code>/clear</code> — start a fresh conversation</li>
+          <li><code>!&lt;cmd&gt;</code> — run a shell command in-session</li>
+        </ul>
+
+        <h3>Save your work as Markdown</h3>
+        <ul>
+          <li><em>"Save the lecture plan to <code>lecture-08.md</code>"</em> — Claude writes the file directly</li>
+          <li><em>"Summarize this session in <code>notes.md</code>"</em> — keeps a paper trail of decisions</li>
+          <li><code>CLAUDE.md</code> — auto-loaded every session; put course context, conventions, todo list here</li>
+        </ul>
+      </div>
+    </div>
+    <p class="sub" style="text-align:center;margin-top:14px">
+      Docs: <strong>claude.com/claude-code</strong> &nbsp;·&nbsp; works in your terminal, VS Code, or JetBrains
+    </p>
+  </section>
+
+  <!-- 16. Closing -->
+  <section class="slide title-slide">
+    <h1>Thank You</h1>
+    <p class="sub" style="font-size:1.3em">Try the demos: <a href="https://yufangsun.github.io/UH-ECE-demo/" style="color:#1f6feb;text-decoration:none">yufangsun.github.io/UH-ECE-demo</a></p>
+    <p class="author">Yufang Sun &nbsp;·&nbsp; ysun49@uh.edu</p>
+    <p class="author" style="margin-top:30px;color:#58a6ff">Questions?</p>
+  </section>
+
+</div>
+
+<div class="hint">← / → to navigate · F for fullscreen</div>
+<div class="nav"><b><span id="cur">1</span></b> / <span id="tot">14</span></div>
+
+<script>
+  const slides=[...document.querySelectorAll('.slide')];
+  const cur=document.getElementById('cur'),tot=document.getElementById('tot');
+  tot.textContent=slides.length;
+  let i=0;
+  function go(n){
+    n=Math.max(0,Math.min(slides.length-1,n));
+    slides[i].classList.remove('active');
+    slides[n].classList.add('active');
+    i=n;cur.textContent=i+1;
+    location.hash='s'+(i+1);
+  }
+  document.addEventListener('keydown',e=>{
+    if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown')go(i+1);
+    else if(e.key==='ArrowLeft'||e.key==='PageUp')go(i-1);
+    else if(e.key==='Home')go(0);
+    else if(e.key==='End')go(slides.length-1);
+    else if(e.key==='f'||e.key==='F'){
+      if(!document.fullscreenElement)document.documentElement.requestFullscreen();
+      else document.exitFullscreen();
+    }
+  });
+  // Click right half = next, left half = prev
+  document.addEventListener('click',e=>{
+    if(e.target.closest('iframe,a'))return;
+    if(e.clientX>window.innerWidth/2)go(i+1);else go(i-1);
+  });
+  // Restore from hash
+  if(location.hash.startsWith('#s')){
+    const n=parseInt(location.hash.slice(2))-1;
+    if(!isNaN(n))go(n);
+  }
+</script>
+</body>
+</html>

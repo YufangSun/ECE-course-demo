@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EM Wave Propagation — E & H Field Transfer</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',system-ui,sans-serif;
+    display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:20px}
+  h1{font-size:1.6em;color:#e0e0ff}
+  .subtitle{color:#7d8590;margin-bottom:10px;font-size:.95em;text-align:center;max-width:900px}
+  canvas{display:block;border-radius:10px}
+  .tabs{display:flex;gap:6px;margin:12px 0;flex-wrap:wrap;justify-content:center}
+  .tab{padding:8px 16px;border-radius:8px;cursor:pointer;font-size:.85em;
+    background:#161b22;border:1px solid #30363d;color:#8b949e;transition:.2s}
+  .tab:hover{border-color:#58a6ff;color:#e6edf3}
+  .tab.active{background:#1f6feb;border-color:#1f6feb;color:white;font-weight:bold}
+  .eq-box{background:#161b22;border:1px solid #30363d;border-radius:10px;
+    padding:10px 16px;margin:8px 0;max-width:960px;width:100%;text-align:center}
+  .eq{font-size:1.15em;font-family:'Times New Roman',serif;color:#e0e0ff;letter-spacing:.5px}
+  .eq-name{font-size:.82em;color:#8b949e;margin-top:2px}
+  .eq-desc{font-size:.8em;color:#7d8590;margin-top:4px;line-height:1.5}
+  .controls{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;justify-content:center;align-items:center}
+  .cg{display:flex;align-items:center;gap:5px}
+  .cg label{font-size:.8em;color:#8b949e;white-space:nowrap}
+  input[type="range"]{width:110px;accent-color:#f78166}
+  .val{font-size:.8em;color:#f78166;min-width:46px}
+  button{background:#238636;color:white;border:none;padding:6px 16px;border-radius:6px;
+    cursor:pointer;font-size:.85em;transition:.2s}
+  button:hover{background:#2ea043}
+  button.sec{background:#30363d}
+  button.sec:hover{background:#484f58}
+  .legend{display:flex;gap:14px;justify-content:center;margin:6px 0;flex-wrap:wrap}
+  .legend-item{display:flex;align-items:center;gap:4px;font-size:.78em}
+  .legend-dot{width:9px;height:9px;border-radius:50%}
+  .row{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;margin-top:10px;max-width:1100px;width:100%}
+  .panel{background:#161b22;border-radius:12px;padding:14px;border:1px solid #30363d;flex:1;min-width:260px}
+  .panel h2{font-size:.9em;color:#8b949e;margin-bottom:6px;text-align:center}
+  .meters{display:flex;gap:12px;justify-content:center;margin-top:8px;flex-wrap:wrap}
+  .meter{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:5px 12px;text-align:center;min-width:120px}
+  .meter .ml{font-size:.7em;color:#8b949e}
+  .meter .mv{font-size:.95em;font-weight:bold;font-family:'Courier New',monospace}
+  .info{max-width:1100px;width:100%;background:#161b22;border-radius:12px;
+    padding:14px 18px;border:1px solid #30363d;margin-top:14px;font-size:.85em;line-height:1.6;color:#8b949e}
+  .info strong{color:#e0e0ff}
+  .info code{color:#f78166;background:#21262d;padding:1px 4px;border-radius:3px}
+  a{color:#58a6ff}
+</style>
+</head>
+<body>
+
+<h1>EM Wave Propagation</h1>
+<p class="subtitle">A changing <b style="color:#f97583">E field</b> creates an <b style="color:#79c0ff">H field</b> — a changing H field creates an E field. This mutual induction lets the pair propagate through space at the speed of light, carrying energy in the direction <b style="color:#ffa657">S = E × H</b>.</p>
+
+<div class="tabs">
+  <div class="tab active" data-tab="0">Plane Wave (3D)</div>
+  <div class="tab" data-tab="1">Polarization</div>
+  <div class="tab" data-tab="2">Propagation Through Media</div>
+  <div class="tab" data-tab="3">Reflection & Transmission</div>
+</div>
+
+<div id="eqBox" class="eq-box">
+  <div class="eq" id="eqText"></div>
+  <div class="eq-name" id="eqName"></div>
+  <div class="eq-desc" id="eqDesc"></div>
+</div>
+
+<canvas id="mainCanvas" width="1060" height="620"></canvas>
+
+<div id="legendBox" class="legend"></div>
+<div id="meterBox" class="meters"></div>
+<div id="ctrlBox" class="controls"></div>
+
+<div class="row">
+  <div class="panel">
+    <h2 id="ch1Title">Chart 1</h2>
+    <canvas id="chart1" width="520" height="180"></canvas>
+  </div>
+  <div class="panel">
+    <h2 id="ch2Title">Chart 2</h2>
+    <canvas id="chart2" width="520" height="180"></canvas>
+  </div>
+</div>
+
+<div class="info">
+  <strong>Uniform plane wave in a lossless medium:</strong><br>
+  <code>E(z,t) = E₀ cos(ωt − kz) x̂</code> &nbsp;·&nbsp;
+  <code>H(z,t) = (E₀/η) cos(ωt − kz) ŷ</code> &nbsp;·&nbsp;
+  <code>S = E × H</code> (W/m²)<br>
+  The ratio <code>E/H = η = √(μ/ε)</code> is the <strong>intrinsic impedance</strong> (377 Ω in free space).
+  In a lossy medium the wave decays as <code>e<sup>−αz</sup></code> and the fields fall out of phase. At a boundary, the reflection coefficient is
+  <code>Γ = (η₂ − η₁)/(η₂ + η₁)</code>.
+  <br><br>
+  <a href="index.html">← All Demos</a> ·
+  <a href="maxwell.html">Maxwell's Equations</a> ·
+  <a href="poynting.html">Poynting Theorem</a> ·
+  <a href="bounce-diagram.html">Bounce Diagram</a> ·
+  <a href="sawtooth-transmission.html">Sawtooth Transmission</a>
+</div>
+
+<script>
+const mainC=document.getElementById('mainCanvas');
+const c1C=document.getElementById('chart1');
+const c2C=document.getElementById('chart2');
+const mCtx=mainC.getContext('2d');
+const c1Ctx=c1C.getContext('2d');
+const c2Ctx=c2C.getContext('2d');
+
+let currentTab=0, time=0, paused=false, lastTs=0;
+let ctrls={};
+
+const tabData=[
+  { eq:'E = E₀ cos(ωt − kz) x̂ &nbsp; · &nbsp; H = (E₀/η) cos(ωt − kz) ŷ',
+    name:'Uniform plane wave in free space',
+    desc:'E oscillates along x, H along y, wave propagates along z. E ⊥ H ⊥ ẑ, and E/H = η₀ = 377 Ω. The Poynting vector S = E × H points in the direction of power flow.',
+    legend:[['#f97583','E field (x̂)'],['#79c0ff','H field (ŷ)'],['#ffa657','S = E × H (ẑ)'],['#d2a8ff','wavefront']],
+    controls:[
+      {id:'amp',label:'E₀',min:0.3,max:1,step:0.05,val:0.8,fmt:v=>(v*100|0)+'%'},
+      {id:'freq',label:'Frequency',min:0.4,max:3,step:0.1,val:1.2,fmt:v=>v+' Hz'},
+      {id:'eta',label:'η',min:50,max:800,step:5,val:377,fmt:v=>v.toFixed(0)+' Ω'},
+      {id:'speed',label:'Speed',min:0.2,max:3,step:0.1,val:1,fmt:v=>v+'x'},
+    ],
+    meters:[
+      {id:'mE',label:'E(0,t)',color:'#f97583'},
+      {id:'mH',label:'H(0,t) = E/η',color:'#79c0ff'},
+      {id:'mEta',label:'E/H = η',color:'#e6edf3'},
+      {id:'mSavg',label:'⟨S⟩ = E₀²/2η',color:'#ffa657'},
+    ]},
+  { eq:'E = E₀ₓ cos(ωt−kz) x̂ + E₀ᵧ cos(ωt−kz+δ) ŷ',
+    name:'Polarization — tracing the tip of E',
+    desc:'Looking back along the propagation direction, the tip of the E vector traces a curve: a line (δ=0), a circle (δ=±90°, equal amplitudes), or an ellipse (any other combination).',
+    legend:[['#f97583','E field'],['#79c0ff','H field'],['#ffa657','E tip locus'],['#d2a8ff','propagation ẑ']],
+    controls:[
+      {id:'ex',label:'E₀ₓ',min:0,max:1,step:0.05,val:0.7,fmt:v=>v.toFixed(2)},
+      {id:'ey',label:'E₀ᵧ',min:0,max:1,step:0.05,val:0.7,fmt:v=>v.toFixed(2)},
+      {id:'delta',label:'δ (phase)',min:-180,max:180,step:5,val:90,fmt:v=>v+'°'},
+      {id:'eta',label:'η',min:50,max:800,step:5,val:377,fmt:v=>v.toFixed(0)+' Ω'},
+      {id:'speed',label:'Speed',min:0.2,max:3,step:0.1,val:1,fmt:v=>v+'x'},
+    ],
+    meters:[
+      {id:'mType',label:'Polarization',color:'#ffa657'},
+      {id:'mAR',label:'Axial ratio',color:'#e6edf3'},
+      {id:'mSense',label:'Sense',color:'#d2a8ff'},
+      {id:'mTilt',label:'Tilt τ',color:'#7ee787'},
+    ]},
+  { eq:'E(z,t) = E₀ e<sup>−αz</sup> cos(ωt − βz) &nbsp; γ = α + jβ',
+    name:'Propagation through lossy media',
+    desc:'In a lossy medium, the wave number becomes complex: γ = α + jβ. The amplitude decays exponentially with distance (skin depth δ = 1/α), and E & H fall out of phase by the loss angle.',
+    legend:[['#f97583','E field'],['#79c0ff','H field'],['#7ee787','envelope e⁻ᵅᶻ'],['#d2a8ff','medium boundary']],
+    controls:[
+      {id:'amp',label:'E₀',min:0.3,max:1,step:0.05,val:0.9,fmt:v=>(v*100|0)+'%'},
+      {id:'freq',label:'Frequency',min:0.4,max:3,step:0.1,val:1.2,fmt:v=>v+' Hz'},
+      {id:'alpha',label:'Loss α',min:0,max:3,step:0.1,val:1,fmt:v=>v.toFixed(1)},
+      {id:'er',label:'εᵣ',min:1,max:9,step:0.5,val:4,fmt:v=>v.toFixed(1)},
+      {id:'speed',label:'Speed',min:0.2,max:3,step:0.1,val:1,fmt:v=>v+'x'},
+    ],
+    meters:[
+      {id:'mAlpha',label:'α (Np/m)',color:'#f97583'},
+      {id:'mBeta',label:'β (rad/m)',color:'#79c0ff'},
+      {id:'mSkin',label:'Skin depth 1/α',color:'#7ee787'},
+      {id:'mEta',label:'|η|',color:'#ffa657'},
+    ]},
+  { eq:'Γ = (η₂ − η₁)/(η₂ + η₁) &nbsp; · &nbsp; τ = 2η₂/(η₂ + η₁)',
+    name:'Reflection & transmission at a boundary',
+    desc:'When a wave hits a boundary between two media with different intrinsic impedances, part reflects (Γ) and part transmits (τ). Power conservation: |Γ|²·(1/η₁) + |τ|²·(1/η₂) = 1/η₁.',
+    legend:[['#f97583','Incident E'],['#7ee787','Reflected E'],['#79c0ff','Transmitted E'],['#d2a8ff','boundary']],
+    controls:[
+      {id:'amp',label:'E₀',min:0.3,max:1,step:0.05,val:0.8,fmt:v=>(v*100|0)+'%'},
+      {id:'freq',label:'Frequency',min:0.4,max:2,step:0.1,val:1,fmt:v=>v+' Hz'},
+      {id:'eta2',label:'η₂/η₁',min:0.1,max:5,step:0.1,val:2,fmt:v=>v.toFixed(1)},
+      {id:'speed',label:'Speed',min:0.2,max:3,step:0.1,val:1,fmt:v=>v+'x'},
+    ],
+    meters:[
+      {id:'mGamma',label:'Γ',color:'#7ee787'},
+      {id:'mTau',label:'τ',color:'#79c0ff'},
+      {id:'mPr',label:'|Γ|² (refl power)',color:'#ffa657'},
+      {id:'mPt',label:'1−|Γ|² (trans)',color:'#f97583'},
+    ]},
+];
+
+function buildUI(idx){
+  const d=tabData[idx];
+  document.getElementById('eqText').innerHTML=d.eq;
+  document.getElementById('eqName').textContent=d.name;
+  document.getElementById('eqDesc').textContent=d.desc;
+  const lb=document.getElementById('legendBox');
+  lb.innerHTML='';
+  d.legend.forEach(([c,l])=>{lb.innerHTML+=`<div class="legend-item"><div class="legend-dot" style="background:${c}"></div> ${l}</div>`;});
+
+  const mb=document.getElementById('meterBox');
+  mb.innerHTML='';
+  d.meters.forEach(m=>{mb.innerHTML+=`<div class="meter"><div class="ml">${m.label}</div><div class="mv" id="${m.id}" style="color:${m.color}">—</div></div>`;});
+
+  const cb=document.getElementById('ctrlBox');
+  cb.innerHTML='';ctrls={};
+  d.controls.forEach(c=>{
+    const div=document.createElement('div');div.className='cg';
+    const lbl=document.createElement('label');lbl.textContent=c.label+':';
+    const inp=document.createElement('input');inp.type='range';inp.min=c.min;inp.max=c.max;inp.step=c.step;inp.value=c.val;
+    const sp=document.createElement('span');sp.className='val';sp.textContent=c.fmt(c.val);
+    inp.oninput=()=>sp.textContent=c.fmt(parseFloat(inp.value));
+    div.append(lbl,inp,sp);cb.appendChild(div);ctrls[c.id]=inp;
+  });
+  const pb=document.createElement('button');pb.textContent=paused?'Play':'Pause';
+  pb.onclick=()=>{paused=!paused;pb.textContent=paused?'Play':'Pause';};
+  const rb=document.createElement('button');rb.className='sec';rb.textContent='Reset';
+  rb.onclick=()=>{time=0;paused=false;pb.textContent='Pause';};
+  cb.append(pb,rb);
+}
+
+document.querySelectorAll('.tab').forEach(t=>{
+  t.onclick=()=>{
+    currentTab=parseInt(t.dataset.tab);time=0;
+    document.querySelectorAll('.tab').forEach((x,i)=>x.classList.toggle('active',i===currentTab));
+    buildUI(currentTab);
+  };
+});
+
+function cv(id){return parseFloat(ctrls[id]?.value||0);}
+function setM(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
+
+/* ===== DRAWING HELPERS ===== */
+function arrow(ctx,x0,y0,x1,y1,color,headLen,lw){
+  headLen=headLen||8;lw=lw||2;
+  const dx=x1-x0,dy=y1-y0,len=Math.sqrt(dx*dx+dy*dy);
+  if(len<2)return;
+  const ux=dx/len,uy=dy/len;
+  ctx.strokeStyle=color;ctx.lineWidth=lw;
+  ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();
+  ctx.fillStyle=color;ctx.beginPath();
+  ctx.moveTo(x1,y1);
+  ctx.lineTo(x1-ux*headLen+uy*headLen*0.4, y1-uy*headLen-ux*headLen*0.4);
+  ctx.lineTo(x1-ux*headLen-uy*headLen*0.4, y1-uy*headLen+ux*headLen*0.4);
+  ctx.closePath();ctx.fill();
+}
+function drawGrid(ctx,W,H,pad){
+  ctx.strokeStyle='#ffffff08';ctx.lineWidth=1;
+  for(let i=0;i<=5;i++){const y=pad.t+(i/5)*(H-pad.t-pad.b);
+    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(W-pad.r,y);ctx.stroke();}
+  const midY=pad.t+(H-pad.t-pad.b)/2;
+  ctx.strokeStyle='#ffffff20';
+  ctx.beginPath();ctx.moveTo(pad.l,midY);ctx.lineTo(W-pad.r,midY);ctx.stroke();
+}
+
+// 3D → 2D isometric-ish projection used by tabs 0/1
+// axes: +x is up (on screen), +y is right-into-page, +z is right (propagation)
+function proj(x,y,z,cx,cy){
+  // z is the main horizontal axis, x is vertical (E direction), y is depth (tilt)
+  const sx = cx + z + y*0.45;
+  const sy = cy - x + y*0.22;
+  return [sx,sy];
+}
+
+/* ===== TAB 0: PLANE WAVE 3D ===== */
+function drawPlaneWave(){
+  const W=mainC.width,H=mainC.height;
+  mCtx.clearRect(0,0,W,H);
+  const amp=cv('amp'),freq=cv('freq'),eta=cv('eta'),spd=cv('speed');
+  const etaRel=377/eta;    // normalized so free space (377 Ω) → 1
+  const cx=140,cy=H/2+10;
+  const zMax=W-220;
+  const eScale=140*amp;
+  const hScale=eScale*etaRel; // |H| scales as 1/η
+  const k=2*Math.PI/280;
+  const omega=2*Math.PI*freq;
+  const phase=omega*time*spd;
+
+  // Axes
+  mCtx.strokeStyle='#ffffff25';mCtx.lineWidth=1;mCtx.setLineDash([4,4]);
+  // z axis (propagation)
+  mCtx.beginPath();
+  const [ax0,ay0]=proj(0,0,0,cx,cy),[ax1,ay1]=proj(0,0,zMax,cx,cy);
+  mCtx.moveTo(ax0,ay0);mCtx.lineTo(ax1,ay1);mCtx.stroke();
+  // x axis
+  const [xx0,xy0]=proj(-eScale*1.1,0,0,cx,cy),[xx1,xy1]=proj(eScale*1.1,0,0,cx,cy);
+  mCtx.beginPath();mCtx.moveTo(xx0,xy0);mCtx.lineTo(xx1,xy1);mCtx.stroke();
+  // y axis
+  const [yx0,yy0]=proj(0,-hScale*1.1,0,cx,cy),[yx1,yy1]=proj(0,hScale*1.1,0,cx,cy);
+  mCtx.beginPath();mCtx.moveTo(yx0,yy0);mCtx.lineTo(yx1,yy1);mCtx.stroke();
+  mCtx.setLineDash([]);
+  mCtx.fillStyle='#8b949e';mCtx.font='bold 11px sans-serif';mCtx.textAlign='left';
+  mCtx.fillText('ẑ (propagation)',ax1+6,ay1+4);
+  mCtx.fillText('x̂ (E)',xx1+4,xy1);
+  mCtx.fillText('ŷ (H)',yx1+4,yy1+4);
+
+  // Propagation arrow
+  arrow(mCtx,ax1-60,ay1,ax1-4,ay1,'#ffa657',9,2);
+
+  // E field curve (x direction, red)
+  mCtx.strokeStyle='#f97583';mCtx.lineWidth=2.5;mCtx.shadowColor='#f97583';mCtx.shadowBlur=5;
+  mCtx.beginPath();
+  for(let z=0;z<=zMax;z+=3){
+    const E=Math.cos(k*z-phase)*eScale*amp/0.8;
+    const [sx,sy]=proj(E,0,z,cx,cy);
+    z===0?mCtx.moveTo(sx,sy):mCtx.lineTo(sx,sy);
+  }
+  mCtx.stroke();mCtx.shadowBlur=0;
+
+  // H field curve (y direction, blue)
+  mCtx.strokeStyle='#79c0ff';mCtx.lineWidth=2.5;mCtx.shadowColor='#79c0ff';mCtx.shadowBlur=5;
+  mCtx.beginPath();
+  for(let z=0;z<=zMax;z+=3){
+    const Hv=Math.cos(k*z-phase)*hScale*amp/0.8;
+    const [sx,sy]=proj(0,Hv,z,cx,cy);
+    z===0?mCtx.moveTo(sx,sy):mCtx.lineTo(sx,sy);
+  }
+  mCtx.stroke();mCtx.shadowBlur=0;
+
+  // Field vectors at sample points
+  for(let z=30;z<zMax;z+=42){
+    const E=Math.cos(k*z-phase)*eScale*amp/0.8;
+    const Hv=Math.cos(k*z-phase)*hScale*amp/0.8;
+    const [bx,by]=proj(0,0,z,cx,cy);
+    const [ex,ey]=proj(E,0,z,cx,cy);
+    const [hx,hy]=proj(0,Hv,z,cx,cy);
+    if(Math.abs(E)>6) arrow(mCtx,bx,by,ex,ey,'#f9758395',5,1.5);
+    if(Math.abs(Hv)>5) arrow(mCtx,bx,by,hx,hy,'#79c0ff95',5,1.5);
+    // S = E × H arrow at antinodes
+    if(Math.abs(Math.cos(k*z-phase))>0.85){
+      const sLen=28*Math.cos(k*z-phase)*Math.cos(k*z-phase);
+      const [sx0,sy0]=proj(0,0,z,cx,cy);
+      const [sx1,sy1]=proj(0,0,z+sLen,cx,cy);
+      arrow(mCtx,sx0,sy0,sx1,sy1,'#ffa657cc',6,2);
+    }
+  }
+
+  // Wavefronts (planes of constant phase)
+  mCtx.strokeStyle='#d2a8ff55';mCtx.lineWidth=1;
+  for(let n=0;n<6;n++){
+    const zf=((280*n + phase/k)%zMax+zMax)%zMax;
+    const [p1x,p1y]=proj(eScale*0.9,-hScale*0.9,zf,cx,cy);
+    const [p2x,p2y]=proj(eScale*0.9,hScale*0.9,zf,cx,cy);
+    const [p3x,p3y]=proj(-eScale*0.9,hScale*0.9,zf,cx,cy);
+    const [p4x,p4y]=proj(-eScale*0.9,-hScale*0.9,zf,cx,cy);
+    mCtx.beginPath();mCtx.moveTo(p1x,p1y);mCtx.lineTo(p2x,p2y);
+    mCtx.lineTo(p3x,p3y);mCtx.lineTo(p4x,p4y);mCtx.closePath();mCtx.stroke();
+  }
+
+  // Title
+  mCtx.fillStyle='#ffa657';mCtx.font='bold 13px sans-serif';mCtx.textAlign='center';
+  mCtx.fillText('E ⊥ H ⊥ ẑ  ·  S = E × H points in +ẑ',W/2,30);
+  mCtx.fillStyle='#8b949e';mCtx.font='10px sans-serif';
+  mCtx.fillText('(H arrow scaled by η₀ = 377 Ω so free space gives equal visual size)',W/2,48);
+
+  // Meters — E [V/m], H [A/m] (physical), ⟨S⟩ [W/m²]
+  const eNow=amp*Math.cos(-phase);
+  const hNow=(amp/eta)*Math.cos(-phase);
+  setM('mE',eNow.toFixed(3)+' V/m');
+  setM('mH',hNow.toExponential(2)+' A/m');
+  setM('mEta',eta.toFixed(0)+' Ω');
+  setM('mSavg',(0.5*amp*amp/eta).toExponential(2)+' W/m²');
+
+  document.getElementById('ch1Title').textContent='E(z) and H(z) — snapshot at time t';
+  document.getElementById('ch2Title').textContent='|S(z,t)| = E·H — instantaneous & average';
+  drawPlaneWaveCharts(amp,freq,eta,spd,k,phase);
+}
+
+function drawPlaneWaveCharts(amp,freq,eta,spd,k,phase){
+  const etaRel=377/eta;
+  const pad={l:40,r:15,t:12,b:20};
+  // Chart 1: E and H vs z
+  const W=c1C.width,HT=c1C.height;
+  const pW=W-pad.l-pad.r,pH=HT-pad.t-pad.b;
+  c1Ctx.clearRect(0,0,W,HT);drawGrid(c1Ctx,W,HT,pad);
+  const midY=pad.t+pH/2;
+  // E
+  c1Ctx.strokeStyle='#f97583';c1Ctx.lineWidth=2;c1Ctx.beginPath();
+  for(let i=0;i<=300;i++){const z=(i/300)*800;
+    const v=amp*Math.cos(k*z-phase);
+    const x=pad.l+(i/300)*pW,y=midY-v*pH*0.4;
+    i===0?c1Ctx.moveTo(x,y):c1Ctx.lineTo(x,y);}
+  c1Ctx.stroke();
+  // H
+  c1Ctx.strokeStyle='#79c0ff';c1Ctx.lineWidth=2;c1Ctx.beginPath();
+  for(let i=0;i<=300;i++){const z=(i/300)*800;
+    const v=(amp*etaRel)*Math.cos(k*z-phase);
+    const x=pad.l+(i/300)*pW,y=midY-v*pH*0.4;
+    i===0?c1Ctx.moveTo(x,y):c1Ctx.lineTo(x,y);}
+  c1Ctx.stroke();
+  c1Ctx.fillStyle='#8b949e';c1Ctx.font='9px sans-serif';c1Ctx.textAlign='center';
+  c1Ctx.fillText('z →',pad.l+pW/2,HT-5);
+
+  // Chart 2: |S|
+  const W2=c2C.width,H2=c2C.height;
+  const pW2=W2-pad.l-pad.r,pH2=H2-pad.t-pad.b;
+  c2Ctx.clearRect(0,0,W2,H2);drawGrid(c2Ctx,W2,H2,pad);
+  const base=pad.t+pH2-5;
+  c2Ctx.strokeStyle='#ffa657';c2Ctx.lineWidth=2;c2Ctx.beginPath();
+  for(let i=0;i<=300;i++){const z=(i/300)*800;
+    const E=amp*Math.cos(k*z-phase),Hv=(amp*etaRel)*Math.cos(k*z-phase);
+    const v=E*Hv;
+    const x=pad.l+(i/300)*pW2,y=base-v*pH2*0.9;
+    i===0?c2Ctx.moveTo(x,y):c2Ctx.lineTo(x,y);}
+  c2Ctx.stroke();
+  // Average
+  const avg=0.5*amp*amp*etaRel;
+  const avgY=base-avg*pH2*0.9;
+  c2Ctx.strokeStyle='#7ee787';c2Ctx.setLineDash([6,4]);c2Ctx.lineWidth=1.5;
+  c2Ctx.beginPath();c2Ctx.moveTo(pad.l,avgY);c2Ctx.lineTo(pad.l+pW2,avgY);c2Ctx.stroke();c2Ctx.setLineDash([]);
+  c2Ctx.fillStyle='#7ee787';c2Ctx.font='bold 10px sans-serif';c2Ctx.textAlign='left';
+  c2Ctx.fillText('⟨S⟩',pad.l+pW2+2,avgY);
+  c2Ctx.fillStyle='#ffa657';c2Ctx.fillText('|S(z,t)|',pad.l+pW2+2,base-20);
+}
+
+/* ===== TAB 1: POLARIZATION ===== */
+function drawPolarization(){
+  const W=mainC.width,H=mainC.height;
+  mCtx.clearRect(0,0,W,H);
+  const ex=cv('ex'),ey=cv('ey'),delta=cv('delta')*Math.PI/180,eta=cv('eta'),spd=cv('speed');
+  const etaRel=377/eta;    // η normalized (free space = 1)
+  const omega=2*Math.PI*1.0;
+  const phase=omega*time*spd;
+
+  // LEFT: End-on view (E tip trace in x-y plane) — looking along -z toward source
+  const leftCx=260,leftCy=H/2;
+  const R=170;
+  // Axes
+  mCtx.strokeStyle='#ffffff25';mCtx.lineWidth=1;mCtx.setLineDash([4,4]);
+  mCtx.beginPath();mCtx.moveTo(leftCx-R-10,leftCy);mCtx.lineTo(leftCx+R+10,leftCy);mCtx.stroke();
+  mCtx.beginPath();mCtx.moveTo(leftCx,leftCy-R-10);mCtx.lineTo(leftCx,leftCy+R+10);mCtx.stroke();
+  mCtx.setLineDash([]);
+  mCtx.fillStyle='#8b949e';mCtx.font='bold 11px sans-serif';mCtx.textAlign='left';
+  mCtx.fillText('x̂',leftCx+R+14,leftCy+4);
+  mCtx.fillText('ŷ',leftCx+4,leftCy-R-14);
+  mCtx.textAlign='center';mCtx.fillText('End-on view (looking into −ẑ)',leftCx,40);
+
+  // Draw full E-tip trace
+  mCtx.strokeStyle='#ffa65760';mCtx.lineWidth=1.5;
+  mCtx.beginPath();
+  for(let i=0;i<=120;i++){
+    const t=i/120*2*Math.PI;
+    const Ex=ex*Math.cos(t);
+    const Ey=ey*Math.cos(t+delta);
+    const sx=leftCx+Ex*R,sy=leftCy-Ey*R;
+    i===0?mCtx.moveTo(sx,sy):mCtx.lineTo(sx,sy);
+  }
+  mCtx.closePath();mCtx.stroke();
+
+  // Draw full H-tip trace (rotated 90° from E since H = ẑ × E / η, scaled by 1/η)
+  mCtx.strokeStyle='#79c0ff40';mCtx.lineWidth=1.2;mCtx.setLineDash([3,3]);
+  mCtx.beginPath();
+  for(let i=0;i<=120;i++){
+    const t=i/120*2*Math.PI;
+    const Ex=ex*Math.cos(t);
+    const Ey=ey*Math.cos(t+delta);
+    const sx=leftCx+(-Ey*etaRel)*R,sy=leftCy-(Ex*etaRel)*R;
+    i===0?mCtx.moveTo(sx,sy):mCtx.lineTo(sx,sy);
+  }
+  mCtx.closePath();mCtx.stroke();mCtx.setLineDash([]);
+
+  // Current E vector — length = |E| · R
+  const Ex=ex*Math.cos(-phase);
+  const Ey=ey*Math.cos(-phase+delta);
+  const tipX=leftCx+Ex*R,tipY=leftCy-Ey*R;
+  arrow(mCtx,leftCx,leftCy,tipX,tipY,'#f97583',10,3);
+  // Current H vector — |H| = |E|/η, direction = (ẑ × E)/|ẑ × E|
+  const Hx=-Ey*etaRel,Hy=Ex*etaRel;
+  arrow(mCtx,leftCx,leftCy,leftCx+Hx*R,leftCy-Hy*R,'#79c0ff',10,3);
+
+  // Trail of tip
+  for(let i=0;i<20;i++){
+    const ph=phase-i*0.1;
+    const x=ex*Math.cos(-ph),y=ey*Math.cos(-ph+delta);
+    mCtx.fillStyle=`rgba(255,166,87,${(20-i)/60})`;
+    mCtx.beginPath();mCtx.arc(leftCx+x*R,leftCy-y*R,3,0,Math.PI*2);mCtx.fill();
+  }
+
+  // RIGHT: 3D view of rotating E along z
+  const rightCx=650,rightCy=H/2+20;
+  const zMax=380;
+  // z axis
+  mCtx.strokeStyle='#ffffff25';mCtx.lineWidth=1;mCtx.setLineDash([4,4]);
+  const [za0x,za0y]=proj(0,0,0,rightCx,rightCy);
+  const [za1x,za1y]=proj(0,0,zMax,rightCx,rightCy);
+  mCtx.beginPath();mCtx.moveTo(za0x,za0y);mCtx.lineTo(za1x,za1y);mCtx.stroke();
+  mCtx.setLineDash([]);
+  mCtx.fillStyle='#8b949e';mCtx.font='bold 11px sans-serif';mCtx.textAlign='left';
+  mCtx.fillText('ẑ →',za1x+6,za1y+4);
+  mCtx.textAlign='center';mCtx.fillText('3D view along propagation',rightCx+120,40);
+
+  // Helix trace for E tip
+  const rSc=60,k=2*Math.PI/140;
+  mCtx.strokeStyle='#f97583';mCtx.lineWidth=2;mCtx.shadowColor='#f97583';mCtx.shadowBlur=4;
+  mCtx.beginPath();
+  for(let z=0;z<=zMax;z+=3){
+    const Exx=ex*Math.cos(k*z-phase);
+    const Eyy=ey*Math.cos(k*z-phase+delta);
+    const [sx,sy]=proj(Exx*rSc,Eyy*rSc,z,rightCx,rightCy);
+    z===0?mCtx.moveTo(sx,sy):mCtx.lineTo(sx,sy);
+  }
+  mCtx.stroke();mCtx.shadowBlur=0;
+
+  // Sample E vectors along z
+  for(let z=20;z<zMax;z+=45){
+    const Exx=ex*Math.cos(k*z-phase);
+    const Eyy=ey*Math.cos(k*z-phase+delta);
+    const [bx,by]=proj(0,0,z,rightCx,rightCy);
+    const [tx,ty]=proj(Exx*rSc,Eyy*rSc,z,rightCx,rightCy);
+    if(Math.sqrt(Exx*Exx+Eyy*Eyy)>0.1)
+      arrow(mCtx,bx,by,tx,ty,'#f9758395',4,1.5);
+  }
+
+  // ===== Live calculation panel (between the two views) =====
+  const Eox=ex, Eoy=ey;
+  const wt=-phase;               // phase argument (ωt with our sign convention)
+  const ExNow=Eox*Math.cos(wt);
+  const EyNow=Eoy*Math.cos(wt+delta);
+  // True physical H values (in A/m if E is in V/m)
+  const HxNow=-EyNow/eta;
+  const HyNow= ExNow/eta;
+  const Emag=Math.sqrt(ExNow*ExNow+EyNow*EyNow);
+  const Hmag=Math.sqrt(HxNow*HxNow+HyNow*HyNow);
+  const deltaDeg=delta*180/Math.PI;
+
+  // Panel placement — bottom band of the canvas spanning full width
+  const pbX=60,pbY=H-125,pbW=W-120,pbH=115;
+  mCtx.fillStyle='#161b22ee';mCtx.strokeStyle='#30363d';mCtx.lineWidth=1;
+  mCtx.beginPath();mCtx.roundRect(pbX,pbY,pbW,pbH,8);mCtx.fill();mCtx.stroke();
+
+  mCtx.fillStyle='#e0e0ff';mCtx.font='bold 12px sans-serif';mCtx.textAlign='left';
+  mCtx.fillText('Live component calculation  (H = (ẑ × E) / η, units: E [V/m], H [A/m])',pbX+14,pbY+18);
+
+  // Given inputs
+  mCtx.fillStyle='#8b949e';mCtx.font='11px "Courier New",monospace';
+  mCtx.fillText(`Inputs:  E₀ₓ = ${Eox.toFixed(2)}   E₀ᵧ = ${Eoy.toFixed(2)}   δ = ${deltaDeg.toFixed(0)}°   η = ${eta.toFixed(0)} Ω   ωt = ${wt.toFixed(2)} rad`,pbX+14,pbY+38);
+
+  // Column positions
+  const colE=pbX+14, colH=pbX+pbW/2+8;
+  const rowY=pbY+60, dy=18;
+
+  // E column
+  mCtx.fillStyle='#f97583';mCtx.font='bold 11px "Courier New",monospace';
+  mCtx.fillText('E field:',colE,rowY);
+  mCtx.fillStyle='#e6edf3';mCtx.font='11px "Courier New",monospace';
+  mCtx.fillText(`Eₓ = E₀ₓ·cos(ωt)          = ${Eox.toFixed(2)}·cos(${wt.toFixed(2)})   = ${ExNow.toFixed(3)}`,colE,rowY+dy);
+  mCtx.fillStyle='#d2a8ff';
+  mCtx.fillText(`Eᵧ = E₀ᵧ·cos(ωt+δ)        = ${Eoy.toFixed(2)}·cos(${(wt+delta).toFixed(2)}) = ${EyNow.toFixed(3)}`,colE,rowY+2*dy);
+  mCtx.fillStyle='#ffa657';
+  mCtx.fillText(`|E| = √(Eₓ² + Eᵧ²)        = ${Emag.toFixed(3)}`,colE,rowY+3*dy);
+
+  // H column
+  mCtx.fillStyle='#79c0ff';mCtx.font='bold 11px "Courier New",monospace';
+  mCtx.fillText('H field  (H = (ẑ × E) / η):',colH,rowY);
+  mCtx.fillStyle='#e6edf3';mCtx.font='11px "Courier New",monospace';
+  mCtx.fillText(`Hₓ = −Eᵧ / η              = ${(-EyNow).toFixed(3)} / ${eta.toFixed(0)} = ${HxNow.toExponential(2)} A/m`,colH,rowY+dy);
+  mCtx.fillText(`Hᵧ =  Eₓ / η              =  ${ExNow.toFixed(3)} / ${eta.toFixed(0)} = ${HyNow.toExponential(2)} A/m`,colH,rowY+2*dy);
+  mCtx.fillStyle='#ffa657';
+  mCtx.fillText(`|H| = |E| / η             = ${Hmag.toExponential(2)} A/m`,colH,rowY+3*dy);
+
+  // Determine polarization type
+  let type='Elliptical',sense='—',ar='—',tilt='—';
+  if(ex<0.02||ey<0.02){type='Linear';sense='—';ar='∞';tilt=(ex>ey?'0°':'90°');}
+  else{
+    const sd=Math.sin(delta);
+    if(Math.abs(sd)<0.05){type='Linear';sense='—';ar='∞';
+      tilt=(Math.atan2(ey,ex)*180/Math.PI).toFixed(0)+'°';}
+    else if(Math.abs(Math.abs(delta)-Math.PI/2)<0.08 && Math.abs(ex-ey)<0.05){
+      type='Circular';ar='1.00';tilt='—';
+      sense=(delta>0)?'RHCP':'LHCP';}
+    else{
+      // Ellipse — compute axial ratio and tilt
+      const a2=ex*ex+ey*ey;
+      const b2=ex*ey*Math.abs(Math.sin(delta));
+      // major/minor axes from ellipse params
+      const D=Math.sqrt((ex*ex-ey*ey)*(ex*ex-ey*ey)+4*ex*ex*ey*ey*Math.cos(delta)*Math.cos(delta));
+      const major=Math.sqrt(0.5*(ex*ex+ey*ey+D));
+      const minor=Math.sqrt(Math.max(0,0.5*(ex*ex+ey*ey-D)));
+      ar=(major/Math.max(minor,1e-6)).toFixed(2);
+      const tau=0.5*Math.atan2(2*ex*ey*Math.cos(delta),ex*ex-ey*ey);
+      tilt=(tau*180/Math.PI).toFixed(0)+'°';
+      sense=(delta>0)?'RH':'LH';
+    }
+  }
+  setM('mType',type);setM('mAR',ar);setM('mSense',sense);setM('mTilt',tilt);
+
+  // Charts: Ex(t) and Ey(t) vs time, plus trace
+  document.getElementById('ch1Title').textContent='Eₓ(t) and Eᵧ(t) — time signals';
+  document.getElementById('ch2Title').textContent='E tip locus in x-y plane';
+  drawPolCharts(ex,ey,delta,phase);
+}
+function drawPolCharts(ex,ey,delta,phase){
+  const pad={l:40,r:15,t:12,b:20};
+  // Chart 1: time signals
+  const W=c1C.width,HT=c1C.height;
+  const pW=W-pad.l-pad.r,pH=HT-pad.t-pad.b;
+  c1Ctx.clearRect(0,0,W,HT);drawGrid(c1Ctx,W,HT,pad);
+  const midY=pad.t+pH/2;
+  const window=4;
+  [{a:ex,d:0,color:'#f97583',label:'Eₓ'},{a:ey,d:delta,color:'#d2a8ff',label:'Eᵧ'}].forEach(({a,d,color,label})=>{
+    c1Ctx.strokeStyle=color;c1Ctx.lineWidth=2;c1Ctx.beginPath();
+    for(let i=0;i<=300;i++){
+      const t=(i/300)*window;
+      const v=a*Math.cos(-2*Math.PI*t+d+phase);
+      const x=pad.l+(i/300)*pW,y=midY-v*pH*0.4;
+      i===0?c1Ctx.moveTo(x,y):c1Ctx.lineTo(x,y);
+    }
+    c1Ctx.stroke();
+    c1Ctx.fillStyle=color;c1Ctx.font='bold 10px sans-serif';c1Ctx.textAlign='left';
+    c1Ctx.fillText(label,pad.l+pW+2,midY+(label==='Eₓ'?-6:8));
+  });
+
+  // Chart 2: tip locus
+  const W2=c2C.width,H2=c2C.height;
+  c2Ctx.clearRect(0,0,W2,H2);drawGrid(c2Ctx,W2,H2,pad);
+  const cx2=W2/2,cy2=H2/2;
+  const R=Math.min(W2,H2)*0.38;
+  c2Ctx.strokeStyle='#ffffff20';c2Ctx.setLineDash([3,3]);
+  c2Ctx.beginPath();c2Ctx.moveTo(pad.l,cy2);c2Ctx.lineTo(W2-pad.r,cy2);c2Ctx.stroke();
+  c2Ctx.beginPath();c2Ctx.moveTo(cx2,pad.t);c2Ctx.lineTo(cx2,H2-pad.b);c2Ctx.stroke();
+  c2Ctx.setLineDash([]);
+  c2Ctx.strokeStyle='#ffa657';c2Ctx.lineWidth=2;c2Ctx.beginPath();
+  for(let i=0;i<=200;i++){
+    const t=i/200*2*Math.PI;
+    const x=ex*Math.cos(t),y=ey*Math.cos(t+delta);
+    const sx=cx2+x*R,sy=cy2-y*R;
+    i===0?c2Ctx.moveTo(sx,sy):c2Ctx.lineTo(sx,sy);
+  }
+  c2Ctx.closePath();c2Ctx.stroke();
+  // Current point
+  const Ex=ex*Math.cos(-phase),Ey=ey*Math.cos(-phase+delta);
+  c2Ctx.fillStyle='#f97583';c2Ctx.beginPath();c2Ctx.arc(cx2+Ex*R,cy2-Ey*R,5,0,Math.PI*2);c2Ctx.fill();
+}
+
+/* ===== TAB 2: PROPAGATION THROUGH MEDIA ===== */
+function drawMedia(){
+  const W=mainC.width,H=mainC.height,cy=H/2+10;
+  mCtx.clearRect(0,0,W,H);
+  const amp=cv('amp'),freq=cv('freq'),alpha=cv('alpha'),er=cv('er'),spd=cv('speed');
+  const omega=2*Math.PI*freq;
+  const phase=omega*time*spd;
+
+  const startX=60,endX=W-60;
+  const boundaryX=startX+(endX-startX)*0.38;
+  const eScale=140*amp;
+
+  // Medium 1 (free space) background — subtle
+  mCtx.fillStyle='#0d1117';
+  // Medium 2 (lossy) shading
+  mCtx.fillStyle='#1f6feb08';
+  mCtx.fillRect(boundaryX,40,endX-boundaryX,H-80);
+
+  // Boundary
+  mCtx.strokeStyle='#d2a8ff';mCtx.lineWidth=2;mCtx.setLineDash([6,4]);
+  mCtx.beginPath();mCtx.moveTo(boundaryX,40);mCtx.lineTo(boundaryX,H-40);mCtx.stroke();
+  mCtx.setLineDash([]);
+
+  // Axes / baseline
+  mCtx.strokeStyle='#ffffff25';mCtx.setLineDash([4,4]);
+  mCtx.beginPath();mCtx.moveTo(startX,cy);mCtx.lineTo(endX,cy);mCtx.stroke();
+  mCtx.setLineDash([]);
+
+  // Wave numbers
+  const k1=2*Math.PI/260; // free space reference
+  const n2=Math.sqrt(er);
+  const k2=k1*n2;
+
+  // E field — free space side, flat envelope
+  function envAmp(z){
+    if(z<boundaryX)return amp;
+    const d=(z-boundaryX)/80;
+    return amp*Math.exp(-alpha*d);
+  }
+  function localK(z){return z<boundaryX?k1:k2;}
+
+  // Accumulated phase integral for smooth transition
+  function phaseAt(z){
+    if(z<boundaryX)return k1*(z-startX);
+    return k1*(boundaryX-startX)+k2*(z-boundaryX);
+  }
+
+  // Decay envelope lines
+  mCtx.strokeStyle='#7ee78760';mCtx.lineWidth=1.2;mCtx.setLineDash([3,3]);
+  mCtx.beginPath();
+  for(let x=startX;x<=endX;x+=3){
+    const A=envAmp(x)*eScale/0.8;
+    x===startX?mCtx.moveTo(x,cy-A):mCtx.lineTo(x,cy-A);
+  }
+  mCtx.stroke();
+  mCtx.beginPath();
+  for(let x=startX;x<=endX;x+=3){
+    const A=envAmp(x)*eScale/0.8;
+    x===startX?mCtx.moveTo(x,cy+A):mCtx.lineTo(x,cy+A);
+  }
+  mCtx.stroke();
+  mCtx.setLineDash([]);
+
+  // E field
+  mCtx.strokeStyle='#f97583';mCtx.lineWidth=2.5;mCtx.shadowColor='#f97583';mCtx.shadowBlur=5;
+  mCtx.beginPath();
+  for(let x=startX;x<=endX;x+=2){
+    const A=envAmp(x);
+    const ph=phaseAt(x);
+    const E=A*Math.cos(ph-phase)*eScale/0.8;
+    x===startX?mCtx.moveTo(x,cy-E):mCtx.lineTo(x,cy-E);
+  }
+  mCtx.stroke();mCtx.shadowBlur=0;
+
+  // H field (shifted loss angle in medium 2)
+  const lossAngle=0.5*Math.atan2(alpha,1); // simplified
+  mCtx.strokeStyle='#79c0ff';mCtx.lineWidth=2.5;mCtx.shadowColor='#79c0ff';mCtx.shadowBlur=4;
+  mCtx.beginPath();
+  for(let x=startX;x<=endX;x+=2){
+    const A=envAmp(x);
+    const ph=phaseAt(x);
+    const extra=x<boundaryX?0:lossAngle;
+    const Hv=A*0.75*Math.cos(ph-phase-extra)*eScale/0.8;
+    x===startX?mCtx.moveTo(x,cy-Hv*0.5+50):mCtx.lineTo(x,cy-Hv*0.5+50);
+  }
+  mCtx.stroke();mCtx.shadowBlur=0;
+
+  // Labels
+  mCtx.fillStyle='#8b949e';mCtx.font='bold 12px sans-serif';mCtx.textAlign='center';
+  mCtx.fillText('Medium 1: free space',((startX+boundaryX)/2),65);
+  mCtx.fillText('εᵣ=1, α=0, β=k₀',((startX+boundaryX)/2),80);
+  mCtx.fillText('Medium 2: lossy dielectric',((boundaryX+endX)/2),65);
+  mCtx.fillText('εᵣ='+er.toFixed(1)+', α='+alpha.toFixed(1),((boundaryX+endX)/2),80);
+
+  mCtx.fillStyle='#d2a8ff';mCtx.font='bold 11px sans-serif';
+  mCtx.fillText('z = 0',boundaryX,H-20);
+
+  // E and H labels
+  mCtx.fillStyle='#f97583';mCtx.textAlign='left';
+  mCtx.fillText('E(z,t)',endX-50,cy-eScale-8);
+  mCtx.fillStyle='#79c0ff';
+  mCtx.fillText('H(z,t)',endX-50,cy+50+eScale*0.5+14);
+
+  // Computed values
+  const beta2=k2;
+  const skin=1/Math.max(alpha,0.01)*80;
+  const etaMag=377/n2;
+  setM('mAlpha',alpha.toFixed(2));
+  setM('mBeta',beta2.toFixed(2));
+  setM('mSkin',(skin/80).toFixed(2));
+  setM('mEta',etaMag.toFixed(0)+' Ω');
+
+  mCtx.fillStyle='#ffa657';mCtx.font='bold 12px sans-serif';mCtx.textAlign='center';
+  mCtx.fillText('Wavelength shrinks (λ₂ = λ₀/n) and amplitude decays (e⁻ᵅᶻ) inside the lossy medium',W/2,H-10);
+
+  document.getElementById('ch1Title').textContent='|E(z)| envelope — free space vs medium 2';
+  document.getElementById('ch2Title').textContent='Power flux |S(z)| ∝ e⁻²ᵅᶻ (2× loss)';
+  drawMediaCharts(amp,alpha,er);
+}
+function drawMediaCharts(amp,alpha,er){
+  const pad={l:40,r:15,t:12,b:20};
+  const W=c1C.width,HT=c1C.height;
+  const pW=W-pad.l-pad.r,pH=HT-pad.t-pad.b;
+  c1Ctx.clearRect(0,0,W,HT);drawGrid(c1Ctx,W,HT,pad);
+  const base=pad.t+pH-5;
+  // Envelope
+  c1Ctx.strokeStyle='#7ee787';c1Ctx.lineWidth=2;c1Ctx.beginPath();
+  const boundary=0.38;
+  for(let i=0;i<=200;i++){
+    const z=i/200;
+    const A=z<boundary?amp:amp*Math.exp(-alpha*(z-boundary)*4);
+    const x=pad.l+z*pW,y=base-A*pH*0.85;
+    i===0?c1Ctx.moveTo(x,y):c1Ctx.lineTo(x,y);
+  }
+  c1Ctx.stroke();
+  // Boundary line
+  c1Ctx.strokeStyle='#d2a8ff80';c1Ctx.setLineDash([4,4]);c1Ctx.lineWidth=1;
+  c1Ctx.beginPath();c1Ctx.moveTo(pad.l+boundary*pW,pad.t);c1Ctx.lineTo(pad.l+boundary*pW,base);c1Ctx.stroke();
+  c1Ctx.setLineDash([]);
+  c1Ctx.fillStyle='#d2a8ff';c1Ctx.font='9px sans-serif';c1Ctx.textAlign='center';
+  c1Ctx.fillText('boundary',pad.l+boundary*pW,pad.t+10);
+  c1Ctx.fillStyle='#7ee787';c1Ctx.textAlign='left';
+  c1Ctx.fillText('|E| envelope',pad.l+pW-60,pad.t+15);
+
+  // Chart 2: |S|
+  const W2=c2C.width,H2=c2C.height;
+  c2Ctx.clearRect(0,0,W2,H2);drawGrid(c2Ctx,W2,H2,pad);
+  const base2=pad.t+pH-5;
+  c2Ctx.strokeStyle='#ffa657';c2Ctx.lineWidth=2;c2Ctx.beginPath();
+  for(let i=0;i<=200;i++){
+    const z=i/200;
+    const A=z<boundary?amp:amp*Math.exp(-alpha*(z-boundary)*4);
+    const S=A*A;
+    const x=pad.l+z*pW,y=base2-S*pH*0.85;
+    i===0?c2Ctx.moveTo(x,y):c2Ctx.lineTo(x,y);
+  }
+  c2Ctx.stroke();
+  c2Ctx.strokeStyle='#d2a8ff80';c2Ctx.setLineDash([4,4]);
+  c2Ctx.beginPath();c2Ctx.moveTo(pad.l+boundary*pW,pad.t);c2Ctx.lineTo(pad.l+boundary*pW,base2);c2Ctx.stroke();
+  c2Ctx.setLineDash([]);
+  c2Ctx.fillStyle='#ffa657';c2Ctx.font='bold 10px sans-serif';c2Ctx.textAlign='left';
+  c2Ctx.fillText('|S| ∝ |E|² ∝ e⁻²ᵅᶻ',pad.l+pW-110,pad.t+15);
+}
+
+/* ===== TAB 3: REFLECTION & TRANSMISSION ===== */
+function drawReflection(){
+  const W=mainC.width,H=mainC.height,cy=H/2+10;
+  mCtx.clearRect(0,0,W,H);
+  const amp=cv('amp'),freq=cv('freq'),etaR=cv('eta2'),spd=cv('speed');
+  const Gamma=(etaR-1)/(etaR+1);
+  const Tau=2*etaR/(etaR+1);
+  const omega=2*Math.PI*freq;
+  const phase=omega*time*spd;
+
+  const startX=60,endX=W-60;
+  const bX=startX+(endX-startX)*0.5;
+  const eScale=130*amp;
+  const k1=2*Math.PI/260;
+  const n2=Math.sqrt(etaR); // simplified: η₂/η₁ = n₁/n₂ => k₂/k₁ = η₁/η₂
+  const k2=k1/etaR; // wave slower/faster depending
+
+  // Medium 2 shading
+  mCtx.fillStyle=etaR>1?'#1f6feb10':'#f9758310';
+  mCtx.fillRect(bX,40,endX-bX,H-80);
+
+  // Boundary
+  mCtx.strokeStyle='#d2a8ff';mCtx.lineWidth=2;mCtx.setLineDash([6,4]);
+  mCtx.beginPath();mCtx.moveTo(bX,40);mCtx.lineTo(bX,H-40);mCtx.stroke();
+  mCtx.setLineDash([]);
+
+  // Baseline
+  mCtx.strokeStyle='#ffffff20';mCtx.setLineDash([4,4]);
+  mCtx.beginPath();mCtx.moveTo(startX,cy);mCtx.lineTo(endX,cy);mCtx.stroke();
+  mCtx.setLineDash([]);
+
+  // All three waves share baseline cy so boundary continuity (E_i+E_r=E_t at x=bX) is visible.
+  // Incident wave (medium 1, +z) — red
+  mCtx.strokeStyle='#f97583';mCtx.lineWidth=2.5;mCtx.shadowColor='#f97583';mCtx.shadowBlur=4;
+  mCtx.beginPath();
+  for(let x=startX;x<=bX;x+=2){
+    const E=amp*Math.cos(k1*(x-bX)-phase)*eScale/0.8;
+    x===startX?mCtx.moveTo(x,cy-E*0.6):mCtx.lineTo(x,cy-E*0.6);
+  }
+  mCtx.stroke();
+  // Reflected wave (medium 1, −z) — green
+  mCtx.strokeStyle='#7ee787';mCtx.lineWidth=2.5;mCtx.shadowColor='#7ee787';mCtx.shadowBlur=4;
+  mCtx.beginPath();
+  for(let x=startX;x<=bX;x+=2){
+    const E=Gamma*amp*Math.cos(-k1*(x-bX)-phase)*eScale/0.8;
+    x===startX?mCtx.moveTo(x,cy-E*0.6):mCtx.lineTo(x,cy-E*0.6);
+  }
+  mCtx.stroke();
+  // Transmitted wave (medium 2, +z) — blue
+  mCtx.strokeStyle='#79c0ff';mCtx.lineWidth=2.5;mCtx.shadowColor='#79c0ff';mCtx.shadowBlur=4;
+  mCtx.beginPath();
+  for(let x=bX;x<=endX;x+=2){
+    const E=Tau*amp*Math.cos(k2*(x-bX)-phase)*eScale/0.8;
+    x===bX?mCtx.moveTo(x,cy-E*0.6):mCtx.lineTo(x,cy-E*0.6);
+  }
+  mCtx.stroke();mCtx.shadowBlur=0;
+
+  // Total field — Ei+Er in medium 1 continuous with E_t in medium 2 (orange dashed, lower trace)
+  mCtx.strokeStyle='#ffa657cc';mCtx.lineWidth=2;mCtx.setLineDash([5,3]);
+  mCtx.beginPath();
+  const totalY=cy+130;
+  for(let x=startX;x<=endX;x+=2){
+    let E;
+    if(x<=bX){
+      const Ei=amp*Math.cos(k1*(x-bX)-phase);
+      const Er=Gamma*amp*Math.cos(-k1*(x-bX)-phase);
+      E=(Ei+Er)*eScale/0.8;
+    } else {
+      E=Tau*amp*Math.cos(k2*(x-bX)-phase)*eScale/0.8;
+    }
+    x===startX?mCtx.moveTo(x,totalY-E*0.5):mCtx.lineTo(x,totalY-E*0.5);
+  }
+  mCtx.stroke();mCtx.setLineDash([]);
+
+  // Propagation arrows (top corners; reflected at bottom-left of medium 1)
+  arrow(mCtx,startX+10,55,startX+70,55,'#f97583',8,2);
+  arrow(mCtx,bX-10,H-65,bX-70,H-65,'#7ee787',8,2);
+  arrow(mCtx,bX+10,55,bX+70,55,'#79c0ff',8,2);
+
+  // Labels
+  mCtx.fillStyle='#f97583';mCtx.font='bold 12px sans-serif';mCtx.textAlign='left';
+  mCtx.fillText('Incident  Eᵢ →',startX+75,59);
+  mCtx.fillStyle='#7ee787';mCtx.textAlign='right';
+  mCtx.fillText('← Reflected  Γ·Eᵢ',bX-75,H-61);
+  mCtx.fillStyle='#79c0ff';mCtx.textAlign='left';
+  mCtx.fillText('Transmitted  τ·Eᵢ →',bX+75,59);
+  mCtx.fillStyle='#ffa657';mCtx.font='bold 11px sans-serif';mCtx.textAlign='left';
+  mCtx.fillText('Total E (continuous at boundary):  Eᵢ+Eᵣ  in medium 1   |   τ·Eᵢ  in medium 2',
+    startX+5,totalY-eScale*0.5-10);
+
+  // Medium labels
+  mCtx.fillStyle='#8b949e';mCtx.font='bold 12px sans-serif';mCtx.textAlign='center';
+  mCtx.fillText('Medium 1 (η₁)',(startX+bX)/2,30);
+  mCtx.fillText('Medium 2 (η₂ = '+etaR.toFixed(1)+'·η₁)',(bX+endX)/2,30);
+  mCtx.fillStyle='#d2a8ff';
+  mCtx.fillText('boundary',bX,H-20);
+
+  // Power equation
+  const Pr=Gamma*Gamma;
+  const Pt=1-Pr;
+  mCtx.fillStyle='#e0e0ff';mCtx.font='bold 12px sans-serif';
+  mCtx.fillText('Γ = '+Gamma.toFixed(3)+'  ·  τ = '+Tau.toFixed(3)+'  ·  |Γ|² + P_trans/P_inc = '+Pr.toFixed(2)+' + '+Pt.toFixed(2)+' = 1.00',W/2,H-6);
+
+  setM('mGamma',Gamma.toFixed(3));
+  setM('mTau',Tau.toFixed(3));
+  setM('mPr',Pr.toFixed(3));
+  setM('mPt',Pt.toFixed(3));
+
+  document.getElementById('ch1Title').textContent='VSWR & standing wave in medium 1';
+  document.getElementById('ch2Title').textContent='Power balance: |Γ|² + (1−|Γ|²) = 1';
+  drawReflCharts(amp,Gamma,Tau);
+}
+function drawReflCharts(amp,Gamma,Tau){
+  const pad={l:40,r:15,t:12,b:20};
+  const W=c1C.width,HT=c1C.height;
+  const pW=W-pad.l-pad.r,pH=HT-pad.t-pad.b;
+  c1Ctx.clearRect(0,0,W,HT);drawGrid(c1Ctx,W,HT,pad);
+  const midY=pad.t+pH/2;
+  // Standing wave envelope: |E| = E₀ √(1 + Γ² + 2Γ cos(2kz))
+  c1Ctx.strokeStyle='#ffa657';c1Ctx.lineWidth=2;c1Ctx.beginPath();
+  for(let i=0;i<=200;i++){
+    const z=i/200;
+    const k=2*Math.PI*3;
+    const env=amp*Math.sqrt(1+Gamma*Gamma+2*Gamma*Math.cos(2*k*z));
+    const x=pad.l+(i/200)*pW,y=midY-env*pH*0.35;
+    i===0?c1Ctx.moveTo(x,y):c1Ctx.lineTo(x,y);
+  }
+  c1Ctx.stroke();
+  // Lower envelope
+  c1Ctx.strokeStyle='#ffa65780';c1Ctx.beginPath();
+  for(let i=0;i<=200;i++){
+    const z=i/200;
+    const k=2*Math.PI*3;
+    const env=amp*Math.sqrt(1+Gamma*Gamma+2*Gamma*Math.cos(2*k*z));
+    const x=pad.l+(i/200)*pW,y=midY+env*pH*0.35;
+    i===0?c1Ctx.moveTo(x,y):c1Ctx.lineTo(x,y);
+  }
+  c1Ctx.stroke();
+  const VSWR=(1+Math.abs(Gamma))/(1-Math.abs(Gamma)+1e-6);
+  c1Ctx.fillStyle='#ffa657';c1Ctx.font='bold 10px sans-serif';c1Ctx.textAlign='left';
+  c1Ctx.fillText('VSWR = '+VSWR.toFixed(2),pad.l+10,pad.t+14);
+
+  // Chart 2: power bars
+  const W2=c2C.width,H2=c2C.height;
+  c2Ctx.clearRect(0,0,W2,H2);
+  const barW=70,gap=30;
+  const x1=W2/2-barW*1.5-gap,x2=W2/2-barW/2,x3=W2/2+barW/2+gap;
+  const barMaxH=H2-50;
+  const values=[
+    {v:1,color:'#f97583',label:'P_inc'},
+    {v:Gamma*Gamma,color:'#7ee787',label:'|Γ|²'},
+    {v:1-Gamma*Gamma,color:'#79c0ff',label:'1−|Γ|²'},
+  ];
+  values.forEach((b,i)=>{
+    const bx=[x1,x2,x3][i];
+    const h=b.v*barMaxH;
+    c2Ctx.fillStyle=b.color+'40';c2Ctx.fillRect(bx,30+barMaxH-h,barW,h);
+    c2Ctx.strokeStyle=b.color;c2Ctx.lineWidth=2;c2Ctx.strokeRect(bx,30+barMaxH-h,barW,h);
+    c2Ctx.fillStyle=b.color;c2Ctx.font='bold 11px sans-serif';c2Ctx.textAlign='center';
+    c2Ctx.fillText(b.label,bx+barW/2,30+barMaxH+14);
+    c2Ctx.fillText(b.v.toFixed(2),bx+barW/2,30+barMaxH-h-6);
+  });
+  c2Ctx.fillStyle='#e6edf3';c2Ctx.font='bold 18px sans-serif';
+  c2Ctx.fillText('=',x1+barW+gap/2,30+barMaxH/2);
+  c2Ctx.fillText('+',x2+barW+gap/2,30+barMaxH/2);
+}
+
+/* ===== ANIMATION ===== */
+function animate(ts){
+  if(!lastTs)lastTs=ts;
+  const dt=Math.min((ts-lastTs)/1000,0.04);
+  lastTs=ts;
+  if(!paused){
+    time+=dt;
+    switch(currentTab){
+      case 0:drawPlaneWave();break;
+      case 1:drawPolarization();break;
+      case 2:drawMedia();break;
+      case 3:drawReflection();break;
+    }
+  }
+  requestAnimationFrame(animate);
+}
+// Allow deep-linking to a tab via URL hash, e.g. em-wave.html#tab=1
+const _hashMatch=location.hash.match(/tab=(\d)/);
+const _initTab=_hashMatch?Math.min(3,Math.max(0,parseInt(_hashMatch[1]))):0;
+if(_initTab!==0){
+  currentTab=_initTab;
+  document.querySelectorAll('.tab').forEach((x,i)=>x.classList.toggle('active',i===currentTab));
+}
+buildUI(_initTab);
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>

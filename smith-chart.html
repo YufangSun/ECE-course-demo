@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smith Chart — Interactive Demo</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',system-ui,sans-serif;
+    display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:20px}
+  h1{font-size:1.6em;color:#e0e0ff}
+  .subtitle{color:#7d8590;margin-bottom:10px;font-size:.95em;text-align:center;max-width:900px}
+  canvas{display:block;border-radius:10px;cursor:crosshair}
+  .tabs{display:flex;gap:6px;margin:12px 0;flex-wrap:wrap;justify-content:center}
+  .tab{padding:8px 16px;border-radius:8px;cursor:pointer;font-size:.85em;
+    background:#161b22;border:1px solid #30363d;color:#8b949e;transition:.2s}
+  .tab:hover{border-color:#58a6ff;color:#e6edf3}
+  .tab.active{background:#1f6feb;border-color:#1f6feb;color:white;font-weight:bold}
+  .eq-box{background:#161b22;border:1px solid #30363d;border-radius:10px;
+    padding:10px 16px;margin:8px 0;max-width:960px;width:100%;text-align:center}
+  .eq{font-size:1.1em;font-family:'Times New Roman',serif;color:#e0e0ff;letter-spacing:.5px}
+  .eq-name{font-size:.82em;color:#8b949e;margin-top:2px}
+  .eq-desc{font-size:.8em;color:#7d8590;margin-top:4px;line-height:1.5}
+  .controls{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;justify-content:center;align-items:center}
+  .cg{display:flex;align-items:center;gap:5px}
+  .cg label{font-size:.8em;color:#8b949e;white-space:nowrap}
+  input[type="range"]{width:110px;accent-color:#f78166}
+  .val{font-size:.8em;color:#f78166;min-width:52px}
+  button{background:#238636;color:white;border:none;padding:6px 16px;border-radius:6px;
+    cursor:pointer;font-size:.85em;transition:.2s}
+  button:hover{background:#2ea043}
+  button.sec{background:#30363d}
+  button.sec:hover{background:#484f58}
+  .legend{display:flex;gap:14px;justify-content:center;margin:6px 0;flex-wrap:wrap}
+  .legend-item{display:flex;align-items:center;gap:4px;font-size:.78em}
+  .legend-dot{width:9px;height:9px;border-radius:50%}
+  .row{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;margin-top:10px;max-width:1100px;width:100%}
+  .panel{background:#161b22;border-radius:12px;padding:14px;border:1px solid #30363d;flex:1;min-width:260px}
+  .panel h2{font-size:.9em;color:#8b949e;margin-bottom:6px;text-align:center}
+  .meters{display:flex;gap:10px;justify-content:center;margin-top:8px;flex-wrap:wrap}
+  .meter{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:5px 12px;text-align:center;min-width:110px}
+  .meter .ml{font-size:.7em;color:#8b949e}
+  .meter .mv{font-size:.95em;font-weight:bold;font-family:'Courier New',monospace}
+  .info{max-width:1100px;width:100%;background:#161b22;border-radius:12px;
+    padding:14px 18px;border:1px solid #30363d;margin-top:14px;font-size:.85em;line-height:1.6;color:#8b949e}
+  .info strong{color:#e0e0ff}
+  .info code{color:#f78166;background:#21262d;padding:1px 4px;border-radius:3px}
+  a{color:#58a6ff}
+  .hint{font-size:.78em;color:#7d8590;margin:4px 0;text-align:center}
+</style>
+</head>
+<body>
+
+<h1>Smith Chart</h1>
+<p class="subtitle">A conformal map of the complex impedance plane onto the unit disc of the reflection coefficient <b style="color:#ffa657">Γ</b>. Every point represents a normalized impedance <b style="color:#f97583">z = r + jx</b> — and rotations on the chart correspond to motion along a transmission line.</p>
+
+<div class="tabs">
+  <div class="tab active" data-tab="0">Γ ↔ Z Mapping</div>
+  <div class="tab" data-tab="1">VSWR Circle</div>
+  <div class="tab" data-tab="2">Moving Along the Line</div>
+  <div class="tab" data-tab="3">Matching Network</div>
+</div>
+
+<div id="eqBox" class="eq-box">
+  <div class="eq" id="eqText"></div>
+  <div class="eq-name" id="eqName"></div>
+  <div class="eq-desc" id="eqDesc"></div>
+</div>
+
+<div class="hint">💡 Click anywhere on the Smith chart to place the load impedance</div>
+
+<canvas id="mainCanvas" width="1060" height="540"></canvas>
+
+<div id="legendBox" class="legend"></div>
+<div id="meterBox" class="meters"></div>
+<div id="ctrlBox" class="controls"></div>
+
+<div class="row">
+  <div class="panel">
+    <h2 id="ch1Title">Reflection vs Distance</h2>
+    <canvas id="chart1" width="520" height="180"></canvas>
+  </div>
+  <div class="panel">
+    <h2 id="ch2Title">|V(z)| Standing Wave</h2>
+    <canvas id="chart2" width="520" height="180"></canvas>
+  </div>
+</div>
+
+<div class="info">
+  <strong>Smith chart fundamentals:</strong><br>
+  <code>Γ = (Z_L − Z₀)/(Z_L + Z₀)</code> maps every impedance <code>Z_L</code> to a point inside the unit disc.
+  Normalizing as <code>z = Z_L/Z₀ = r + jx</code>, circles of constant <code>r</code> and arcs of constant <code>x</code> tile the chart.
+  Moving a distance <code>d</code> toward the generator rotates Γ clockwise by <code>2βd</code> (one full turn = λ/2).
+  The VSWR is read directly from where the constant-|Γ| circle crosses the real axis: <code>VSWR = (1+|Γ|)/(1−|Γ|)</code>.
+  <br><br>
+  <a href="index.html">← All Demos</a> ·
+  <a href="em-wave.html">EM Wave Propagation</a> ·
+  <a href="bounce-diagram.html">Bounce Diagram</a> ·
+  <a href="sawtooth-transmission.html">Sawtooth Transmission</a> ·
+  <a href="phasor-transform.html">Phasor Transform</a>
+</div>
+
+<script>
+const mainC=document.getElementById('mainCanvas');
+const c1C=document.getElementById('chart1');
+const c2C=document.getElementById('chart2');
+const mCtx=mainC.getContext('2d');
+const c1Ctx=c1C.getContext('2d');
+const c2Ctx=c2C.getContext('2d');
+
+let currentTab=0, time=0, paused=false, lastTs=0;
+let ctrls={};
+// Load state: complex Γ = gR + j gI (defaults to z = 2 + j1)
+let gR=0.28, gI=0.40;
+
+const tabData=[
+  { eq:'Γ = (z − 1)/(z + 1) &nbsp; · &nbsp; z = (1 + Γ)/(1 − Γ)',
+    name:'Bilinear map between Γ and normalized z',
+    desc:'Every normalized impedance z = r + jx corresponds to exactly one Γ inside (or on) the unit disc. Pure resistors lie on the real axis; pure reactances lie on the unit circle. z = 1 (matched) is the center.',
+    legend:[['#f97583','Load z'],['#ffa657','Γ point'],['#79c0ff','r = const circles'],['#7ee787','x = const arcs']],
+    controls:[
+      {id:'r',label:'r',min:0,max:10,step:0.05,val:2,fmt:v=>v.toFixed(2)},
+      {id:'x',label:'x',min:-5,max:5,step:0.05,val:1,fmt:v=>v.toFixed(2)},
+    ],
+    meters:[
+      {id:'mZ',label:'z_L = r+jx',color:'#f97583'},
+      {id:'mG',label:'|Γ|',color:'#ffa657'},
+      {id:'mAng',label:'∠Γ',color:'#79c0ff'},
+      {id:'mVSWR',label:'VSWR',color:'#7ee787'},
+    ]},
+  { eq:'VSWR = (1+|Γ|)/(1−|Γ|)',
+    name:'Constant-|Γ| circle = constant-VSWR circle',
+    desc:'Every point on the circle of radius |Γ| (centered at origin) has the same reflection magnitude and therefore the same standing-wave ratio. The circle crosses the real axis at z = VSWR (high) and z = 1/VSWR (low).',
+    legend:[['#ffa657','|Γ| circle (VSWR)'],['#f97583','Load'],['#7ee787','V_max / V_min points'],['#d2a8ff','matched center']],
+    controls:[
+      {id:'r',label:'r',min:0.05,max:10,step:0.05,val:2,fmt:v=>v.toFixed(2)},
+      {id:'x',label:'x',min:-5,max:5,step:0.05,val:1,fmt:v=>v.toFixed(2)},
+    ],
+    meters:[
+      {id:'mG',label:'|Γ|',color:'#ffa657'},
+      {id:'mVSWR',label:'VSWR',color:'#7ee787'},
+      {id:'mRL',label:'Return loss',color:'#79c0ff'},
+      {id:'mML',label:'Mismatch loss',color:'#f97583'},
+    ]},
+  { eq:'Γ(d) = Γ_L · e<sup>−j2βd</sup> &nbsp; (one full turn = λ/2)',
+    name:'Moving toward generator rotates Γ clockwise',
+    desc:'A length d of lossless line between load and observation point rotates Γ clockwise by 2βd radians. After d = λ/4 the point lands on the diametrically opposite spot — that is why a quarter-wave transforms impedances.',
+    legend:[['#f97583','Load Γ_L'],['#ffa657','Γ at distance d'],['#7ee787','|Γ| circle'],['#d2a8ff','λ/4 opposite']],
+    controls:[
+      {id:'r',label:'r',min:0.05,max:10,step:0.05,val:2,fmt:v=>v.toFixed(2)},
+      {id:'x',label:'x',min:-5,max:5,step:0.05,val:1,fmt:v=>v.toFixed(2)},
+      {id:'d',label:'d / λ',min:0,max:0.5,step:0.005,val:0.125,fmt:v=>v.toFixed(3)},
+      {id:'speed',label:'Animate',min:0,max:2,step:0.05,val:0,fmt:v=>v.toFixed(2)},
+    ],
+    meters:[
+      {id:'mZin',label:'Z_in / Z₀',color:'#ffa657'},
+      {id:'mRot',label:'Rotation 2βd',color:'#79c0ff'},
+      {id:'mG',label:'|Γ|',color:'#7ee787'},
+      {id:'mVSWR',label:'VSWR',color:'#d2a8ff'},
+    ]},
+  { eq:'Single-stub match: transform z_L → 1 on the unit (g=1) admittance circle',
+    name:'Graphical matching with a shunt stub',
+    desc:'Rotate along the constant-|Γ| circle until the admittance hits the g = 1 circle. Cancel the remaining susceptance with a stub of the right length. The chart reduces algebra to two intersections.',
+    legend:[['#f97583','Load'],['#ffa657','Rotated point (on g=1)'],['#7ee787','Matched (center)'],['#79c0ff','g = 1 circle']],
+    controls:[
+      {id:'r',label:'r',min:0.1,max:8,step:0.05,val:2,fmt:v=>v.toFixed(2)},
+      {id:'x',label:'x',min:-5,max:5,step:0.05,val:1,fmt:v=>v.toFixed(2)},
+    ],
+    meters:[
+      {id:'md',label:'Stub distance d/λ',color:'#ffa657'},
+      {id:'ml',label:'Stub length ℓ/λ',color:'#79c0ff'},
+      {id:'mYin',label:'y after d',color:'#7ee787'},
+      {id:'mG',label:'|Γ| after',color:'#f97583'},
+    ]},
+];
+
+function buildUI(idx){
+  const d=tabData[idx];
+  document.getElementById('eqText').innerHTML=d.eq;
+  document.getElementById('eqName').textContent=d.name;
+  document.getElementById('eqDesc').textContent=d.desc;
+  const lb=document.getElementById('legendBox');
+  lb.innerHTML='';
+  d.legend.forEach(([c,l])=>{lb.innerHTML+=`<div class="legend-item"><div class="legend-dot" style="background:${c}"></div> ${l}</div>`;});
+  const mb=document.getElementById('meterBox');
+  mb.innerHTML='';
+  d.meters.forEach(m=>{mb.innerHTML+=`<div class="meter"><div class="ml">${m.label}</div><div class="mv" id="${m.id}" style="color:${m.color}">—</div></div>`;});
+  const cb=document.getElementById('ctrlBox');
+  cb.innerHTML='';ctrls={};
+  d.controls.forEach(c=>{
+    const div=document.createElement('div');div.className='cg';
+    const lbl=document.createElement('label');lbl.textContent=c.label+':';
+    const inp=document.createElement('input');inp.type='range';inp.min=c.min;inp.max=c.max;inp.step=c.step;inp.value=c.val;
+    const sp=document.createElement('span');sp.className='val';sp.textContent=c.fmt(c.val);
+    inp.oninput=()=>{sp.textContent=c.fmt(parseFloat(inp.value)); syncFromSliders();};
+    div.append(lbl,inp,sp);cb.appendChild(div);ctrls[c.id]=inp;
+  });
+  const pb=document.createElement('button');pb.textContent=paused?'Play':'Pause';
+  pb.onclick=()=>{paused=!paused;pb.textContent=paused?'Play':'Pause';};
+  const rb=document.createElement('button');rb.className='sec';rb.textContent='Reset';
+  rb.onclick=()=>{time=0;gR=0.28;gI=0.40;syncSlidersFromG();};
+  cb.append(pb,rb);
+  syncSlidersFromG();
+}
+
+document.querySelectorAll('.tab').forEach(t=>{
+  t.onclick=()=>{
+    currentTab=parseInt(t.dataset.tab);time=0;
+    document.querySelectorAll('.tab').forEach((x,i)=>x.classList.toggle('active',i===currentTab));
+    buildUI(currentTab);
+  };
+});
+
+function cv(id){return parseFloat(ctrls[id]?.value||0);}
+function setM(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
+
+function zFromG(gr,gi){
+  // z = (1+Γ)/(1-Γ)
+  const nr=1+gr, ni=gi;
+  const dr=1-gr, di=-gi;
+  const den=dr*dr+di*di;
+  return [(nr*dr+ni*di)/den, (ni*dr-nr*di)/den];
+}
+function gFromZ(r,x){
+  const nr=r-1, ni=x;
+  const dr=r+1, di=x;
+  const den=dr*dr+di*di;
+  return [(nr*dr+ni*di)/den, (ni*dr-nr*di)/den];
+}
+function cClamp(gr,gi){
+  const m=Math.sqrt(gr*gr+gi*gi);
+  if(m>0.999){return [gr*0.999/m, gi*0.999/m];}
+  return [gr,gi];
+}
+function syncFromSliders(){
+  const r=cv('r'), x=cv('x');
+  if(!isNaN(r)&&!isNaN(x)){
+    [gR,gI]=gFromZ(r,x);
+    [gR,gI]=cClamp(gR,gI);
+  }
+}
+function syncSlidersFromG(){
+  const [r,x]=zFromG(gR,gI);
+  if(ctrls.r){ctrls.r.value=Math.min(Math.max(r,ctrls.r.min),ctrls.r.max);
+    ctrls.r.nextSibling.nextSibling.textContent=parseFloat(ctrls.r.value).toFixed(2);}
+  if(ctrls.x){ctrls.x.value=Math.min(Math.max(x,ctrls.x.min),ctrls.x.max);
+    ctrls.x.nextSibling.nextSibling.textContent=parseFloat(ctrls.x.value).toFixed(2);}
+}
+
+/* ===== SMITH CHART DRAW ===== */
+function chartGeom(){
+  const W=mainC.width,H=mainC.height;
+  const R=Math.min(W,H)/2 - 40;
+  const cx=280,cy=H/2;
+  return {cx,cy,R,W,H};
+}
+
+function drawSmithBase(ctx,cx,cy,R){
+  // Outer unit circle
+  ctx.fillStyle='#0d1117';
+  ctx.strokeStyle='#30363d';ctx.lineWidth=2;
+  ctx.beginPath();ctx.arc(cx,cy,R,0,Math.PI*2);ctx.stroke();
+
+  // r = const circles: center (r/(r+1), 0), radius 1/(r+1)
+  const rVals=[0.2,0.5,1,2,5];
+  ctx.strokeStyle='#79c0ff50';ctx.lineWidth=1;
+  rVals.forEach(r=>{
+    const cc=r/(r+1), rad=1/(r+1);
+    ctx.beginPath();ctx.arc(cx+cc*R,cy,rad*R,0,Math.PI*2);ctx.stroke();
+    ctx.fillStyle='#79c0ff80';ctx.font='9px sans-serif';ctx.textAlign='center';
+    ctx.fillText(r,cx+(cc-rad)*R+10,cy+10);
+  });
+  // Emphasize r=1
+  ctx.strokeStyle='#79c0ffa0';ctx.lineWidth=1.3;
+  ctx.beginPath();ctx.arc(cx+0.5*R,cy,0.5*R,0,Math.PI*2);ctx.stroke();
+
+  // x = const arcs: center (1, 1/x), radius 1/|x|
+  const xVals=[0.2,0.5,1,2,5];
+  ctx.strokeStyle='#7ee78750';ctx.lineWidth=1;
+  xVals.forEach(x=>{
+    [x,-x].forEach(xv=>{
+      const ccx=1, ccy=1/xv, rad=1/Math.abs(xv);
+      // clip to unit circle
+      ctx.save();
+      ctx.beginPath();ctx.arc(cx,cy,R,0,Math.PI*2);ctx.clip();
+      ctx.beginPath();ctx.arc(cx+ccx*R,cy-ccy*R,rad*R,0,Math.PI*2);ctx.stroke();
+      ctx.restore();
+    });
+  });
+  // Real axis
+  ctx.strokeStyle='#79c0ffb0';ctx.lineWidth=1.3;
+  ctx.beginPath();ctx.moveTo(cx-R,cy);ctx.lineTo(cx+R,cy);ctx.stroke();
+
+  // Axis labels
+  ctx.fillStyle='#8b949e';ctx.font='10px sans-serif';ctx.textAlign='center';
+  ctx.fillText('0',cx-R-10,cy+4);
+  ctx.fillText('∞',cx+R+10,cy+4);
+  ctx.fillText('1',cx,cy+R+14);
+  ctx.fillStyle='#d2a8ff';ctx.font='bold 10px sans-serif';
+  ctx.fillText('x > 0 (inductive)',cx,cy-R-8);
+  ctx.fillText('x < 0 (capacitive)',cx,cy+R+28);
+}
+
+function gToPx(gr,gi,cx,cy,R){return [cx+gr*R, cy-gi*R];}
+function pxToG(px,py,cx,cy,R){return [(px-cx)/R, -(py-cy)/R];}
+
+/* ===== TAB 0: Γ ↔ Z Mapping ===== */
+function drawMapping(){
+  const {cx,cy,R,W,H}=chartGeom();
+  mCtx.clearRect(0,0,W,H);
+  drawSmithBase(mCtx,cx,cy,R);
+
+  const [r,x]=zFromG(gR,gI);
+  const [px,py]=gToPx(gR,gI,cx,cy,R);
+
+  // Highlight r and x curves passing through point
+  if(r>=0 && isFinite(r)){
+    const cc=r/(r+1), rad=1/(r+1);
+    mCtx.strokeStyle='#79c0ff';mCtx.lineWidth=2;mCtx.shadowColor='#79c0ff';mCtx.shadowBlur=5;
+    mCtx.beginPath();mCtx.arc(cx+cc*R,cy,rad*R,0,Math.PI*2);mCtx.stroke();
+    mCtx.shadowBlur=0;
+  }
+  if(Math.abs(x)>1e-3 && isFinite(x)){
+    mCtx.strokeStyle='#7ee787';mCtx.lineWidth=2;mCtx.shadowColor='#7ee787';mCtx.shadowBlur=5;
+    mCtx.save();
+    mCtx.beginPath();mCtx.arc(cx,cy,R,0,Math.PI*2);mCtx.clip();
+    mCtx.beginPath();mCtx.arc(cx+R,cy-R/x,R/Math.abs(x),0,Math.PI*2);mCtx.stroke();
+    mCtx.restore();mCtx.shadowBlur=0;
+  }
+
+  // Point
+  mCtx.fillStyle='#ffa657';mCtx.beginPath();mCtx.arc(px,py,7,0,Math.PI*2);mCtx.fill();
+  mCtx.strokeStyle='#0d1117';mCtx.lineWidth=2;mCtx.stroke();
+
+  // Γ vector from origin
+  mCtx.strokeStyle='#ffa657';mCtx.lineWidth=1.5;mCtx.setLineDash([4,3]);
+  mCtx.beginPath();mCtx.moveTo(cx,cy);mCtx.lineTo(px,py);mCtx.stroke();mCtx.setLineDash([]);
+
+  // Right panel: complex plane representation
+  const rx=760,ry=H/2,rr=180;
+  mCtx.strokeStyle='#30363d';mCtx.lineWidth=2;
+  mCtx.strokeRect(rx-rr-30,ry-rr-30,2*(rr+30),2*(rr+30));
+  mCtx.strokeStyle='#ffffff18';mCtx.lineWidth=1;
+  mCtx.beginPath();mCtx.moveTo(rx-rr-20,ry);mCtx.lineTo(rx+rr+20,ry);mCtx.stroke();
+  mCtx.beginPath();mCtx.moveTo(rx,ry-rr-20);mCtx.lineTo(rx,ry+rr+20);mCtx.stroke();
+  mCtx.fillStyle='#8b949e';mCtx.font='bold 11px sans-serif';mCtx.textAlign='center';
+  mCtx.fillText('Complex z plane',rx,ry-rr-38);
+  mCtx.fillStyle='#8b949e';mCtx.font='9px sans-serif';
+  mCtx.fillText('Re(z)',rx+rr+12,ry+4);
+  mCtx.fillText('Im(z)',rx+10,ry-rr-24);
+  // ticks
+  for(let k=-3;k<=3;k++){if(k===0)continue;
+    const gx=rx+k*40,gy=ry+k*40;
+    mCtx.strokeStyle='#ffffff10';
+    mCtx.beginPath();mCtx.moveTo(gx,ry-rr-20);mCtx.lineTo(gx,ry+rr+20);mCtx.stroke();
+    mCtx.beginPath();mCtx.moveTo(rx-rr-20,gy);mCtx.lineTo(rx+rr+20,gy);mCtx.stroke();
+  }
+  // Plot z
+  const sc=40;
+  const zx=rx+r*sc, zy=ry-x*sc;
+  if(Math.abs(zx-rx)<rr+20 && Math.abs(zy-ry)<rr+20){
+    mCtx.fillStyle='#f97583';mCtx.beginPath();mCtx.arc(zx,zy,6,0,Math.PI*2);mCtx.fill();
+    mCtx.strokeStyle='#f97583';mCtx.setLineDash([3,3]);
+    mCtx.beginPath();mCtx.moveTo(rx,ry);mCtx.lineTo(zx,zy);mCtx.stroke();mCtx.setLineDash([]);
+    mCtx.fillStyle='#f97583';mCtx.font='bold 11px sans-serif';mCtx.textAlign='left';
+    mCtx.fillText(`z = ${r.toFixed(2)}${x>=0?'+':''}${x.toFixed(2)}j`,zx+10,zy-8);
+  } else {
+    mCtx.fillStyle='#f97583';mCtx.font='bold 11px sans-serif';mCtx.textAlign='center';
+    mCtx.fillText(`z = ${r.toFixed(2)}${x>=0?'+':''}${x.toFixed(2)}j  (off-scale)`,rx,ry+rr+45);
+  }
+
+  // Arrow Smith → z plane showing mapping
+  mCtx.fillStyle='#ffa657';mCtx.font='bold 14px sans-serif';mCtx.textAlign='center';
+  mCtx.fillText('Γ → z',(cx+R+rx-rr-30)/2,ry-6);
+  mCtx.fillStyle='#8b949e';mCtx.font='10px sans-serif';
+  mCtx.fillText('z = (1+Γ)/(1−Γ)',(cx+R+rx-rr-30)/2,ry+12);
+
+  const mag=Math.sqrt(gR*gR+gI*gI);
+  const ang=Math.atan2(gI,gR)*180/Math.PI;
+  const vswr=mag<0.999?(1+mag)/(1-mag):Infinity;
+  setM('mZ',`${r.toFixed(2)}${x>=0?'+':''}${x.toFixed(2)}j`);
+  setM('mG',mag.toFixed(3));
+  setM('mAng',ang.toFixed(1)+'°');
+  setM('mVSWR',isFinite(vswr)?vswr.toFixed(2):'∞');
+
+  document.getElementById('ch1Title').textContent='Γ locus in polar form';
+  document.getElementById('ch2Title').textContent='z = r + jx breakdown';
+  drawMappingCharts(r,x,mag,ang);
+}
+
+function drawMappingCharts(r,x,mag,ang){
+  const pad={l:40,r:15,t:12,b:20};
+  // Chart 1: polar |Γ| vs angle
+  const W=c1C.width,H=c1C.height;
+  c1Ctx.clearRect(0,0,W,H);
+  const pcx=W/2,pcy=H/2+5;
+  const pR=Math.min(W,H)/2-20;
+  c1Ctx.strokeStyle='#30363d';c1Ctx.lineWidth=1;
+  c1Ctx.beginPath();c1Ctx.arc(pcx,pcy,pR,0,Math.PI*2);c1Ctx.stroke();
+  [0.25,0.5,0.75].forEach(f=>{
+    c1Ctx.strokeStyle='#ffffff10';
+    c1Ctx.beginPath();c1Ctx.arc(pcx,pcy,pR*f,0,Math.PI*2);c1Ctx.stroke();
+  });
+  c1Ctx.strokeStyle='#ffffff10';
+  c1Ctx.beginPath();c1Ctx.moveTo(pcx-pR,pcy);c1Ctx.lineTo(pcx+pR,pcy);c1Ctx.stroke();
+  c1Ctx.beginPath();c1Ctx.moveTo(pcx,pcy-pR);c1Ctx.lineTo(pcx,pcy+pR);c1Ctx.stroke();
+  // Γ dot
+  const dx=pcx+Math.cos(ang*Math.PI/180)*mag*pR;
+  const dy=pcy-Math.sin(ang*Math.PI/180)*mag*pR;
+  c1Ctx.strokeStyle='#ffa657';c1Ctx.lineWidth=2;
+  c1Ctx.beginPath();c1Ctx.moveTo(pcx,pcy);c1Ctx.lineTo(dx,dy);c1Ctx.stroke();
+  c1Ctx.fillStyle='#ffa657';c1Ctx.beginPath();c1Ctx.arc(dx,dy,5,0,Math.PI*2);c1Ctx.fill();
+  c1Ctx.fillStyle='#8b949e';c1Ctx.font='9px sans-serif';c1Ctx.textAlign='left';
+  c1Ctx.fillText(`|Γ| = ${mag.toFixed(3)}`,10,15);
+  c1Ctx.fillText(`∠Γ = ${ang.toFixed(1)}°`,10,28);
+
+  // Chart 2: r, x bars
+  const W2=c2C.width,H2=c2C.height;
+  c2Ctx.clearRect(0,0,W2,H2);
+  const base=H2/2+20,scale=20;
+  c2Ctx.strokeStyle='#ffffff10';
+  c2Ctx.beginPath();c2Ctx.moveTo(20,base);c2Ctx.lineTo(W2-20,base);c2Ctx.stroke();
+  // r bar
+  const bw=90;
+  const rh=Math.max(-120,Math.min(120,r*scale));
+  c2Ctx.fillStyle='#79c0ff40';c2Ctx.fillRect(W2/2-bw-15,base-rh,bw,rh);
+  c2Ctx.strokeStyle='#79c0ff';c2Ctx.lineWidth=2;c2Ctx.strokeRect(W2/2-bw-15,base-rh,bw,rh);
+  // x bar
+  const xh=Math.max(-120,Math.min(120,x*scale));
+  c2Ctx.fillStyle='#7ee78740';c2Ctx.fillRect(W2/2+15,base-xh,bw,xh);
+  c2Ctx.strokeStyle='#7ee787';c2Ctx.lineWidth=2;c2Ctx.strokeRect(W2/2+15,base-xh,bw,xh);
+  c2Ctx.fillStyle='#79c0ff';c2Ctx.font='bold 12px sans-serif';c2Ctx.textAlign='center';
+  c2Ctx.fillText(`r = ${r.toFixed(2)}`,W2/2-bw/2-15,base+18);
+  c2Ctx.fillStyle='#7ee787';c2Ctx.fillText(`x = ${x.toFixed(2)}`,W2/2+bw/2+15,base+18);
+}
+
+/* ===== TAB 1: VSWR circle ===== */
+function drawVSWR(){
+  const {cx,cy,R,W,H}=chartGeom();
+  mCtx.clearRect(0,0,W,H);
+  drawSmithBase(mCtx,cx,cy,R);
+
+  const [r,x]=zFromG(gR,gI);
+  const mag=Math.sqrt(gR*gR+gI*gI);
+
+  // Constant |Γ| circle
+  mCtx.strokeStyle='#ffa657';mCtx.lineWidth=2;mCtx.shadowColor='#ffa657';mCtx.shadowBlur=6;
+  mCtx.beginPath();mCtx.arc(cx,cy,mag*R,0,Math.PI*2);mCtx.stroke();mCtx.shadowBlur=0;
+
+  // V_max (right side of real axis) and V_min (left side)
+  const vmaxGx=mag, vminGx=-mag;
+  const [vmaxX,vmaxY]=gToPx(vmaxGx,0,cx,cy,R);
+  const [vminX,vminY]=gToPx(vminGx,0,cx,cy,R);
+  mCtx.fillStyle='#7ee787';mCtx.beginPath();mCtx.arc(vmaxX,vmaxY,6,0,Math.PI*2);mCtx.fill();
+  mCtx.beginPath();mCtx.arc(vminX,vminY,6,0,Math.PI*2);mCtx.fill();
+  mCtx.fillStyle='#7ee787';mCtx.font='bold 10px sans-serif';mCtx.textAlign='center';
+  const vswr=mag<0.999?(1+mag)/(1-mag):Infinity;
+  mCtx.fillText(`V_max · z=${isFinite(vswr)?vswr.toFixed(2):'∞'}`,vmaxX,vmaxY-12);
+  mCtx.fillText(`V_min · z=${isFinite(vswr)?(1/vswr).toFixed(2):'0'}`,vminX,vminY-12);
+
+  // Load
+  const [px,py]=gToPx(gR,gI,cx,cy,R);
+  mCtx.fillStyle='#f97583';mCtx.beginPath();mCtx.arc(px,py,7,0,Math.PI*2);mCtx.fill();
+  mCtx.strokeStyle='#0d1117';mCtx.lineWidth=2;mCtx.stroke();
+
+  // Matched center marker
+  mCtx.fillStyle='#d2a8ff';mCtx.beginPath();mCtx.arc(cx,cy,4,0,Math.PI*2);mCtx.fill();
+  mCtx.fillStyle='#d2a8ff';mCtx.font='9px sans-serif';mCtx.textAlign='left';
+  mCtx.fillText('z = 1',cx+6,cy-6);
+
+  // Right: VSWR meter + return loss
+  const rx=780,ry=H/2;
+  mCtx.fillStyle='#161b22';mCtx.strokeStyle='#30363d';
+  mCtx.beginPath();mCtx.roundRect(rx-150,ry-160,300,320,12);mCtx.fill();mCtx.stroke();
+  mCtx.fillStyle='#8b949e';mCtx.font='bold 12px sans-serif';mCtx.textAlign='center';
+  mCtx.fillText('Match quality',rx,ry-135);
+
+  // Giant VSWR gauge (semi-circle)
+  const gR_=120;
+  mCtx.strokeStyle='#30363d';mCtx.lineWidth=10;
+  mCtx.beginPath();mCtx.arc(rx,ry+20,gR_,Math.PI,Math.PI*2);mCtx.stroke();
+  // Color arc
+  const mapVSWR=v=>Math.PI+(Math.min(v,10)-1)/9*Math.PI;
+  const hue=mag<0.2?'#7ee787':mag<0.5?'#ffa657':'#f97583';
+  mCtx.strokeStyle=hue;mCtx.lineWidth=10;
+  mCtx.beginPath();mCtx.arc(rx,ry+20,gR_,Math.PI,mapVSWR(Math.min(vswr,10)));mCtx.stroke();
+  // Pointer
+  const ang=mapVSWR(Math.min(vswr,10));
+  mCtx.strokeStyle='#e6edf3';mCtx.lineWidth=3;
+  mCtx.beginPath();mCtx.moveTo(rx,ry+20);
+  mCtx.lineTo(rx+Math.cos(ang)*(gR_-5),ry+20+Math.sin(ang)*(gR_-5));mCtx.stroke();
+  // Scale
+  [1,1.5,2,3,5,10].forEach(v=>{
+    const a=mapVSWR(v);
+    mCtx.fillStyle='#8b949e';mCtx.font='9px sans-serif';mCtx.textAlign='center';
+    mCtx.fillText(v,rx+Math.cos(a)*(gR_+14),ry+24+Math.sin(a)*(gR_+14));
+  });
+  mCtx.fillStyle=hue;mCtx.font='bold 24px sans-serif';
+  mCtx.fillText(`VSWR ${isFinite(vswr)?vswr.toFixed(2):'∞'}`,rx,ry+55);
+  const RL=mag>0?(-20*Math.log10(mag)).toFixed(1):'∞';
+  mCtx.fillStyle='#8b949e';mCtx.font='11px sans-serif';
+  mCtx.fillText(`Return loss ${RL} dB`,rx,ry+78);
+  const ML=(-10*Math.log10(1-mag*mag)).toFixed(2);
+  mCtx.fillText(`Mismatch loss ${ML} dB`,rx,ry+95);
+  mCtx.fillText(`|Γ|² power reflected = ${(mag*mag*100).toFixed(1)}%`,rx,ry+114);
+
+  setM('mG',mag.toFixed(3));
+  setM('mVSWR',isFinite(vswr)?vswr.toFixed(2):'∞');
+  setM('mRL',RL+' dB');
+  setM('mML',ML+' dB');
+
+  document.getElementById('ch1Title').textContent='|V(z)| standing wave envelope';
+  document.getElementById('ch2Title').textContent='VSWR vs |Γ|';
+  drawVSWRCharts(mag,vswr);
+}
+function drawVSWRCharts(mag,vswr){
+  const pad={l:40,r:15,t:12,b:20};
+  // Chart 1: standing wave |1 + Γ e^{-j2βz}|
+  const W=c1C.width,H=c1C.height;
+  const pW=W-pad.l-pad.r,pH=H-pad.t-pad.b;
+  c1Ctx.clearRect(0,0,W,H);drawGridChart(c1Ctx,W,H,pad);
+  const midY=pad.t+pH/2;
+  c1Ctx.strokeStyle='#ffa657';c1Ctx.lineWidth=2;c1Ctx.beginPath();
+  for(let i=0;i<=300;i++){
+    const z=(i/300)*2;
+    const re=1+mag*Math.cos(-2*Math.PI*z);
+    const im=mag*Math.sin(-2*Math.PI*z);
+    const v=Math.sqrt(re*re+im*im);
+    const xv=pad.l+(i/300)*pW, yv=midY-(v-1)*pH*0.4;
+    i===0?c1Ctx.moveTo(xv,yv):c1Ctx.lineTo(xv,yv);
+  }
+  c1Ctx.stroke();
+  c1Ctx.fillStyle='#ffa657';c1Ctx.font='bold 10px sans-serif';c1Ctx.textAlign='left';
+  c1Ctx.fillText('|V(z)|',pad.l+6,pad.t+14);
+
+  // Chart 2: VSWR curve
+  const W2=c2C.width,H2=c2C.height;
+  const pW2=W2-pad.l-pad.r,pH2=H2-pad.t-pad.b;
+  c2Ctx.clearRect(0,0,W2,H2);drawGridChart(c2Ctx,W2,H2,pad);
+  const base=pad.t+pH2-5;
+  c2Ctx.strokeStyle='#7ee787';c2Ctx.lineWidth=2;c2Ctx.beginPath();
+  for(let i=0;i<=200;i++){
+    const g=(i/200)*0.95;
+    const v=(1+g)/(1-g);
+    const xv=pad.l+(i/200)*pW2;
+    const yv=base-Math.min(10,v)/10*pH2*0.9;
+    i===0?c2Ctx.moveTo(xv,yv):c2Ctx.lineTo(xv,yv);
+  }
+  c2Ctx.stroke();
+  // Current
+  if(mag<0.95){
+    const xv=pad.l+(mag/0.95)*pW2;
+    const yv=base-Math.min(10,vswr)/10*pH2*0.9;
+    c2Ctx.fillStyle='#ffa657';c2Ctx.beginPath();c2Ctx.arc(xv,yv,5,0,Math.PI*2);c2Ctx.fill();
+  }
+  c2Ctx.fillStyle='#8b949e';c2Ctx.font='9px sans-serif';c2Ctx.textAlign='center';
+  c2Ctx.fillText('|Γ|',pad.l+pW2/2,H2-5);
+}
+
+function drawGridChart(ctx,W,H,pad){
+  ctx.strokeStyle='#ffffff08';ctx.lineWidth=1;
+  for(let i=0;i<=5;i++){const y=pad.t+(i/5)*(H-pad.t-pad.b);
+    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(W-pad.r,y);ctx.stroke();}
+}
+
+/* ===== TAB 2: Moving Along the Line ===== */
+function drawMoving(){
+  const {cx,cy,R,W,H}=chartGeom();
+  mCtx.clearRect(0,0,W,H);
+  drawSmithBase(mCtx,cx,cy,R);
+
+  let d=cv('d');
+  const anim=cv('speed');
+  if(anim>0){
+    d=((time*anim*0.1)%0.5);
+    if(ctrls.d){ctrls.d.value=d;ctrls.d.nextSibling.nextSibling.textContent=d.toFixed(3);}
+  }
+  const mag=Math.sqrt(gR*gR+gI*gI);
+  const angL=Math.atan2(gI,gR);
+  const rot=4*Math.PI*d; // 2βd with β=2π/λ and full turn at λ/2
+  const angNew=angL-rot;
+  const gRn=mag*Math.cos(angNew), gIn=mag*Math.sin(angNew);
+  const [zr,zx]=zFromG(gRn,gIn);
+
+  // |Γ| circle
+  mCtx.strokeStyle='#7ee78770';mCtx.lineWidth=1.5;
+  mCtx.beginPath();mCtx.arc(cx,cy,mag*R,0,Math.PI*2);mCtx.stroke();
+
+  // Arc from load to new point (clockwise = decreasing angle)
+  mCtx.strokeStyle='#ffa657';mCtx.lineWidth=3;mCtx.shadowColor='#ffa657';mCtx.shadowBlur=6;
+  mCtx.beginPath();mCtx.arc(cx,cy,mag*R,-angL,-angNew,angNew<angL?false:true);mCtx.stroke();mCtx.shadowBlur=0;
+
+  // Load point
+  const [lx,ly]=gToPx(gR,gI,cx,cy,R);
+  mCtx.fillStyle='#f97583';mCtx.beginPath();mCtx.arc(lx,ly,7,0,Math.PI*2);mCtx.fill();
+  mCtx.strokeStyle='#0d1117';mCtx.lineWidth=2;mCtx.stroke();
+  mCtx.fillStyle='#f97583';mCtx.font='bold 10px sans-serif';mCtx.textAlign='left';
+  mCtx.fillText('Γ_L (load)',lx+10,ly-6);
+
+  // New point
+  const [nx,ny]=gToPx(gRn,gIn,cx,cy,R);
+  mCtx.fillStyle='#ffa657';mCtx.beginPath();mCtx.arc(nx,ny,7,0,Math.PI*2);mCtx.fill();
+  mCtx.strokeStyle='#0d1117';mCtx.stroke();
+  mCtx.fillStyle='#ffa657';mCtx.font='bold 10px sans-serif';mCtx.textAlign='left';
+  mCtx.fillText(`Γ(d)`,nx+10,ny-6);
+
+  // λ/4 opposite marker
+  const [opx,opy]=gToPx(-gR,-gI,cx,cy,R);
+  mCtx.fillStyle='#d2a8ff';mCtx.beginPath();mCtx.arc(opx,opy,5,0,Math.PI*2);mCtx.fill();
+  mCtx.fillStyle='#d2a8ff';mCtx.font='9px sans-serif';
+  mCtx.fillText('λ/4',opx+8,opy+3);
+
+  // Right panel: transmission line diagram
+  const rx=700,ry=H/2;
+  mCtx.fillStyle='#161b22';mCtx.strokeStyle='#30363d';mCtx.lineWidth=1;
+  mCtx.beginPath();mCtx.roundRect(rx-160,ry-180,320,360,12);mCtx.fill();mCtx.stroke();
+  mCtx.fillStyle='#8b949e';mCtx.font='bold 12px sans-serif';mCtx.textAlign='center';
+  mCtx.fillText('Transmission line',rx,ry-160);
+
+  // Line
+  const lineY=ry-100,lineW=260;
+  mCtx.strokeStyle='#8b949e';mCtx.lineWidth=3;
+  mCtx.beginPath();mCtx.moveTo(rx-lineW/2,lineY);mCtx.lineTo(rx+lineW/2,lineY);mCtx.stroke();
+  mCtx.beginPath();mCtx.moveTo(rx-lineW/2,lineY+30);mCtx.lineTo(rx+lineW/2,lineY+30);mCtx.stroke();
+  // Load on right
+  mCtx.fillStyle='#f97583';mCtx.fillRect(rx+lineW/2-6,lineY-12,30,54);
+  mCtx.fillStyle='#e6edf3';mCtx.font='bold 10px sans-serif';mCtx.textAlign='center';
+  mCtx.fillText('Z_L',rx+lineW/2+12,lineY-18);
+  // Generator on left
+  mCtx.fillStyle='#7ee787';mCtx.fillRect(rx-lineW/2-30,lineY-12,24,54);
+  mCtx.fillStyle='#e6edf3';mCtx.fillText('Z₀',rx-lineW/2-18,lineY-18);
+  // Observation point
+  const obsX=rx+lineW/2-d*2*lineW;
+  mCtx.strokeStyle='#ffa657';mCtx.lineWidth=2;mCtx.setLineDash([4,3]);
+  mCtx.beginPath();mCtx.moveTo(obsX,lineY-30);mCtx.lineTo(obsX,lineY+60);mCtx.stroke();mCtx.setLineDash([]);
+  mCtx.fillStyle='#ffa657';mCtx.beginPath();mCtx.arc(obsX,lineY+15,6,0,Math.PI*2);mCtx.fill();
+  mCtx.fillStyle='#ffa657';mCtx.font='bold 10px sans-serif';mCtx.textAlign='center';
+  mCtx.fillText(`d = ${d.toFixed(3)}λ`,obsX,lineY-36);
+
+  // Z_in display
+  mCtx.fillStyle='#ffa657';mCtx.font='bold 14px sans-serif';mCtx.textAlign='center';
+  mCtx.fillText(`Z_in / Z₀ = ${zr.toFixed(2)}${zx>=0?'+':''}${zx.toFixed(2)}j`,rx,ry+30);
+  mCtx.fillStyle='#8b949e';mCtx.font='10px sans-serif';
+  mCtx.fillText(`2βd = ${(rot*180/Math.PI).toFixed(1)}° clockwise`,rx,ry+50);
+  mCtx.fillStyle='#d2a8ff';
+  mCtx.fillText('At d = λ/4, Z_in = Z₀²/Z_L',rx,ry+70);
+  mCtx.fillText('At d = λ/2, Z_in = Z_L (same)',rx,ry+88);
+
+  // Phase wheel
+  const wR=60,wcx=rx,wcy=ry+150;
+  mCtx.strokeStyle='#30363d';mCtx.lineWidth=2;
+  mCtx.beginPath();mCtx.arc(wcx,wcy,wR,0,Math.PI*2);mCtx.stroke();
+  mCtx.fillStyle='#8b949e';mCtx.font='9px sans-serif';mCtx.textAlign='center';
+  mCtx.fillText('0',wcx+wR+10,wcy+3);
+  mCtx.fillText('λ/4',wcx,wcy-wR-6);
+  mCtx.fillText('λ/2',wcx-wR-10,wcy+3);
+  mCtx.fillText('3λ/4',wcx,wcy+wR+12);
+  // Pointer
+  const pA=-4*Math.PI*d;
+  mCtx.strokeStyle='#ffa657';mCtx.lineWidth=2;
+  mCtx.beginPath();mCtx.moveTo(wcx,wcy);mCtx.lineTo(wcx+Math.cos(pA)*wR,wcy+Math.sin(pA)*wR);mCtx.stroke();
+
+  setM('mZin',`${zr.toFixed(2)}${zx>=0?'+':''}${zx.toFixed(2)}j`);
+  setM('mRot',(rot*180/Math.PI).toFixed(1)+'°');
+  setM('mG',mag.toFixed(3));
+  const vswr=mag<0.999?(1+mag)/(1-mag):Infinity;
+  setM('mVSWR',isFinite(vswr)?vswr.toFixed(2):'∞');
+
+  document.getElementById('ch1Title').textContent='Re{Z_in} & Im{Z_in} vs d/λ';
+  document.getElementById('ch2Title').textContent='|Γ(d)| (constant) & ∠Γ(d)';
+  drawMovingCharts(gR,gI,d);
+}
+function drawMovingCharts(gRload,gIload,dNow){
+  const pad={l:40,r:15,t:12,b:20};
+  const mag=Math.sqrt(gRload*gRload+gIload*gIload);
+  const angL=Math.atan2(gIload,gRload);
+
+  // Chart 1: Z_in vs d
+  const W=c1C.width,H=c1C.height;
+  const pW=W-pad.l-pad.r,pH=H-pad.t-pad.b;
+  c1Ctx.clearRect(0,0,W,H);drawGridChart(c1Ctx,W,H,pad);
+  const midY=pad.t+pH/2;
+  [{col:'#79c0ff',part:'re',label:'r'},{col:'#7ee787',part:'im',label:'x'}].forEach(({col,part,label})=>{
+    c1Ctx.strokeStyle=col;c1Ctx.lineWidth=2;c1Ctx.beginPath();
+    for(let i=0;i<=300;i++){
+      const d=(i/300)*0.5;
+      const a=angL-4*Math.PI*d;
+      const gr=mag*Math.cos(a),gi=mag*Math.sin(a);
+      const [r,x]=zFromG(gr,gi);
+      const v=part==='re'?r:x;
+      const xv=pad.l+(i/300)*pW;
+      const yv=midY-Math.max(-5,Math.min(5,v))*pH*0.08;
+      i===0?c1Ctx.moveTo(xv,yv):c1Ctx.lineTo(xv,yv);
+    }
+    c1Ctx.stroke();
+    c1Ctx.fillStyle=col;c1Ctx.font='bold 10px sans-serif';c1Ctx.textAlign='left';
+    c1Ctx.fillText(label,pad.l+pW+4,midY+(label==='r'?-6:8));
+  });
+  // Current d marker
+  const mx=pad.l+(dNow/0.5)*pW;
+  c1Ctx.strokeStyle='#ffa657';c1Ctx.setLineDash([4,3]);c1Ctx.lineWidth=1;
+  c1Ctx.beginPath();c1Ctx.moveTo(mx,pad.t);c1Ctx.lineTo(mx,pad.t+pH);c1Ctx.stroke();c1Ctx.setLineDash([]);
+
+  // Chart 2: ∠Γ vs d (|Γ| constant)
+  const W2=c2C.width,H2=c2C.height;
+  const pW2=W2-pad.l-pad.r,pH2=H2-pad.t-pad.b;
+  c2Ctx.clearRect(0,0,W2,H2);drawGridChart(c2Ctx,W2,H2,pad);
+  const midY2=pad.t+pH2/2;
+  c2Ctx.strokeStyle='#79c0ff';c2Ctx.lineWidth=2;c2Ctx.beginPath();
+  for(let i=0;i<=300;i++){
+    const d=(i/300)*0.5;
+    let a=(angL-4*Math.PI*d)*180/Math.PI;
+    while(a<-180)a+=360;while(a>180)a-=360;
+    const xv=pad.l+(i/300)*pW2;
+    const yv=midY2-a/180*pH2*0.4;
+    i===0?c2Ctx.moveTo(xv,yv):c2Ctx.lineTo(xv,yv);
+  }
+  c2Ctx.stroke();
+  c2Ctx.fillStyle='#79c0ff';c2Ctx.font='bold 10px sans-serif';c2Ctx.textAlign='left';
+  c2Ctx.fillText('∠Γ (deg)',pad.l+6,pad.t+14);
+  c2Ctx.fillStyle='#8b949e';c2Ctx.font='9px sans-serif';c2Ctx.textAlign='center';
+  c2Ctx.fillText('d / λ',pad.l+pW2/2,H2-5);
+}
+
+/* ===== TAB 3: Matching Network ===== */
+function drawMatch(){
+  const {cx,cy,R,W,H}=chartGeom();
+  mCtx.clearRect(0,0,W,H);
+  drawSmithBase(mCtx,cx,cy,R);
+
+  const [r,x]=zFromG(gR,gI);
+  const mag=Math.sqrt(gR*gR+gI*gI);
+
+  // |Γ| circle
+  mCtx.strokeStyle='#7ee78770';mCtx.lineWidth=1.5;
+  mCtx.beginPath();mCtx.arc(cx,cy,mag*R,0,Math.PI*2);mCtx.stroke();
+
+  // g=1 circle: in admittance chart, the g=1 circle is the image of r=1 circle rotated by 180°
+  // It's centered at (-0.5*R, 0) with radius 0.5*R
+  mCtx.strokeStyle='#79c0ff';mCtx.lineWidth=2;mCtx.shadowColor='#79c0ff';mCtx.shadowBlur=5;
+  mCtx.beginPath();mCtx.arc(cx-0.5*R,cy,0.5*R,0,Math.PI*2);mCtx.stroke();mCtx.shadowBlur=0;
+
+  // Load
+  const [px,py]=gToPx(gR,gI,cx,cy,R);
+  mCtx.fillStyle='#f97583';mCtx.beginPath();mCtx.arc(px,py,7,0,Math.PI*2);mCtx.fill();
+  mCtx.strokeStyle='#0d1117';mCtx.lineWidth=2;mCtx.stroke();
+  mCtx.fillStyle='#f97583';mCtx.font='bold 10px sans-serif';mCtx.textAlign='left';
+  mCtx.fillText('z_L',px+10,py-6);
+
+  // Admittance point = -Γ (reflection across origin)
+  const yR=-gR,yI=-gI;
+  const [ypx,ypy]=gToPx(yR,yI,cx,cy,R);
+  mCtx.fillStyle='#d2a8ff';mCtx.beginPath();mCtx.arc(ypx,ypy,5,0,Math.PI*2);mCtx.fill();
+  mCtx.fillStyle='#d2a8ff';mCtx.font='9px sans-serif';
+  mCtx.fillText('y_L',ypx+8,ypy+4);
+
+  // Find intersection of |Γ| circle with g=1 circle (in Γ-plane)
+  // g=1 circle in Γ: |Γ+0.5|=0.5 → Γ_r² + Γ_r + Γ_i² = 0 → Γ_r = -(Γ_r²+Γ_i²)
+  // Also |Γ|=mag → Γ_r² + Γ_i² = mag²
+  // So Γ_r = -mag²
+  let bestD=NaN, bestGr=gR, bestGi=gI, stubB=0;
+  if(mag>0){
+    const gRint=-mag*mag;
+    const gIsq=mag*mag-gRint*gRint;
+    if(gIsq>=0){
+      const gIint=Math.sqrt(gIsq);
+      // Two solutions: (gRint, ±gIint). Choose the one with shorter CW rotation from load.
+      const angL=Math.atan2(gI,gR);
+      const candidates=[[gRint,gIint],[gRint,-gIint]];
+      let minRot=Infinity;
+      candidates.forEach(([gr,gi])=>{
+        const aNew=Math.atan2(gi,gr);
+        let rot=angL-aNew; // CW is positive
+        while(rot<0)rot+=2*Math.PI;
+        if(rot<minRot){minRot=rot;bestGr=gr;bestGi=gi;bestD=rot/(4*Math.PI);}
+      });
+      // At intersection, admittance is y = 1 + jb. We need its susceptance b.
+      // The admittance point is the rotation of bestG by π (admittance ↔ -Γ)
+      const gAdmR=-bestGr, gAdmI=-bestGi;
+      const [ya,yb]=zFromG(gAdmR,gAdmI); // gives g + jb in admittance
+      stubB=yb;
+    }
+  }
+
+  // Draw path: load → rotated point on g=1
+  if(!isNaN(bestD)){
+    const angL=Math.atan2(gI,gR);
+    const angNew=Math.atan2(bestGi,bestGr);
+    mCtx.strokeStyle='#ffa657';mCtx.lineWidth=2.5;mCtx.shadowColor='#ffa657';mCtx.shadowBlur=5;
+    mCtx.beginPath();mCtx.arc(cx,cy,mag*R,-angL,-angNew,true);mCtx.stroke();mCtx.shadowBlur=0;
+
+    const [bx,by]=gToPx(bestGr,bestGi,cx,cy,R);
+    mCtx.fillStyle='#ffa657';mCtx.beginPath();mCtx.arc(bx,by,7,0,Math.PI*2);mCtx.fill();
+    mCtx.strokeStyle='#0d1117';mCtx.lineWidth=2;mCtx.stroke();
+    mCtx.fillStyle='#ffa657';mCtx.font='bold 10px sans-serif';mCtx.textAlign='left';
+    mCtx.fillText('After d',bx+10,by-6);
+
+    // Arrow to center (after stub)
+    mCtx.strokeStyle='#7ee787';mCtx.lineWidth=2;mCtx.setLineDash([4,3]);
+    mCtx.beginPath();mCtx.moveTo(bx,by);mCtx.lineTo(cx,cy);mCtx.stroke();mCtx.setLineDash([]);
+    mCtx.fillStyle='#7ee787';mCtx.beginPath();mCtx.arc(cx,cy,6,0,Math.PI*2);mCtx.fill();
+    mCtx.strokeStyle='#0d1117';mCtx.stroke();
+    mCtx.fillText('Matched',cx+8,cy-8);
+  }
+
+  // Compute stub length (short-circuited stub): y_stub = -j·cot(βℓ) → need b_stub = -stubB
+  // -cot(βℓ) = -stubB → tan(βℓ) = 1/stubB
+  // If stubB > 0 (capacitive susceptance — need inductive stub): length < λ/4
+  // ℓ/λ = (1/2π) atan(1/stubB), modded into [0,0.5]
+  let stubLen=0;
+  if(Math.abs(stubB)>1e-4){
+    stubLen=Math.atan2(-1,-stubB)/(2*Math.PI);
+    while(stubLen<0)stubLen+=0.5;
+    while(stubLen>=0.5)stubLen-=0.5;
+  }
+
+  // Right panel: network schematic
+  const rx=760,ry=H/2;
+  mCtx.fillStyle='#161b22';mCtx.strokeStyle='#30363d';
+  mCtx.beginPath();mCtx.roundRect(rx-160,ry-180,320,360,12);mCtx.fill();mCtx.stroke();
+  mCtx.fillStyle='#8b949e';mCtx.font='bold 12px sans-serif';mCtx.textAlign='center';
+  mCtx.fillText('Single-stub match',rx,ry-160);
+
+  // Schematic
+  const sY=ry-100;
+  mCtx.strokeStyle='#8b949e';mCtx.lineWidth=3;
+  mCtx.beginPath();mCtx.moveTo(rx-120,sY);mCtx.lineTo(rx+120,sY);mCtx.stroke();
+  mCtx.beginPath();mCtx.moveTo(rx-120,sY+30);mCtx.lineTo(rx+120,sY+30);mCtx.stroke();
+  mCtx.fillStyle='#f97583';mCtx.fillRect(rx+110,sY-10,16,50);
+  mCtx.fillStyle='#e6edf3';mCtx.font='bold 10px sans-serif';mCtx.textAlign='center';
+  mCtx.fillText('Z_L',rx+118,sY-16);
+
+  // Stub (drops down)
+  const stubX=rx-30;
+  mCtx.strokeStyle='#79c0ff';mCtx.lineWidth=3;
+  mCtx.beginPath();mCtx.moveTo(stubX,sY+30);mCtx.lineTo(stubX,sY+90);mCtx.stroke();
+  mCtx.beginPath();mCtx.moveTo(stubX+15,sY+30);mCtx.lineTo(stubX+15,sY+90);mCtx.stroke();
+  mCtx.fillStyle='#79c0ff';mCtx.fillRect(stubX-3,sY+90,21,6);
+  mCtx.fillStyle='#79c0ff';mCtx.font='bold 10px sans-serif';
+  mCtx.fillText(`ℓ = ${stubLen.toFixed(3)}λ`,stubX+8,sY+110);
+  mCtx.fillText('short-stub',stubX+8,sY+124);
+
+  // Distance annotation
+  mCtx.strokeStyle='#ffa657';mCtx.lineWidth=1;mCtx.setLineDash([3,3]);
+  mCtx.beginPath();mCtx.moveTo(stubX+7,sY-20);mCtx.lineTo(rx+110,sY-20);mCtx.stroke();
+  mCtx.setLineDash([]);
+  mCtx.fillStyle='#ffa657';mCtx.font='bold 10px sans-serif';mCtx.textAlign='center';
+  mCtx.fillText(`d = ${isNaN(bestD)?'—':bestD.toFixed(3)+'λ'}`,(stubX+rx+110)/2,sY-25);
+
+  // Source
+  mCtx.fillStyle='#7ee787';mCtx.fillRect(rx-128,sY-10,12,50);
+  mCtx.fillStyle='#e6edf3';mCtx.fillText('Z₀',rx-122,sY-16);
+
+  // Result
+  mCtx.fillStyle='#7ee787';mCtx.font='bold 12px sans-serif';mCtx.textAlign='center';
+  mCtx.fillText('Looking left of stub: Γ = 0',rx,ry+60);
+  mCtx.fillStyle='#8b949e';mCtx.font='10px sans-serif';
+  mCtx.fillText(`(1) Rotate load to g=1 circle: d = ${isNaN(bestD)?'—':bestD.toFixed(3)+'λ'}`,rx,ry+82);
+  mCtx.fillText(`(2) Cancel jb with stub:   ℓ = ${stubLen.toFixed(3)}λ`,rx,ry+100);
+
+  setM('md',isNaN(bestD)?'—':bestD.toFixed(3)+'λ');
+  setM('ml',stubLen.toFixed(3)+'λ');
+  setM('mYin',`1${stubB>=0?'+':''}${stubB.toFixed(2)}j`);
+  setM('mG','0.000');
+
+  document.getElementById('ch1Title').textContent='Admittance path (y) on chart';
+  document.getElementById('ch2Title').textContent='Before vs after matching';
+  drawMatchCharts(mag,bestD,stubLen);
+}
+function drawMatchCharts(mag,d,l){
+  const pad={l:40,r:15,t:12,b:20};
+  const W=c1C.width,H=c1C.height;
+  c1Ctx.clearRect(0,0,W,H);
+  // Just a schematic summary
+  c1Ctx.fillStyle='#8b949e';c1Ctx.font='11px sans-serif';c1Ctx.textAlign='left';
+  c1Ctx.fillText('Path on chart:',20,20);
+  c1Ctx.fillStyle='#f97583';c1Ctx.fillText(`1. Start at load z_L = r + jx`,30,42);
+  c1Ctx.fillStyle='#d2a8ff';c1Ctx.fillText(`2. Flip to admittance y_L = 1/z_L (180° rotation)`,30,62);
+  c1Ctx.fillStyle='#ffa657';c1Ctx.fillText(`3. Rotate CW distance d=${isNaN(d)?'—':d.toFixed(3)}λ → hit g=1 circle`,30,82);
+  c1Ctx.fillStyle='#79c0ff';c1Ctx.fillText(`4. At this point y = 1 + jb (susceptance b)`,30,102);
+  c1Ctx.fillStyle='#7ee787';c1Ctx.fillText(`5. Add shunt stub ℓ=${l.toFixed(3)}λ to cancel jb → y=1`,30,122);
+  c1Ctx.fillStyle='#e6edf3';c1Ctx.font='bold 11px sans-serif';
+  c1Ctx.fillText('Result: Γ = 0, all power delivered to load',30,148);
+
+  // Chart 2: VSWR before/after
+  const W2=c2C.width,H2=c2C.height;
+  c2Ctx.clearRect(0,0,W2,H2);
+  const vBefore=mag<0.999?(1+mag)/(1-mag):Infinity;
+  const vAfter=1;
+  const barW=80,gap=40;
+  const bx1=W2/2-barW-gap/2, bx2=W2/2+gap/2;
+  const maxH=H2-50;
+  const h1=Math.min(maxH,(Math.min(vBefore,10)/10)*maxH);
+  const h2=(vAfter/10)*maxH;
+  c2Ctx.fillStyle='#f9758340';c2Ctx.fillRect(bx1,20+maxH-h1,barW,h1);
+  c2Ctx.strokeStyle='#f97583';c2Ctx.lineWidth=2;c2Ctx.strokeRect(bx1,20+maxH-h1,barW,h1);
+  c2Ctx.fillStyle='#7ee78740';c2Ctx.fillRect(bx2,20+maxH-h2,barW,h2);
+  c2Ctx.strokeStyle='#7ee787';c2Ctx.lineWidth=2;c2Ctx.strokeRect(bx2,20+maxH-h2,barW,h2);
+  c2Ctx.fillStyle='#f97583';c2Ctx.font='bold 11px sans-serif';c2Ctx.textAlign='center';
+  c2Ctx.fillText('Before',bx1+barW/2,20+maxH+14);
+  c2Ctx.fillText(`VSWR ${isFinite(vBefore)?vBefore.toFixed(2):'∞'}`,bx1+barW/2,20+maxH-h1-6);
+  c2Ctx.fillStyle='#7ee787';
+  c2Ctx.fillText('After',bx2+barW/2,20+maxH+14);
+  c2Ctx.fillText('VSWR 1.00',bx2+barW/2,20+maxH-h2-6);
+}
+
+/* ===== CLICK TO SET LOAD ===== */
+mainC.addEventListener('click',(e)=>{
+  const {cx,cy,R}=chartGeom();
+  const rect=mainC.getBoundingClientRect();
+  const mx=(e.clientX-rect.left)*(mainC.width/rect.width);
+  const my=(e.clientY-rect.top)*(mainC.height/rect.height);
+  const dx=mx-cx, dy=my-cy;
+  const dist=Math.sqrt(dx*dx+dy*dy);
+  if(dist<=R){
+    gR=dx/R; gI=-dy/R;
+    syncSlidersFromG();
+  }
+});
+
+/* ===== ANIMATION ===== */
+function animate(ts){
+  if(!lastTs)lastTs=ts;
+  const dt=Math.min((ts-lastTs)/1000,0.04);
+  lastTs=ts;
+  if(!paused){
+    time+=dt;
+    switch(currentTab){
+      case 0:drawMapping();break;
+      case 1:drawVSWR();break;
+      case 2:drawMoving();break;
+      case 3:drawMatch();break;
+    }
+  }
+  requestAnimationFrame(animate);
+}
+buildUI(0);
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
