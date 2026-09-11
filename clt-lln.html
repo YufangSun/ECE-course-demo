@@ -1,0 +1,1493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Central Limit Theorem &amp; Law of Large Numbers — ECE 302</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',system-ui,sans-serif;
+    display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:18px}
+  h1{font-size:1.5em;color:#e0e0ff}
+  .subtitle{color:#7d8590;margin-bottom:10px;font-size:.92em;text-align:center;max-width:900px}
+  canvas{display:block;border-radius:10px;max-width:100%}
+
+  .tabs{display:flex;gap:6px;margin:10px 0;flex-wrap:wrap;justify-content:center}
+  .tab{padding:8px 18px;border-radius:8px;cursor:pointer;font-size:.86em;
+    background:#161b22;border:1px solid #30363d;color:#8b949e;transition:.2s}
+  .tab:hover{border-color:#58a6ff;color:#e6edf3}
+  .tab.active{background:#1f6feb;border-color:#1f6feb;color:white;font-weight:bold}
+
+  .eq-box{background:#161b22;border:1px solid #30363d;border-radius:10px;
+    padding:8px 14px;margin:6px 0;max-width:1120px;width:100%;text-align:center}
+  .eq{font-size:1.05em;font-family:'Times New Roman',serif;color:#e0e0ff}
+  .eq-desc{font-size:.78em;color:#7d8590;margin-top:3px}
+
+  .legend{display:flex;gap:12px;justify-content:center;margin:6px 0;flex-wrap:wrap}
+  .legend-item{display:flex;align-items:center;gap:4px;font-size:.76em;color:#8b949e}
+  .legend-dot{width:9px;height:9px;border-radius:50%}
+
+  .row{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:8px;max-width:1120px;width:100%}
+  .panel{background:#161b22;border-radius:12px;padding:12px;border:1px solid #30363d;width:100%}
+  .panel h2{font-size:.88em;color:#8b949e;margin-bottom:6px;text-align:center}
+
+  .meters{display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap;max-width:1120px}
+  .meter{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:4px 10px;text-align:center;min-width:96px}
+  .meter .ml{font-size:.68em;color:#8b949e}
+  .meter .mv{font-size:.9em;font-weight:bold;font-family:'Courier New',monospace;color:#e6edf3}
+
+  .controls{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;justify-content:center;align-items:center;
+    max-width:1120px;width:100%;background:#161b22;border:1px solid #30363d;border-radius:12px;padding:12px}
+  .cg{display:flex;align-items:center;gap:5px}
+  .cg label{font-size:.78em;color:#8b949e;white-space:nowrap}
+  input[type="range"]{width:110px;accent-color:#58a6ff}
+  .val{font-size:.78em;color:#58a6ff;min-width:44px;font-family:'Courier New',monospace}
+  button{background:#238636;color:white;border:none;padding:6px 14px;border-radius:6px;
+    cursor:pointer;font-size:.82em;transition:.2s}
+  button:hover{background:#2ea043}
+  button.sec{background:#30363d}
+  button.sec:hover{background:#484f58}
+  .chk{display:flex;align-items:center;gap:4px;font-size:.76em;color:#8b949e;cursor:pointer;user-select:none}
+  .chk input{accent-color:#58a6ff;cursor:pointer}
+
+  .presets{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:10px;max-width:1120px}
+  .preset{padding:5px 13px;border-radius:6px;cursor:pointer;font-size:.76em;
+    background:#21262d;border:1px solid #30363d;color:#8b949e;transition:.2s}
+  .preset:hover{border-color:#58a6ff;color:#e6edf3}
+  .preset.active{background:#1f6feb;border-color:#1f6feb;color:white}
+  .preset.warn.active{background:#9e3b2e;border-color:#f85149}
+
+  .info{max-width:1120px;width:100%;background:#161b22;border-radius:12px;
+    padding:14px 18px;border:1px solid #30363d;margin-top:14px;font-size:.84em;line-height:1.65;color:#8b949e}
+  .info strong{color:#e0e0ff}
+  .info code{color:#f0883e;background:#21262d;padding:1px 5px;border-radius:3px;font-size:.95em}
+  .info ul{margin:6px 0 0 20px}
+  .info li{margin:3px 0}
+  .hidden{display:none!important}
+  a{color:#58a6ff}
+  .back{margin-top:16px;font-size:.82em}
+</style>
+</head>
+<body>
+
+<h1>Central Limit Theorem &amp; Law of Large Numbers</h1>
+<p class="subtitle">Average enough independent random variables and two things happen, no matter what you started with: the average settles on μ (LLN), and the way it fluctuates around μ becomes Gaussian (CLT).</p>
+
+<div class="tabs">
+  <div class="tab active" data-tab="0">Central Limit Theorem</div>
+  <div class="tab" data-tab="1">Law of Large Numbers</div>
+  <div class="tab" data-tab="2">Building the Sum</div>
+  <div class="tab" data-tab="3">Galton Board</div>
+  <div class="tab" data-tab="4">Build Any PMF from the CDF</div>
+</div>
+
+<div class="eq-box">
+  <div class="eq" id="eqText"></div>
+  <div class="eq-desc" id="eqDesc"></div>
+</div>
+
+<div class="presets" id="presets"></div>
+<div class="presets" id="pmfPresets"></div>
+
+<div class="legend" id="legend"></div>
+
+<div class="row">
+  <div class="panel">
+    <h2 id="mainTitle">Sampling Distribution of the Mean</h2>
+    <canvas id="mainCanvas" width="1080" height="400"></canvas>
+  </div>
+</div>
+
+<div class="row">
+  <div class="panel">
+    <h2 id="auxTitle">Diagnostics</h2>
+    <canvas id="auxCanvas" width="1080" height="250"></canvas>
+  </div>
+</div>
+
+<div class="meters" id="meters"></div>
+
+<div class="controls">
+  <div class="cg" id="cgP"><label>p:</label>
+    <input type="range" id="slP" min="0.05" max="0.95" step="0.01" value="0.5">
+    <span class="val" id="vP">0.50</span></div>
+
+  <div class="cg" id="cgLam"><label>λ:</label>
+    <input type="range" id="slLam" min="0.3" max="10" step="0.1" value="3">
+    <span class="val" id="vLam">3.0</span></div>
+
+  <div class="cg" data-tabs="0"><label>Sample size n:</label>
+    <input type="range" id="slN" min="1" max="100" step="1" value="5">
+    <span class="val" id="vN">5</span></div>
+
+  <div class="cg" data-tabs="0"><label>Speed:</label>
+    <input type="range" id="slSpeed" min="1" max="200" step="1" value="20">
+    <span class="val" id="vSpeed">20</span></div>
+
+  <div class="cg" data-tabs="0"><label class="chk"><input type="checkbox" id="ckStd"> standardize</label></div>
+
+  <div class="cg" data-tabs="1"><label>Samples N:</label>
+    <input type="range" id="slNN" min="100" max="20000" step="100" value="5000">
+    <span class="val" id="vNN">5000</span></div>
+  <div class="cg" data-tabs="1"><label>Paths:</label>
+    <input type="range" id="slPaths" min="1" max="12" step="1" value="6">
+    <span class="val" id="vPaths">6</span></div>
+  <div class="cg" data-tabs="1"><label>ε:</label>
+    <input type="range" id="slEps" min="0.01" max="1" step="0.01" value="0.1">
+    <span class="val" id="vEps">0.10</span></div>
+
+  <div class="cg" data-tabs="2"><label>n terms:</label>
+    <input type="range" id="slConvN" min="1" max="30" step="1" value="4">
+    <span class="val" id="vConvN">4</span></div>
+
+  <div class="cg" data-tabs="3"><label>Rows:</label>
+    <input type="range" id="slRows" min="4" max="20" step="1" value="12">
+    <span class="val" id="vRows">12</span></div>
+  <div class="cg" data-tabs="3"><label>P(right):</label>
+    <input type="range" id="slGp" min="0.1" max="0.9" step="0.01" value="0.5">
+    <span class="val" id="vGp">0.50</span></div>
+
+  <div class="cg" data-tabs="3"><label>Fall speed:</label>
+    <input type="range" id="slFall" min="0.015" max="0.3" step="0.005" value="0.1">
+    <span class="val" id="vFall">normal</span></div>
+
+  <div class="cg" data-tabs="4"><label>Outcomes N:</label>
+    <input type="range" id="slIvN" min="2" max="12" step="1" value="6">
+    <span class="val" id="vIvN">6</span></div>
+  <div class="cg" data-tabs="4"><label>Speed:</label>
+    <input type="range" id="slIvRate" min="0" max="120" step="1" value="0">
+    <span class="val" id="vIvRate">slow</span></div>
+  <div class="cg" data-tabs="4"><button class="sec" id="btnIv1">Draw 1</button></div>
+  <div class="cg" data-tabs="4"><button class="sec" id="btnIv1000">Draw 1000</button></div>
+
+  <div class="cg" data-tabs="0,3,4"><button id="btnRun">⏸ Pause</button></div>
+  <div class="cg" data-tabs="0"><button class="sec" id="btnOne">+1 trial</button></div>
+  <div class="cg" data-tabs="0"><button class="sec" id="btnHundred">+500 trials</button></div>
+  <div class="cg" data-tabs="3"><button class="sec" id="btnDrop1">Drop 1 ball</button></div>
+  <div class="cg" data-tabs="3"><button class="sec" id="btnDrop">Drop 200</button></div>
+  <div class="cg" data-tabs="1"><button class="sec" id="btnRerun">New run</button></div>
+  <div class="cg"><button class="sec" id="btnReset">Reset</button></div>
+</div>
+
+<div class="info" id="info"></div>
+
+<div class="back"><a href="index.html">← All demos</a></div>
+
+<script>
+/* ================= math helpers ================= */
+const SQ2PI=Math.sqrt(2*Math.PI);
+function erf(x){
+  const s=Math.sign(x); x=Math.abs(x);
+  const t=1/(1+0.3275911*x);
+  const y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);
+  return s*y;
+}
+const normCdf=z=>0.5*(1+erf(z/Math.SQRT2));
+const normPdf=z=>Math.exp(-z*z/2)/SQ2PI;
+// Acklam's inverse normal CDF
+function normInv(p){
+  if(p<=0) return -Infinity; if(p>=1) return Infinity;
+  const a=[-3.969683028665376e+01,2.209460984245205e+02,-2.759285104469687e+02,1.383577518672690e+02,-3.066479806614716e+01,2.506628277459239e+00];
+  const b=[-5.447609879822406e+01,1.615858368580409e+02,-1.556989798598866e+02,6.680131188771972e+01,-1.328068155288572e+01];
+  const c=[-7.784894002430293e-03,-3.223964580411365e-01,-2.400758277161838e+00,-2.549732539343734e+00,4.374664141464968e+00,2.938163982698783e+00];
+  const d=[7.784695709041462e-03,3.224671290700398e-01,2.445134137142996e+00,3.754408661907416e+00];
+  const pl=0.02425;
+  let q,r;
+  if(p<pl){ q=Math.sqrt(-2*Math.log(p));
+    return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1); }
+  if(p>1-pl){ q=Math.sqrt(-2*Math.log(1-p));
+    return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1); }
+  q=p-0.5; r=q*q;
+  return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q/(((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);
+}
+function logGamma(x){
+  const g=[76.18009172947146,-86.50532032941677,24.01409824083091,-1.231739572450155,0.1208650973866179e-2,-0.5395239384953e-5];
+  let y=x, tmp=x+5.5; tmp-=(x+0.5)*Math.log(tmp); let ser=1.000000000190015;
+  for(let j=0;j<6;j++) ser+=g[j]/++y;
+  return -tmp+Math.log(2.5066282746310005*ser/x);
+}
+const logFact=n=>logGamma(n+1);
+const binomPmf=(k,n,p)=>Math.exp(logFact(n)-logFact(k)-logFact(n-k)+k*Math.log(p)+(n-k)*Math.log(1-p));
+
+/* ================= source distributions ================= */
+// Each: {name, discrete, lo, hi, pdf(x) | atoms[], sample(), noMean?}
+function makeDist(key,P){
+  const p=P.p, lam=P.lam;
+  switch(key){
+    case 'uniform': return {name:'Uniform(0, 1)',short:'Uniform',discrete:false,lo:0,hi:1,
+      m:0.5, v:1/12, pdf:x=>(x>=0&&x<=1)?1:0, sample:()=>Math.random()};
+    case 'exp': return {name:'Exponential(1)',short:'Exponential',discrete:false,lo:0,hi:8,
+      m:1, v:1, pdf:x=>x>=0?Math.exp(-x):0, sample:()=>-Math.log(1-Math.random())};
+    case 'tri': return {name:'Triangular — pdf 2(1−x) on [0,1]',short:'Triangular',discrete:false,lo:0,hi:1,
+      m:1/3, v:1/18, pdf:x=>(x>=0&&x<=1)?2*(1-x):0, sample:()=>1-Math.sqrt(1-Math.random())};
+    case 'bimodal': return {name:'Bimodal mixture — two separated humps',short:'Bimodal',discrete:false,lo:0,hi:1,
+      m:0.5, v:0.25*0.25/12+0.375*0.375, pdf:x=>((x>=0&&x<=0.25)||(x>=0.75&&x<=1))?2:0,
+      sample:()=>Math.random()<0.5?0.25*Math.random():0.75+0.25*Math.random()};
+    case 'bern': return {name:'Bernoulli(p = '+p.toFixed(2)+')',short:'Bernoulli',discrete:true,lo:0,hi:1,
+      atoms:[{x:0,p:1-p},{x:1,p:p}], sample:()=>Math.random()<p?1:0};
+    case 'die': return {name:'Fair die — uniform on {1,…,6}',short:'Die',discrete:true,lo:1,hi:6,
+      atoms:[1,2,3,4,5,6].map(x=>({x,p:1/6})), sample:()=>1+Math.floor(Math.random()*6)};
+    case 'pois': {
+      const hi=Math.max(8,Math.ceil(lam+5*Math.sqrt(lam)));
+      const atoms=[]; for(let k=0;k<=hi;k++) atoms.push({x:k,p:Math.exp(-lam+k*Math.log(lam)-logFact(k))});
+      return {name:'Poisson(λ = '+lam.toFixed(1)+')',short:'Poisson',discrete:true,lo:0,hi,atoms,m:lam,v:lam,
+        sample:()=>{ // Knuth
+          if(lam<30){ const L=Math.exp(-lam); let k=0,pr=1; do{k++;pr*=Math.random();}while(pr>L); return k-1; }
+          let k=Math.round(lam+Math.sqrt(lam)*normInv(Math.random())); return Math.max(0,k);
+        }};
+    }
+    case 'cauchy': return {name:'Cauchy — heavy tails, NO finite mean',short:'Cauchy ⚠',discrete:false,lo:-12,hi:12,
+      pdf:x=>1/(Math.PI*(1+x*x)), sample:()=>Math.tan(Math.PI*(Math.random()-0.5)), noMean:true};
+  }
+}
+// mean / variance, computed from the definition so they always agree with what is drawn
+function momentsOf(D){
+  if(D.noMean) return {mean:0,var:Infinity,sd:Infinity};
+  if(D.m!==undefined) return {mean:D.m,var:D.v,sd:Math.sqrt(D.v)};
+  if(D.discrete){
+    let m=0,m2=0; D.atoms.forEach(a=>{m+=a.x*a.p; m2+=a.x*a.x*a.p;});
+    return {mean:m,var:m2-m*m,sd:Math.sqrt(Math.max(m2-m*m,0))};
+  }
+  const M=4000, dx=(D.hi-D.lo)/M; let m=0,m2=0,tot=0;
+  for(let i=0;i<M;i++){ const x=D.lo+(i+0.5)*dx, f=D.pdf(x)*dx; tot+=f; m+=x*f; m2+=x*x*f; }
+  m/=tot; m2/=tot;
+  return {mean:m,var:m2-m*m,sd:Math.sqrt(Math.max(m2-m*m,0))};
+}
+
+/* ================= state ================= */
+const S={
+  tab:0, dist:'uniform', p:0.5, lam:3,
+  n:5, speed:20, standardize:false, running:true,
+  means:[], sumStats:{n:0,m:0,m2:0,m3:0,m4:0}, rawHist:null, rawCount:0,
+  NN:5000, paths:6, eps:0.1, pathData:[],
+  convN:4, convCache:null,
+  rows:12, gp:0.5, fallSpeed:0.1, balls:[], bins:[], dropped:0, tvHistory:[], nextRec:10,
+  ivN:6, pmfW:[], ivHist:[], ivCount:0, uHist:new Float64Array(40), ivAnim:null,
+  ivRate:0, ivErrHist:[], ivNextRec:10, ivDrag:false
+};
+let D=makeDist(S.dist,S), MOM=momentsOf(D);
+function refreshDist(){ D=makeDist(S.dist,S); MOM=momentsOf(D); resetCLT(); resetLLN(); S.convCache=null; }
+
+const mainC=document.getElementById('mainCanvas'), mx=mainC.getContext('2d');
+const auxC=document.getElementById('auxCanvas'),  ax=auxC.getContext('2d');
+
+/* ================= drawing utilities ================= */
+function clear(ctx,c){ ctx.fillStyle='#0d1117'; ctx.fillRect(0,0,c.width,c.height); }
+function txt(ctx,s,x,y,col,font,align){
+  ctx.fillStyle=col||'#8b949e'; ctx.font=font||'11px Segoe UI';
+  ctx.textAlign=align||'center'; ctx.textBaseline='middle'; ctx.fillText(s,x,y);
+}
+function line(ctx,x1,y1,x2,y2,col,w,dash){
+  ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=w||1; if(dash)ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); ctx.restore();
+}
+function dot(ctx,x,y,r,col){ ctx.fillStyle=col; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); }
+function roundRect(ctx,x,y,w,h,r,fill,stroke){
+  ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+  if(fill){ctx.fillStyle=fill;ctx.fill();} if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1.4;ctx.stroke();}
+}
+// a plot frame: returns mapping helpers
+function frame(ctx,x,y,w,h,x0,x1,y0,y1,xlabel,ylabel,title){
+  const X=v=>x+(v-x0)/(x1-x0)*w, Y=v=>y+h-(v-y0)/(y1-y0)*h;
+  ctx.strokeStyle='#30363d'; ctx.lineWidth=1; ctx.strokeRect(x,y,w,h);
+  if(title) txt(ctx,title,x+w/2,y-12,'#8b949e','bold 11px Segoe UI');
+  if(xlabel) txt(ctx,xlabel,x+w/2,y+h+26,'#6e7681','10px Segoe UI');
+  if(ylabel){ ctx.save(); ctx.translate(x-34,y+h/2); ctx.rotate(-Math.PI/2);
+    txt(ctx,ylabel,0,0,'#6e7681','10px Segoe UI'); ctx.restore(); }
+  return {X,Y,x,y,w,h,x0,x1,y0,y1};
+}
+function xticks(ctx,F,vals,fmt){
+  vals.forEach(v=>{ const xx=F.X(v);
+    line(ctx,xx,F.y,xx,F.y+F.h,'#21262d',1);
+    line(ctx,xx,F.y+F.h,xx,F.y+F.h+4,'#484f58',1);
+    txt(ctx,fmt?fmt(v):String(+v.toFixed(3)),xx,F.y+F.h+13,'#6e7681','9px Segoe UI'); });
+}
+function yticks(ctx,F,vals,fmt){
+  vals.forEach(v=>{ const yy=F.Y(v);
+    line(ctx,F.x,yy,F.x+F.w,yy,'#21262d',1);
+    txt(ctx,fmt?fmt(v):String(+v.toFixed(2)),F.x-6,yy,'#6e7681','9px Segoe UI','right'); });
+}
+function niceTicks(a,b,count){
+  const span=b-a, raw=span/count, mag=Math.pow(10,Math.floor(Math.log10(raw)));
+  const norm=raw/mag, step=(norm<1.5?1:norm<3?2:norm<7?5:10)*mag;
+  const out=[]; for(let v=Math.ceil(a/step)*step; v<=b+1e-9; v+=step) out.push(+v.toFixed(10));
+  return out;
+}
+
+/* ================= source distribution drawing ================= */
+function drawSource(ctx,x,y,w,h){
+  const lo=D.lo, hi=D.hi;
+  let ymax;
+  if(D.discrete) ymax=Math.max(...D.atoms.map(a=>a.p))*1.25;
+  else { ymax=0; for(let i=0;i<=400;i++) ymax=Math.max(ymax,D.pdf(lo+(hi-lo)*i/400)); ymax*=1.25; }
+  const F=frame(ctx,x,y,w,h,lo,hi,0,ymax,'x',D.discrete?'P(X = x)':'f(x)','Source distribution of a single X');
+  yticks(ctx,F,niceTicks(0,ymax,4));
+  xticks(ctx,F,niceTicks(lo,hi,5));
+  if(D.discrete){
+    D.atoms.forEach(a=>{ if(a.p<1e-6) return;
+      const xx=F.X(a.x), bw=Math.max(4,Math.min(26,F.w/(D.atoms.length*1.6)));
+      roundRect(ctx,xx-bw/2,F.Y(a.p),bw,F.y+F.h-F.Y(a.p),2,'#58a6ff',null);
+      dot(ctx,xx,F.Y(a.p),3,'#7ee787'); });
+  } else {
+    ctx.fillStyle='rgba(88,166,255,0.18)'; ctx.beginPath(); ctx.moveTo(F.X(lo),F.Y(0));
+    for(let i=0;i<=500;i++){ const xv=lo+(hi-lo)*i/500; ctx.lineTo(F.X(xv),F.Y(D.pdf(xv))); }
+    ctx.lineTo(F.X(hi),F.Y(0)); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle='#58a6ff'; ctx.lineWidth=2; ctx.beginPath();
+    for(let i=0;i<=500;i++){ const xv=lo+(hi-lo)*i/500; i?ctx.lineTo(F.X(xv),F.Y(D.pdf(xv))):ctx.moveTo(F.X(xv),F.Y(D.pdf(xv))); }
+    ctx.stroke();
+  }
+  if(!D.noMean){
+    line(ctx,F.X(MOM.mean),F.y,F.X(MOM.mean),F.y+F.h,'#f97583',1.6,[4,3]);
+    txt(ctx,'μ = '+MOM.mean.toFixed(3),F.X(MOM.mean),F.y+11,'#f97583','bold 10px Segoe UI');
+    const a=Math.max(lo,MOM.mean-MOM.sd), b=Math.min(hi,MOM.mean+MOM.sd);
+    line(ctx,F.X(a),F.y+F.h-8,F.X(b),F.y+F.h-8,'#e3b341',1.6);
+    line(ctx,F.X(a),F.y+F.h-12,F.X(a),F.y+F.h-4,'#e3b341',1.6);
+    line(ctx,F.X(b),F.y+F.h-12,F.X(b),F.y+F.h-4,'#e3b341',1.6);
+    txt(ctx,'±σ = '+MOM.sd.toFixed(3),F.X((a+b)/2),F.y+F.h-20,'#e3b341','10px Segoe UI');
+  } else {
+    txt(ctx,'mean and variance do not exist',F.X(0),F.y+14,'#f85149','bold 10px Segoe UI');
+  }
+  return F;
+}
+
+/* ================= TAB 0 : CLT sampler ================= */
+const NBINS=64;
+let histBins=new Float64Array(NBINS), histLo=0, histHi=1;
+function clTRange(){
+  if(D.noMean) return [-8,8];
+  const sd=MOM.sd/Math.sqrt(S.n);
+  return [MOM.mean-4.2*sd, MOM.mean+4.2*sd];
+}
+function resetCLT(){
+  S.means=[]; S.sumStats={n:0,m:0,m2:0,m3:0,m4:0};
+  histBins=new Float64Array(NBINS);
+  const r=clTRange(); histLo=r[0]; histHi=r[1];
+  S.rawHist=new Float64Array(NBINS); S.rawCount=0;
+}
+function addTrial(k){
+  const lo=histLo,hi=histHi,bw=(hi-lo)/NBINS;
+  for(let t=0;t<k;t++){
+    let s=0;
+    for(let i=0;i<S.n;i++){
+      const xv=D.sample(); s+=xv;
+      const rb=Math.min(NBINS-1,Math.floor((xv-D.lo)/(D.hi-D.lo)*NBINS));
+      if(rb>=0&&xv<=D.hi){ S.rawHist[rb]++; S.rawCount++; }
+    }
+    const m=s/S.n;
+    S.means.push(m);
+    const b=Math.floor((m-lo)/bw);
+    if(b>=0&&b<NBINS) histBins[b]++;
+    const st=S.sumStats; st.n++; st.m+=m; st.m2+=m*m; st.m3+=m*m*m; st.m4+=m*m*m*m;
+  }
+  if(S.means.length>200000) S.means.splice(0,100000);
+}
+function empStats(){
+  const st=S.sumStats; if(st.n<1) return null;
+  const N=st.n, mu=st.m/N, m2=st.m2/N-mu*mu;
+  const sd=Math.sqrt(Math.max(m2,1e-300));
+  const mu3=st.m3/N-3*mu*st.m2/N+2*mu*mu*mu;
+  const mu4=st.m4/N-4*mu*st.m3/N+6*mu*mu*st.m2/N-3*mu*mu*mu*mu;
+  return {N,mean:mu,sd,skew:mu3/Math.pow(sd,3),kurt:mu4/Math.pow(sd,4)-3};
+}
+function drawCLT(){
+  clear(mx,mainC);
+  drawSource(mx,60,44,330,300);
+  // arrow
+  txt(mx,'draw n = '+S.n+',  average  →',415,180,'#7ee787','bold 11px Segoe UI');
+  line(mx,398,196,470,196,'#7ee787',2);
+  line(mx,470,196,462,191,'#7ee787',2); line(mx,470,196,462,201,'#7ee787',2);
+
+  const std=S.standardize&&!D.noMean;
+  const sdN=MOM.sd/Math.sqrt(S.n);
+  let lo=histLo,hi=histHi;
+  const F=frame(mx,500,44,530,300,
+      std?-4.2:lo, std?4.2:hi, 0, 1,
+      std?'z = (X̄ₙ − μ)/(σ/√n)':'value of the sample mean  X̄ₙ',
+      'density','Distribution of the sample mean  X̄ₙ  ('+S.means.length.toLocaleString()+' trials)');
+
+  const bw=(hi-lo)/NBINS, tot=S.means.length;
+  // find y-scale
+  let ymax=0;
+  for(let i=0;i<NBINS;i++) ymax=Math.max(ymax,histBins[i]);
+  let dmax=tot>0?ymax/(tot*bw):1;
+  if(!D.noMean) dmax=Math.max(dmax,1/(sdN*SQ2PI));
+  if(std) dmax=Math.max(tot>0?ymax/(tot*(bw/sdN)):1,normPdf(0));
+  dmax*=1.18; if(!(dmax>0)) dmax=1;
+  F.y1=dmax; const Y=v=>F.y+F.h-(v/dmax)*F.h; F.Y=Y;
+  yticks(mx,F,niceTicks(0,dmax,4),v=>v.toFixed(dmax<1?2:dmax<10?1:0));
+  xticks(mx,F,niceTicks(F.x0,F.x1,6),v=>(+v).toFixed(Math.abs(F.x1-F.x0)<2?2:1));
+
+  // histogram
+  if(tot>0){
+    for(let i=0;i<NBINS;i++){
+      if(histBins[i]===0) continue;
+      const a=lo+i*bw, b=a+bw;
+      const dens=std? histBins[i]/(tot*(bw/sdN)) : histBins[i]/(tot*bw);
+      const xa=F.X(std?(a-MOM.mean)/sdN:a), xb=F.X(std?(b-MOM.mean)/sdN:b);
+      mx.fillStyle='rgba(210,168,255,0.55)';
+      mx.fillRect(xa+0.5,Y(dens),Math.max(xb-xa-1,1),F.y+F.h-Y(dens));
+    }
+  }
+  // Gaussian overlay
+  if(!D.noMean){
+    mx.strokeStyle='#3fb950'; mx.lineWidth=2.4; mx.beginPath();
+    for(let i=0;i<=400;i++){
+      const xv=F.x0+(F.x1-F.x0)*i/400;
+      const dens= std? normPdf(xv) : normPdf((xv-MOM.mean)/sdN)/sdN;
+      i?mx.lineTo(F.X(xv),Y(dens)):mx.moveTo(F.X(xv),Y(dens));
+    }
+    mx.stroke();
+    const lbl= std?'N(0, 1)':'N(μ, σ²/n) = N('+MOM.mean.toFixed(2)+', '+(sdN*sdN).toFixed(4)+')';
+    txt(mx,lbl,F.x+F.w-8,F.y+14,'#3fb950','bold 11px Segoe UI','right');
+    const mLine=std?0:MOM.mean;
+    line(mx,F.X(mLine),F.y,F.X(mLine),F.y+F.h,'#f97583',1.4,[4,3]);
+  } else {
+    txt(mx,'no CLT here — averaging Cauchy samples gives Cauchy again',F.x+F.w/2,F.y+20,'#f85149','bold 11px Segoe UI');
+  }
+  drawCLTAux();
+}
+function drawCLTAux(){
+  clear(ax,auxC);
+  // left: normal Q-Q plot of the standardized means
+  const F=frame(ax,70,36,300,175,-3.4,3.4,-3.4,3.4,'theoretical normal quantile','sample quantile','Normal Q–Q plot of X̄ₙ');
+  xticks(ax,F,[-3,-2,-1,0,1,2,3]); yticks(ax,F,[-3,-2,-1,0,1,2,3]);
+  line(ax,F.X(-3.4),F.Y(-3.4),F.X(3.4),F.Y(3.4),'#3fb950',1.6,[5,4]);
+  const es=empStats();
+  if(es&&es.N>=8){
+    const src=S.means, K=Math.min(src.length,600);
+    const samp=[];
+    for(let i=0;i<K;i++) samp.push(src[Math.floor(i*src.length/K)]);
+    samp.sort((a,b)=>a-b);
+    for(let i=0;i<K;i++){
+      const q=normInv((i+0.5)/K);
+      const z=(samp[i]-es.mean)/es.sd;
+      if(Math.abs(q)<=3.4&&Math.abs(z)<=3.4) dot(ax,F.X(q),F.Y(z),1.8,'#d2a8ff');
+    }
+    txt(ax,'points on the line ⇒ Gaussian',F.x+F.w/2,F.y+F.h+38,'#6e7681','10px Segoe UI');
+  } else {
+    txt(ax,'collect at least 8 trials',F.x+F.w/2,F.y+F.h/2,'#484f58','11px Segoe UI');
+  }
+
+  // right: histogram of every individual sample drawn (should keep the source shape)
+  const G=frame(ax,470,36,540,175,D.lo,D.hi,0,1,'x','density',
+    'Histogram of all '+S.rawCount.toLocaleString()+' individual samples — still the original shape');
+  const bw=(D.hi-D.lo)/NBINS;
+  let dm=0;
+  if(S.rawCount>0) for(let i=0;i<NBINS;i++) dm=Math.max(dm,S.rawHist[i]/(S.rawCount*bw));
+  if(D.discrete) dm=Math.max(dm,Math.max(...D.atoms.map(a=>a.p))/bw);
+  else for(let i=0;i<=200;i++) dm=Math.max(dm,D.pdf(D.lo+(D.hi-D.lo)*i/200));
+  dm*=1.2; if(!(dm>0)) dm=1;
+  const Y=v=>G.y+G.h-(v/dm)*G.h;
+  xticks(ax,G,niceTicks(D.lo,D.hi,6));
+  if(S.rawCount>0){
+    for(let i=0;i<NBINS;i++){
+      if(!S.rawHist[i]) continue;
+      const dens=S.rawHist[i]/(S.rawCount*bw);
+      const xa=G.X(D.lo+i*bw), xb=G.X(D.lo+(i+1)*bw);
+      ax.fillStyle='rgba(88,166,255,0.5)';
+      ax.fillRect(xa+0.5,Y(dens),Math.max(xb-xa-1,1),G.y+G.h-Y(dens));
+    }
+  }
+  if(!D.discrete){
+    ax.strokeStyle='#58a6ff'; ax.lineWidth=2; ax.beginPath();
+    for(let i=0;i<=400;i++){ const xv=D.lo+(D.hi-D.lo)*i/400; i?ax.lineTo(G.X(xv),Y(D.pdf(xv))):ax.moveTo(G.X(xv),Y(D.pdf(xv))); }
+    ax.stroke();
+  } else {
+    D.atoms.forEach(a=>{ if(a.p<1e-6)return; const xx=G.X(a.x);
+      line(ax,xx,G.y+G.h,xx,Y(a.p/bw),'#7ee787',2); dot(ax,xx,Y(a.p/bw),3,'#7ee787'); });
+  }
+  txt(ax,'the CLT says nothing about the samples themselves — only about their average',
+      G.x+G.w/2,G.y+G.h+38,'#6e7681','10px Segoe UI');
+}
+
+/* ================= TAB 1 : LLN ================= */
+function resetLLN(){ S.pathData=[]; }
+function runLLN(){
+  S.pathData=[];
+  const N=S.NN, K=Math.ceil(N/600);   // store every K-th point
+  for(let pth=0;pth<S.paths;pth++){
+    const xs=[], ys=[]; let sum=0;
+    for(let i=1;i<=N;i++){
+      sum+=D.sample();
+      if(i<=20||i%K===0||i===N){ xs.push(i); ys.push(sum/i); }
+    }
+    S.pathData.push({xs,ys});
+  }
+}
+function drawLLN(){
+  clear(mx,mainC);
+  if(!S.pathData.length) runLLN();
+  const N=S.NN;
+  const sd=D.noMean?1:MOM.sd, mu=D.noMean?0:MOM.mean;
+  let ymin=mu-Math.max(4*sd,0.5), ymax=mu+Math.max(4*sd,0.5);
+  S.pathData.forEach(P=>P.ys.forEach((v,i)=>{ if(P.xs[i]>=5){ ymin=Math.min(ymin,v); ymax=Math.max(ymax,v); }}));
+  if(D.noMean){ ymin=Math.max(ymin,-20); ymax=Math.min(ymax,20); }
+  const pad=(ymax-ymin)*0.08; ymin-=pad; ymax+=pad;
+  const F=frame(mx,80,44,950,300,0,Math.log10(N),ymin,ymax,
+    'number of samples  n   (log scale)','running average  X̄ₙ',
+    'Running average of '+S.paths+' independent sequences');
+  // log ticks
+  const tks=[];
+  for(let e=0;e<=Math.ceil(Math.log10(N));e++) for(const m of [1,2,5]){ const v=m*Math.pow(10,e); if(v<=N) tks.push(v); }
+  tks.forEach(v=>{ const xx=F.X(Math.log10(v));
+    line(mx,xx,F.y,xx,F.y+F.h,'#21262d',1);
+    txt(mx,v>=1000?(v/1000)+'k':String(v),xx,F.y+F.h+13,'#6e7681','9px Segoe UI'); });
+  yticks(mx,F,niceTicks(ymin,ymax,6));
+
+  if(!D.noMean){
+    // +/- sigma/sqrt(n) band (CLT) and Chebyshev eps band
+    mx.fillStyle='rgba(63,185,80,0.10)'; mx.beginPath();
+    for(let i=0;i<=300;i++){ const n=Math.pow(10,Math.log10(N)*i/300); const v=mu+1.96*sd/Math.sqrt(Math.max(n,1));
+      i?mx.lineTo(F.X(Math.log10(Math.max(n,1))),F.Y(v)):mx.moveTo(F.X(0),F.Y(v)); }
+    for(let i=300;i>=0;i--){ const n=Math.pow(10,Math.log10(N)*i/300); const v=mu-1.96*sd/Math.sqrt(Math.max(n,1));
+      mx.lineTo(F.X(Math.log10(Math.max(n,1))),F.Y(v)); }
+    mx.closePath(); mx.fill();
+    mx.strokeStyle='#3fb950'; mx.lineWidth=1.5; mx.setLineDash([5,4]);
+    for(const s of [-1,1]){ mx.beginPath();
+      for(let i=0;i<=300;i++){ const n=Math.max(Math.pow(10,Math.log10(N)*i/300),1);
+        const v=mu+s*1.96*sd/Math.sqrt(n); i?mx.lineTo(F.X(Math.log10(n)),F.Y(v)):mx.moveTo(F.X(Math.log10(n)),F.Y(v)); }
+      mx.stroke(); }
+    mx.setLineDash([]);
+    // epsilon band
+    line(mx,F.x,F.Y(mu+S.eps),F.x+F.w,F.Y(mu+S.eps),'#e3b341',1.3,[3,3]);
+    line(mx,F.x,F.Y(mu-S.eps),F.x+F.w,F.Y(mu-S.eps),'#e3b341',1.3,[3,3]);
+    txt(mx,'μ ± ε',F.x+F.w-10,F.Y(mu+S.eps)-9,'#e3b341','10px Segoe UI','right');
+    line(mx,F.x,F.Y(mu),F.x+F.w,F.Y(mu),'#f97583',1.8);
+    txt(mx,'μ = '+mu.toFixed(4),F.x+10,F.Y(mu)-10,'#f97583','bold 11px Segoe UI','left');
+    txt(mx,'95% CLT band  μ ± 1.96σ/√n',F.x+F.w-10,F.y+14,'#3fb950','10px Segoe UI','right');
+  } else {
+    txt(mx,'Cauchy: the running average never settles — the LLN needs a finite mean',
+        F.x+F.w/2,F.y+16,'#f85149','bold 11px Segoe UI');
+  }
+  const COLS=['#58a6ff','#d2a8ff','#f0883e','#7ee787','#ff7b72','#79c0ff','#ffa657','#a5d6ff','#f778ba','#56d364','#e3b341','#bc8cff'];
+  S.pathData.forEach((P,k)=>{
+    mx.strokeStyle=COLS[k%COLS.length]; mx.lineWidth=1.5; mx.globalAlpha=0.9; mx.beginPath();
+    P.xs.forEach((n,i)=>{ const X=F.X(Math.log10(Math.max(n,1))), Y=F.Y(P.ys[i]); i?mx.lineTo(X,Y):mx.moveTo(X,Y); });
+    mx.stroke(); mx.globalAlpha=1;
+  });
+
+  // aux: |X_n - mu| on log-log with the 1/sqrt(n) reference
+  clear(ax,auxC);
+  if(D.noMean){
+    txt(ax,'No finite μ ⇒ no convergence to plot.',auxC.width/2,120,'#f85149','12px Segoe UI');
+    return;
+  }
+  const G=frame(ax,80,34,950,180,0,Math.log10(N),-4,1,
+    'n  (log scale)','log₁₀ |X̄ₙ − μ|','Error decays like 1/√n — a slope of −½ on log–log axes');
+  tks.forEach(v=>{ const xx=G.X(Math.log10(v)); line(ax,xx,G.y,xx,G.y+G.h,'#21262d',1);
+    txt(ax,v>=1000?(v/1000)+'k':String(v),xx,G.y+G.h+13,'#6e7681','9px Segoe UI'); });
+  [-4,-3,-2,-1,0,1].forEach(v=>{ const yy=G.Y(v); line(ax,G.x,yy,G.x+G.w,yy,'#21262d',1);
+    txt(ax,'10^'+v,G.x-6,yy,'#6e7681','9px Segoe UI','right'); });
+  ax.strokeStyle='#3fb950'; ax.lineWidth=2; ax.setLineDash([5,4]); ax.beginPath();
+  for(let i=0;i<=200;i++){ const L=Math.log10(N)*i/200, n=Math.pow(10,L);
+    const v=Math.log10(MOM.sd/Math.sqrt(n)); i?ax.lineTo(G.X(L),G.Y(v)):ax.moveTo(G.X(L),G.Y(v)); }
+  ax.stroke(); ax.setLineDash([]);
+  txt(ax,'σ/√n',G.X(Math.log10(N))-26,G.Y(Math.log10(MOM.sd/Math.sqrt(N)))-10,'#3fb950','10px Segoe UI');
+  S.pathData.forEach((P,k)=>{
+    ax.strokeStyle=COLS[k%COLS.length]; ax.lineWidth=1.1; ax.globalAlpha=0.75; ax.beginPath();
+    let started=false;
+    P.xs.forEach((n,i)=>{ if(n<3) return;
+      const e=Math.abs(P.ys[i]-MOM.mean); const v=Math.log10(Math.max(e,1e-5));
+      const X=G.X(Math.log10(n)), Y=G.Y(Math.max(Math.min(v,1),-4));
+      started?ax.lineTo(X,Y):ax.moveTo(X,Y); started=true; });
+    ax.stroke(); ax.globalAlpha=1;
+  });
+  // Chebyshev vs empirical at n = N
+  const cheb=Math.min(1,MOM.var/(S.NN*S.eps*S.eps));
+  const clt=2*(1-normCdf(S.eps*Math.sqrt(S.NN)/MOM.sd));
+  let outside=0; S.pathData.forEach(P=>{ if(Math.abs(P.ys[P.ys.length-1]-MOM.mean)>S.eps) outside++; });
+  txt(ax,'at n = '+S.NN.toLocaleString()+':   Chebyshev bound P(|X̄−μ|>ε) ≤ σ²/(nε²) = '+cheb.toFixed(4)+
+        '     ·     CLT estimate ≈ '+clt.toExponential(2)+
+        '     ·     paths outside ε: '+outside+'/'+S.paths,
+      auxC.width/2,auxC.height-10,'#8b949e','11px Courier New');
+}
+
+/* ================= TAB 2 : convolution ================= */
+// exact lattice convolution for integer-valued sources, grid convolution otherwise
+function convolveN(nMax){
+  if(S.convCache&&S.convCache.nMax>=nMax&&S.convCache.key===distKey()) return S.convCache;
+  let res=[];
+  if(D.discrete){
+    const lo=D.lo, hi=D.hi, len=hi-lo+1;
+    let base=new Float64Array(len); D.atoms.forEach(a=>{ base[a.x-lo]=a.p; });
+    let cur=base.slice(); res.push({lo,arr:cur.slice(),lattice:true,dx:1});
+    for(let n=2;n<=nMax;n++){
+      const out=new Float64Array(cur.length+len-1);
+      for(let i=0;i<cur.length;i++){ const c=cur[i]; if(!c) continue;
+        for(let j=0;j<len;j++) out[i+j]+=c*base[j]; }
+      cur=out; res.push({lo:lo*n,arr:cur.slice(),lattice:true,dx:1});
+    }
+  } else {
+    const M=161, dx=(D.hi-D.lo)/(M-1);
+    let base=new Float64Array(M);
+    for(let i=0;i<M;i++) base[i]=D.pdf(D.lo+i*dx)*dx;
+    let s=0; base.forEach(v=>s+=v); for(let i=0;i<M;i++) base[i]/=s;
+    let cur=base.slice(); res.push({lo:D.lo,arr:cur.slice(),lattice:false,dx});
+    for(let n=2;n<=nMax;n++){
+      const out=new Float64Array(cur.length+M-1);
+      for(let i=0;i<cur.length;i++){ const c=cur[i]; if(c<1e-14) continue;
+        for(let j=0;j<M;j++) out[i+j]+=c*base[j]; }
+      cur=out; res.push({lo:D.lo*n,arr:cur.slice(),lattice:false,dx});
+    }
+  }
+  // moments of the base actually being convolved (not of the ideal pdf) — keeps the
+  // standardization self-consistent, so the Kolmogorov distance really does fall like 1/sqrt(n)
+  const b0=res[0]; let bm=0,bm2=0;
+  for(let i=0;i<b0.arr.length;i++){ const x=b0.lo+i*b0.dx; bm+=x*b0.arr[i]; bm2+=x*x*b0.arr[i]; }
+  S.convCache={nMax,key:distKey(),res,bmean:bm,bsd:Math.sqrt(Math.max(bm2-bm*bm,1e-300))};
+  return S.convCache;
+}
+const distKey=()=>S.dist+'|'+S.p.toFixed(2)+'|'+S.lam.toFixed(1);
+// standardized density of S_n on a common z axis
+function standardized(n){
+  const CC=convolveN(Math.max(n,S.convN));
+  const c=CC.res[n-1];
+  const mu=n*CC.bmean, sg=CC.bsd*Math.sqrt(n);
+  const pts=[];
+  for(let i=0;i<c.arr.length;i++){
+    const x=c.lo+i*c.dx;
+    const z=(x-mu)/sg;
+    const dens=c.lattice? c.arr[i]*sg : c.arr[i]/c.dx*sg;   // mass→height, or density→standardized density
+    pts.push({z,dens,mass:c.arr[i]});
+  }
+  return {pts,lattice:c.lattice,mu,sg,lo:c.lo,dx:c.dx,arr:c.arr};
+}
+function drawConvPanel(ctx,x,y,w,h,n,small){
+  const SD=standardized(n);
+  let dmax=normPdf(0);
+  if(SD.lattice){ const step=1/SD.sg; SD.pts.forEach(p=>{ if(Math.abs(p.z)<4) dmax=Math.max(dmax,p.mass/step); }); }
+  else SD.pts.forEach(p=>{ if(Math.abs(p.z)<4) dmax=Math.max(dmax,p.dens); });
+  dmax*=1.2;
+  const F=frame(ctx,x,y,w,h,-4,4,0,dmax, small?null:'z = (Sₙ − nμ)/(σ√n)', small?null:'density',
+    small?null:('n = '+n));
+  if(small) txt(ctx,'n = '+n,x+w-6,y+11,'#e6edf3','bold 11px Segoe UI','right');
+  if(!small){ xticks(ctx,F,[-4,-3,-2,-1,0,1,2,3,4]); yticks(ctx,F,niceTicks(0,dmax,4),v=>v.toFixed(2)); }
+  // standard normal
+  ctx.strokeStyle='#3fb950'; ctx.lineWidth=small?1.6:2.4; ctx.beginPath();
+  for(let i=0;i<=200;i++){ const z=-4+8*i/200; i?ctx.lineTo(F.X(z),F.Y(normPdf(z))):ctx.moveTo(F.X(z),F.Y(normPdf(z))); }
+  ctx.stroke();
+  // the actual density / pmf
+  if(SD.lattice){
+    const step=1/SD.sg;                       // spacing between lattice points in z
+    SD.pts.forEach(p=>{ if(Math.abs(p.z)>4||p.mass<1e-9) return;
+      const hgt=p.mass/step;
+      line(ctx,F.X(p.z),F.y+F.h,F.X(p.z),F.Y(hgt),'#d2a8ff',small?1.2:2);
+      if(!small||SD.pts.length<60) dot(ctx,F.X(p.z),F.Y(hgt),small?1.4:2.6,'#d2a8ff'); });
+  } else {
+    ctx.fillStyle='rgba(210,168,255,0.20)'; ctx.beginPath(); ctx.moveTo(F.X(-4),F.Y(0));
+    SD.pts.forEach(p=>{ if(Math.abs(p.z)<=4) ctx.lineTo(F.X(p.z),F.Y(p.dens)); });
+    ctx.lineTo(F.X(4),F.Y(0)); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle='#d2a8ff'; ctx.lineWidth=small?1.6:2.4; ctx.beginPath();
+    let st=false;
+    SD.pts.forEach(p=>{ if(Math.abs(p.z)>4) return; st?ctx.lineTo(F.X(p.z),F.Y(p.dens)):ctx.moveTo(F.X(p.z),F.Y(p.dens)); st=true; });
+    ctx.stroke();
+  }
+  // Max deviation from the normal cdf (Kolmogorov distance). For a lattice sum the raw
+  // distance is pinned at half the largest pmf jump, so apply the usual continuity
+  // correction — the same half-step that makes a normal approximation to a binomial work.
+  const half=SD.lattice? 0.5*SD.dx/SD.sg : 0;
+  let cdf=0, ks=0;
+  const ordered=SD.pts.slice().sort((a,b)=>a.z-b.z);
+  ordered.forEach(p=>{ cdf+=p.mass; ks=Math.max(ks,Math.abs(cdf-normCdf(p.z+half))); });
+  return ks;
+}
+function drawConv(){
+  clear(mx,mainC);
+  if(D.noMean){
+    txt(mx,'Cauchy has no finite mean or variance — there is nothing to standardize.',mainC.width/2,180,'#f85149','13px Segoe UI');
+    txt(mx,'Convolving Cauchy with itself reproduces a Cauchy of twice the width: the shape never becomes Gaussian.',
+        mainC.width/2,208,'#8b949e','11px Segoe UI');
+    clear(ax,auxC); return;
+  }
+  const ns=[1,2,3,5,10,30];
+  ns.forEach((n,i)=>{
+    const col=i%3, rw=Math.floor(i/3);
+    drawConvPanel(mx,70+col*340,40+rw*190,290,140,n,true);
+  });
+  txt(mx,'exact distribution of the standardized sum, computed by repeated convolution — no simulation',
+      mainC.width/2,mainC.height-10,'#6e7681','11px Segoe UI');
+
+  clear(ax,auxC);
+  const ks=drawConvPanel(ax,90,36,560,180,S.convN,false);
+  // un-standardized view
+  const CC=convolveN(S.convN);
+  const c=CC.res[S.convN-1];
+  const mu=S.convN*CC.bmean, sg=CC.bsd*Math.sqrt(S.convN);
+  const lo=mu-4.2*sg, hi=mu+4.2*sg;
+  let dm=0;
+  const dens=i=>c.lattice? c.arr[i] : c.arr[i]/c.dx;
+  for(let i=0;i<c.arr.length;i++){ const x=c.lo+i*c.dx; if(x>=lo&&x<=hi) dm=Math.max(dm,dens(i)); }
+  dm=Math.max(dm,c.lattice?0:normPdf(0)/sg)*1.2;
+  const G=frame(ax,730,36,290,180,lo,hi,0,dm,'value of Sₙ','', 'actual scale, n = '+S.convN);
+  xticks(ax,G,niceTicks(lo,hi,4),v=>(+v).toFixed(1));
+  if(c.lattice){
+    for(let i=0;i<c.arr.length;i++){ const x=c.lo+i*c.dx; if(x<lo||x>hi||c.arr[i]<1e-9) continue;
+      line(ax,G.X(x),G.y+G.h,G.X(x),G.Y(c.arr[i]),'#d2a8ff',1.6); }
+    ax.strokeStyle='#3fb950'; ax.lineWidth=1.8; ax.beginPath();
+    for(let i=0;i<=200;i++){ const x=lo+(hi-lo)*i/200; const v=normPdf((x-mu)/sg)/sg*c.dx;
+      i?ax.lineTo(G.X(x),G.Y(v)):ax.moveTo(G.X(x),G.Y(v)); }
+    ax.stroke();
+    txt(ax,'stems = exact pmf, curve = normal approx ×Δ',G.x+G.w/2,G.y+G.h+30,'#6e7681','9px Segoe UI');
+  } else {
+    ax.strokeStyle='#d2a8ff'; ax.lineWidth=2; ax.beginPath();
+    let st=false;
+    for(let i=0;i<c.arr.length;i++){ const x=c.lo+i*c.dx; if(x<lo||x>hi) continue;
+      st?ax.lineTo(G.X(x),G.Y(dens(i))):ax.moveTo(G.X(x),G.Y(dens(i))); st=true; }
+    ax.stroke();
+    ax.strokeStyle='#3fb950'; ax.lineWidth=1.8; ax.setLineDash([4,3]); ax.beginPath();
+    for(let i=0;i<=200;i++){ const x=lo+(hi-lo)*i/200; const v=normPdf((x-mu)/sg)/sg;
+      i?ax.lineTo(G.X(x),G.Y(v)):ax.moveTo(G.X(x),G.Y(v)); }
+    ax.stroke(); ax.setLineDash([]);
+    txt(ax,'mean grows like n, spread only like √n',G.x+G.w/2,G.y+G.h+30,'#6e7681','9px Segoe UI');
+  }
+  txt(ax,'max |F_Sₙ(z) − Φ(z)| = '+ks.toFixed(4)+(c.lattice?'   (continuity-corrected)':''),
+      380,auxC.height-8,'#e3b341','bold 11px Courier New');
+}
+
+/* ================= TAB 3 : Galton board ================= */
+function resetGalton(){ S.balls=[]; S.bins=new Array(S.rows+1).fill(0); S.dropped=0;
+  S.tvHistory=[]; S.nextRec=10; }
+function dropBalls(k){
+  for(let i=0;i<k;i++){
+    const path=[]; let r=0;
+    for(let j=0;j<S.rows;j++){ const right=Math.random()<S.gp; path.push(right?1:0); r+=right?1:0; }
+    S.balls.push({path,bin:r,row:0,t:Math.random()*0.4,done:false});
+  }
+}
+function galtonGeom(){
+  const R=S.rows;
+  const boardTop=34, boardH=228, pegGap=boardH/R;
+  const colW=Math.min(54,990/(R+1));
+  const cx=mainC.width/2;
+  const hy=boardTop+boardH+40, hh=mainC.height-hy-48;
+  const hx=cx-(R*colW)/2-colW/2, hw=(R+1)*colW;
+  return {R,boardTop,boardH,pegGap,colW,cx,hy,hh,hx,hw,
+    pegX:(row,k)=>cx+(k-row/2)*colW, pegY:row=>boardTop+row*pegGap};
+}
+function galtonTV(){
+  if(!S.dropped) return null;
+  let tv=0;
+  for(let b=0;b<=S.rows;b++) tv+=Math.abs(S.bins[b]/S.dropped-binomPmf(b,S.rows,S.gp));
+  return tv/2;
+}
+function drawGalton(){
+  clear(mx,mainC);
+  const G=galtonGeom(), R=G.R;
+  const mu=R*S.gp, sg=Math.sqrt(R*S.gp*(1-S.gp));
+
+  // ---------- peg board ----------
+  for(let row=0;row<R;row++)
+    for(let k=0;k<=row;k++) dot(mx,G.pegX(row,k),G.pegY(row),2.6,'#484f58');
+  txt(mx,S.dropped.toLocaleString()+' balls',G.cx,15,'#e6edf3','bold 13px Segoe UI');
+  txt(mx,'each peg: go right with probability p = '+S.gp.toFixed(2),G.cx,G.boardTop-6,'#6e7681','10px Segoe UI');
+
+  // ---------- histogram, on a probability axis ----------
+  let ymax=0;
+  for(let b=0;b<=R;b++)
+    ymax=Math.max(ymax,binomPmf(b,R,S.gp),S.dropped?S.bins[b]/S.dropped:0);
+  ymax*=1.22; if(!(ymax>0)) ymax=1;
+  const Y=v=>G.hy+G.hh-(v/ymax)*G.hh;
+
+  mx.strokeStyle='#30363d'; mx.lineWidth=1; mx.strokeRect(G.hx,G.hy,G.hw,G.hh);
+  niceTicks(0,ymax,5).forEach(v=>{
+    const yy=Y(v); if(yy<G.hy-1) return;
+    line(mx,G.hx,yy,G.hx+G.hw,yy,'#21262d',1);
+    txt(mx,v.toFixed(2),G.hx-7,yy,'#6e7681','9px Segoe UI','right');
+  });
+  txt(mx,'probability',G.hx-7,G.hy-11,'#8b949e','10px Segoe UI','right');
+
+  // empirical bars
+  const bw=G.colW*0.74;
+  for(let b=0;b<=R;b++){
+    const x=G.pegX(R,b);
+    if(S.dropped){
+      const f=S.bins[b]/S.dropped;
+      const g=mx.createLinearGradient(0,Y(f),0,G.hy+G.hh);
+      g.addColorStop(0,'#79c0ff'); g.addColorStop(1,'#1f6feb');
+      mx.fillStyle=g; mx.fillRect(x-bw/2,Y(f),bw,G.hy+G.hh-Y(f));
+      if(R<=14&&f>0.004) txt(mx,S.bins[b].toLocaleString(),x,Y(f)-8,'#8b949e','9px Segoe UI');
+    }
+    if(R<=16||b%2===0) txt(mx,String(b),x,G.hy+G.hh+13,'#6e7681','9px Segoe UI');
+  }
+  txt(mx,'bin k  =  number of right turns',G.cx,G.hy+G.hh+30,'#6e7681','10px Segoe UI');
+
+  // exact binomial pmf, drawn as a step outline so it reads against the bars
+  mx.strokeStyle='#3fb950'; mx.lineWidth=2.4; mx.beginPath();
+  for(let b=0;b<=R;b++){
+    const x=G.pegX(R,b), y=Y(binomPmf(b,R,S.gp));
+    if(b===0) mx.moveTo(x-bw/2,y); else mx.lineTo(x-bw/2,y);
+    mx.lineTo(x+bw/2,y);
+  }
+  mx.stroke();
+  for(let b=0;b<=R;b++) dot(mx,G.pegX(R,b),Y(binomPmf(b,R,S.gp)),2.8,'#3fb950');
+
+  // normal approximation
+  mx.save(); mx.beginPath(); mx.rect(G.hx,G.hy,G.hw,G.hh); mx.clip();
+  mx.strokeStyle='#f0883e'; mx.lineWidth=2; mx.setLineDash([5,4]); mx.beginPath();
+  for(let i=0;i<=300;i++){
+    const b=-0.5+(R+1)*i/300;
+    const x=G.pegX(R,b), y=Y(normPdf((b-mu)/sg)/sg);
+    i?mx.lineTo(x,y):mx.moveTo(x,y);
+  }
+  mx.stroke(); mx.setLineDash([]); mx.restore();
+
+  // ---------- falling balls (one extra unit of travel = the drop into the bin) ----------
+  const trace=S.balls.length<=3;      // few enough in flight to draw each path without clutter
+  S.balls.forEach(B=>{
+    if(B.done) return;
+    B.t+=S.fallSpeed;
+    if(B.t>=R+1){ B.done=true; S.bins[B.bin]++; S.dropped++; return; }
+    const row=Math.min(Math.floor(B.t),R);
+    let k=0; for(let j=0;j<row;j++) k+=B.path[j];
+    let x,y;
+    if(B.t<R){
+      const f=B.t-row;
+      const x0=G.pegX(row,k), y0=G.pegY(row);
+      const k1=k+B.path[row], x1=G.pegX(row+1,k1), y1=G.pegY(row+1);
+      x=x0+(x1-x0)*f; y=y0+(y1-y0)*f-Math.sin(f*Math.PI)*4;
+    } else {
+      const f=B.t-R;
+      x=G.pegX(R,B.bin);
+      y=G.pegY(R)+(G.hy-G.pegY(R))*f*f;
+    }
+    if(trace){
+      // the route taken so far, peg to peg
+      mx.save(); mx.strokeStyle='rgba(210,168,255,0.5)'; mx.lineWidth=1.6;
+      mx.beginPath(); mx.moveTo(G.pegX(0,0),G.pegY(0));
+      let kk=0;
+      for(let j=0;j<row;j++){ kk+=B.path[j]; mx.lineTo(G.pegX(j+1,kk),G.pegY(j+1)); }
+      mx.lineTo(x,y); mx.stroke(); mx.restore();
+      for(let j=0;j<row;j++){ let k2=0; for(let q=0;q<j;q++) k2+=B.path[q];
+        dot(mx,G.pegX(j,k2),G.pegY(j),3.2,'rgba(210,168,255,0.55)'); }
+      if(S.balls.length===1&&R<=20){
+        const seq=B.path.slice(0,row).map(v=>v?'R':'L').join('');
+        txt(mx,(seq||'—')+'    rights so far: '+k,G.cx,G.boardTop+G.boardH+16,'#d2a8ff','bold 11px Courier New');
+      }
+    }
+    dot(mx,x,y,trace?4.6:3.6,'#d2a8ff');
+  });
+  S.balls=S.balls.filter(B=>!B.done);
+
+  // record the convergence trace at roughly log-spaced intervals
+  if(S.dropped>=S.nextRec){
+    S.tvHistory.push({n:S.dropped,tv:galtonTV()});
+    S.nextRec=Math.max(S.nextRec+1,Math.ceil(S.nextRec*1.12));
+  }
+  drawGaltonAux(mu,sg);
+}
+function drawGaltonAux(mu,sg){
+  clear(ax,auxC);
+  const R=S.rows;
+
+  // ----- left: how fast the histogram converges to the true pmf -----
+  const nMax=Math.max(200,S.dropped*1.3);
+  const F=frame(ax,80,34,430,180,1,Math.log10(nMax),-3,0,
+    'balls dropped  (log scale)','log₁₀ total-variation distance','Histogram → exact pmf  (LLN)');
+  const tks=[];
+  for(let e=1;e<=Math.ceil(Math.log10(nMax));e++) for(const m of [1,2,5]){ const v=m*Math.pow(10,e); if(v<=nMax) tks.push(v); }
+  tks.forEach(v=>{ const xx=F.X(Math.log10(v)); line(ax,xx,F.y,xx,F.y+F.h,'#21262d',1);
+    txt(ax,v>=1000?(v/1000)+'k':String(v),xx,F.y+F.h+13,'#6e7681','9px Segoe UI'); });
+  [-3,-2,-1,0].forEach(v=>{ const yy=F.Y(v); line(ax,F.x,yy,F.x+F.w,yy,'#21262d',1);
+    txt(ax,'10^'+v,F.x-6,yy,'#6e7681','9px Segoe UI','right'); });
+  // 1/sqrt(n) reference
+  ax.strokeStyle='#3fb950'; ax.lineWidth=1.8; ax.setLineDash([5,4]); ax.beginPath();
+  for(let i=0;i<=100;i++){ const L=1+(Math.log10(nMax)-1)*i/100;
+    const v=Math.log10(0.8/Math.sqrt(Math.pow(10,L)));
+    i?ax.lineTo(F.X(L),F.Y(v)):ax.moveTo(F.X(L),F.Y(v)); }
+  ax.stroke(); ax.setLineDash([]);
+  txt(ax,'∝ 1/√(balls)',F.x+F.w-12,F.Y(Math.log10(0.8/Math.sqrt(nMax)))-10,'#3fb950','9px Segoe UI','right');
+  if(S.tvHistory.length>1){
+    ax.strokeStyle='#58a6ff'; ax.lineWidth=2; ax.beginPath();
+    let st=false;
+    S.tvHistory.forEach(h=>{ if(h.n<10||!h.tv) return;
+      const X=F.X(Math.log10(h.n)), Yv=F.Y(Math.max(Math.log10(h.tv),-3));
+      st?ax.lineTo(X,Yv):ax.moveTo(X,Yv); st=true; });
+    ax.stroke();
+    const last=S.tvHistory[S.tvHistory.length-1];
+    if(last.tv) dot(ax,F.X(Math.log10(last.n)),F.Y(Math.max(Math.log10(last.tv),-3)),4,'#58a6ff');
+  } else {
+    txt(ax,'drop some balls',F.x+F.w/2,F.y+F.h/2,'#484f58','11px Segoe UI');
+  }
+
+  // ----- right: the same pmf standardized, against N(0,1) -----
+  const G=frame(ax,620,34,390,180,-4,4,0,1,'z = (k − np)/√(np(1−p))','density',
+    'Standardized — de Moivre–Laplace');
+  let dm=normPdf(0);
+  for(let b=0;b<=R;b++) dm=Math.max(dm,binomPmf(b,R,S.gp)*sg);
+  dm*=1.2;
+  const Y2=v=>G.y+G.h-(v/dm)*G.h;
+  xticks(ax,G,[-4,-3,-2,-1,0,1,2,3,4]);
+  yticks(ax,G,niceTicks(0,dm,4),v=>v.toFixed(2));
+  ax.strokeStyle='#3fb950'; ax.lineWidth=2.2; ax.beginPath();
+  for(let i=0;i<=200;i++){ const z=-4+8*i/200; i?ax.lineTo(G.X(z),Y2(normPdf(z))):ax.moveTo(G.X(z),Y2(normPdf(z))); }
+  ax.stroke();
+  for(let b=0;b<=R;b++){
+    const z=(b-mu)/sg; if(Math.abs(z)>4) continue;
+    const h=binomPmf(b,R,S.gp)*sg;                      // pmf → density on the z axis
+    line(ax,G.X(z),G.y+G.h,G.X(z),Y2(h),'#d2a8ff',2);
+    dot(ax,G.X(z),Y2(h),2.6,'#d2a8ff');
+    if(S.dropped){
+      const he=S.bins[b]/S.dropped*sg;
+      dot(ax,G.X(z),Y2(he),2.4,'#58a6ff');
+    }
+  }
+  txt(ax,'stems = exact pmf × σ    dots = measured    curve = N(0,1)',G.x+G.w/2,G.y+G.h+30,'#6e7681','9px Segoe UI');
+
+  let em=0,ev=0;
+  if(S.dropped){
+    for(let b=0;b<=R;b++) em+=b*S.bins[b]/S.dropped;
+    for(let b=0;b<=R;b++) ev+=(b-em)*(b-em)*S.bins[b]/S.dropped;
+  }
+  const tv=galtonTV();
+  txt(ax,'np = '+mu.toFixed(3)+'   σ = '+sg.toFixed(3)+
+        (S.dropped?('      measured mean = '+em.toFixed(3)+'   sd = '+Math.sqrt(ev).toFixed(3)+
+                    '      total-variation distance = '+tv.toFixed(4)):''),
+      auxC.width/2,auxC.height-9,'#8b949e','11px Courier New');
+}
+
+/* ================= TAB 4 : inverse-transform sampling =================
+   Any pmf can be generated from a single Uniform(0,1) draw: the CDF cuts the
+   unit interval into bands whose heights ARE the probabilities, so asking
+   "which band did U land in?" returns k with probability exactly p(k).        */
+function pmfPreset(kind,N){
+  const w=new Array(N).fill(0);
+  for(let k=0;k<N;k++){
+    switch(kind){
+      case 'uniform':  w[k]=1; break;
+      case 'binom':    w[k]=binomPmf(k,N-1,0.5); break;
+      case 'geom':     w[k]=Math.pow(0.55,k); break;
+      case 'poisson':  w[k]=Math.exp(-2+k*Math.log(2)-logFact(k)); break;
+      case 'bimodal':  w[k]=normPdf((k-N*0.18)/(N*0.11))+normPdf((k-N*0.78)/(N*0.11)); break;
+      case 'ramp':     w[k]=k+1; break;
+      case 'random':   w[k]=0.05+Math.random(); break;
+    }
+  }
+  return w;
+}
+function setPmf(kind){ S.pmfW=pmfPreset(kind,S.ivN); resetIv(); }
+function resetIv(){
+  S.ivHist=new Array(S.ivN).fill(0); S.ivCount=0;
+  S.uHist=new Float64Array(40); S.ivAnim=null;
+  S.ivErrHist=[]; S.ivNextRec=10;
+}
+function pmfNorm(){
+  const tot=S.pmfW.reduce((a,b)=>a+b,0)||1;
+  return S.pmfW.map(v=>v/tot);
+}
+function cdfArr(){
+  const p=pmfNorm(), F=[]; let c=0;
+  for(let k=0;k<p.length;k++){ c+=p[k]; F.push(Math.min(c,1)); }
+  F[F.length-1]=1;
+  return F;
+}
+// the whole method, in three lines
+function invCdf(u,F){ for(let k=0;k<F.length;k++) if(u<=F[k]) return k; return F.length-1; }
+function ivDraw(n){
+  const F=cdfArr();
+  for(let i=0;i<n;i++){
+    const u=Math.random(), k=invCdf(u,F);
+    S.ivHist[k]++; S.ivCount++;
+    const ub=Math.min(39,Math.floor(u*40)); S.uHist[ub]++;
+  }
+  recordIvErr();
+}
+function ivMaxErr(){
+  if(!S.ivCount) return null;
+  const p=pmfNorm(); let e=0;
+  for(let k=0;k<S.ivN;k++) e=Math.max(e,Math.abs(S.ivHist[k]/S.ivCount-p[k]));
+  return e;
+}
+function recordIvErr(){
+  if(S.ivCount>=S.ivNextRec){
+    const e=ivMaxErr();
+    if(e!==null) S.ivErrHist.push({n:S.ivCount,e});
+    S.ivNextRec=Math.max(S.ivNextRec+1,Math.ceil(S.ivNextRec*1.12));
+  }
+}
+// A stable y-axis for the pmf panel: a 0.5 floor means any probability up to 0.5 can be
+// dialled in with a single drag, and it still grows for spikier pmfs.
+function ivAxisMax(){
+  const p=pmfNorm(); let mp=0;
+  for(const v of p) mp=Math.max(mp,v);
+  return Math.max(0.5,mp*1.15);
+}
+function ivGeom(){
+  const N=S.ivN;
+  const stripX=104, stripW=30;
+  const cx0=stripX+stripW+14, cw=486, cy0=48, ch=268;         // CDF staircase
+  const px0=700, pw=336, py0=48, ph=268;                      // pmf / histogram
+  return {N,stripX,stripW,cx0,cw,cy0,ch,px0,pw,py0,ph,
+    cX:k=>cx0+(k+0.6)/(N+0.2)*cw,        // value k sits at this x on the CDF plot
+    cY:v=>cy0+ch-v*ch,
+    pX:k=>px0+(k+0.6)/(N+0.2)*pw,
+    pY:(v,m)=>py0+ph-(v/m)*ph};
+}
+function drawInverse(){
+  clear(mx,mainC);
+  const G=ivGeom(), N=G.N, p=pmfNorm(), F=cdfArr();
+  const COL=k=>`hsl(${(k*47+205)%360} 65% ${58-8*((k%2))}%)`;
+
+  /* ---------- the unit interval, cut into bands by the CDF ---------- */
+  txt(mx,'U ~ Uniform(0,1)',G.stripX+G.stripW/2,G.cy0-26,'#e3b341','bold 11px Segoe UI');
+  txt(mx,'band heights = p(k)',G.stripX+G.stripW/2,G.cy0-12,'#6e7681','9px Segoe UI');
+  for(let k=0;k<N;k++){
+    const y1=G.cY(k?F[k-1]:0), y2=G.cY(F[k]);
+    mx.fillStyle=COL(k); mx.globalAlpha=0.55;
+    mx.fillRect(G.stripX,y2,G.stripW,y1-y2); mx.globalAlpha=1;
+    mx.strokeStyle='#0d1117'; mx.lineWidth=1; mx.strokeRect(G.stripX,y2,G.stripW,y1-y2);
+    if(y1-y2>11) txt(mx,String(k),G.stripX+G.stripW/2,(y1+y2)/2,'#0d1117','bold 10px Segoe UI');
+  }
+  mx.strokeStyle='#e3b341'; mx.lineWidth=1.4; mx.strokeRect(G.stripX,G.cY(1),G.stripW,G.ch);
+  txt(mx,'1',G.stripX-6,G.cY(1),'#6e7681','9px Segoe UI','right');
+  txt(mx,'0',G.stripX-6,G.cY(0),'#6e7681','9px Segoe UI','right');
+
+  /* ---------- CDF staircase ---------- */
+  mx.strokeStyle='#30363d'; mx.strokeRect(G.cx0,G.cy0,G.cw,G.ch);
+  [0,0.25,0.5,0.75,1].forEach(v=>{
+    line(mx,G.cx0,G.cY(v),G.cx0+G.cw,G.cY(v),'#21262d',1);
+    txt(mx,v.toFixed(2),G.cx0-6,G.cY(v),'#6e7681','9px Segoe UI','right');
+  });
+  for(let k=0;k<N;k++){
+    line(mx,G.cX(k),G.cy0,G.cX(k),G.cy0+G.ch,'#191f26',1);
+    txt(mx,String(k),G.cX(k),G.cy0+G.ch+13,'#6e7681','9px Segoe UI');
+  }
+  txt(mx,'F(k) = P(X ≤ k)',G.cx0+G.cw/2,G.cy0-14,'#8b949e','bold 11px Segoe UI');
+  txt(mx,'k',G.cx0+G.cw/2,G.cy0+G.ch+30,'#6e7681','10px Segoe UI');
+  // treads and risers
+  mx.lineWidth=2.6;
+  for(let k=0;k<N;k++){
+    const xk=G.cX(k), xn=(k<N-1)?G.cX(k+1):G.cx0+G.cw;
+    mx.strokeStyle=COL(k);
+    mx.beginPath(); mx.moveTo(xk,G.cY(F[k])); mx.lineTo(xn,G.cY(F[k])); mx.stroke();   // tread
+    mx.beginPath(); mx.moveTo(xk,G.cY(k?F[k-1]:0)); mx.lineTo(xk,G.cY(F[k])); mx.stroke(); // riser = p(k)
+    dot(mx,xk,G.cY(F[k]),3.2,COL(k));
+  }
+
+  /* ---------- target pmf + measured histogram ---------- */
+  const m=ivAxisMax();
+  mx.strokeStyle='#30363d'; mx.strokeRect(G.px0,G.py0,G.pw,G.ph);
+  niceTicks(0,m,4).forEach(v=>{ const yy=G.pY(v,m); if(yy<G.py0-1) return;
+    line(mx,G.px0,yy,G.px0+G.pw,yy,'#21262d',1);
+    txt(mx,v.toFixed(2),G.px0-6,yy,'#6e7681','9px Segoe UI','right'); });
+  txt(mx,'target p(k)  vs  measured frequency',G.px0+G.pw/2,G.py0-14,'#8b949e','bold 11px Segoe UI');
+  txt(mx,'drag the bars to reshape the pmf',G.px0+G.pw/2,G.py0+G.ph+30,'#7ee787','10px Segoe UI');
+  const bw=G.pw/(N+0.2)*0.62;
+  for(let k=0;k<N;k++){
+    const x=G.pX(k);
+    // target: filled translucent band
+    mx.fillStyle=COL(k); mx.globalAlpha=0.30;
+    mx.fillRect(x-bw/2,G.pY(p[k],m),bw,G.py0+G.ph-G.pY(p[k],m)); mx.globalAlpha=1;
+    mx.strokeStyle=COL(k); mx.lineWidth=2;
+    mx.strokeRect(x-bw/2,G.pY(p[k],m),bw,G.py0+G.ph-G.pY(p[k],m));
+    // measured: narrow solid bar inside
+    if(S.ivCount){
+      const f=Math.min(S.ivHist[k]/S.ivCount,m);
+      mx.fillStyle='#e6edf3';
+      mx.fillRect(x-bw*0.22,G.pY(f,m),bw*0.44,G.py0+G.ph-G.pY(f,m));
+    }
+    txt(mx,String(k),x,G.py0+G.ph+13,'#6e7681','9px Segoe UI');
+    if(N<=8) txt(mx,p[k].toFixed(3),x,G.pY(p[k],m)-8,COL(k),'9px Courier New');
+  }
+
+  /* ---------- the animated draw ---------- */
+  const A=S.ivAnim;
+  if(A){
+    const u=A.u, k=A.k, ph=A.p;
+    const yU=G.cY(u), xk=G.cX(k);
+    // 1. U appears on the strip
+    dot(mx,G.stripX+G.stripW/2,yU,5,'#e3b341');
+    txt(mx,'U = '+u.toFixed(4),G.stripX+G.stripW/2,G.cy0+G.ch+30,'#e3b341','bold 11px Courier New');
+    // 2. travel right to the riser
+    if(ph>0.18){
+      const t=Math.min((ph-0.18)/0.34,1);
+      const xEnd=G.stripX+G.stripW+(xk-G.stripX-G.stripW)*t;
+      line(mx,G.stripX+G.stripW,yU,xEnd,yU,'#e3b341',2,[5,3]);
+      if(t>=1){ dot(mx,xk,yU,4.5,'#e3b341');
+        txt(mx,'F('+(k?k-1:0)+') < U ≤ F('+k+')',xk+8,yU-12,'#e3b341','10px Courier New','left'); }
+    }
+    // 3. drop to the axis -> the sample is k
+    if(ph>0.52){
+      const t=Math.min((ph-0.52)/0.30,1);
+      const yEnd=yU+(G.cy0+G.ch-yU)*t;
+      line(mx,xk,yU,xk,yEnd,COL(k),2.4);
+      if(t>=1){
+        dot(mx,xk,G.cy0+G.ch,5,COL(k));
+        txt(mx,'X = '+k,xk,G.cy0+G.ch+30,COL(k),'bold 13px Segoe UI');
+      }
+    }
+    // 4. flash the bin it fed
+    if(ph>0.82){
+      const x=G.pX(k);
+      mx.strokeStyle=COL(k); mx.lineWidth=3; mx.globalAlpha=1-(ph-0.82)/0.18;
+      mx.strokeRect(x-bw/2-3,G.py0-3,bw+6,G.ph+6); mx.globalAlpha=1;
+    }
+  }
+  txt(mx,S.ivCount.toLocaleString()+' samples drawn',mainC.width/2,mainC.height-12,'#8b949e','11px Segoe UI');
+  drawInverseAux();
+}
+function drawInverseAux(){
+  clear(ax,auxC);
+  // left: the U's really are uniform
+  const F=frame(ax,80,34,420,180,0,1,0,1,'value of U','frequency','The input: U is flat');
+  let um=0; for(let i=0;i<40;i++) um=Math.max(um,S.uHist[i]);
+  um=Math.max(um,1)*1.3;
+  const Y=v=>F.y+F.h-(v/um)*F.h;
+  xticks(ax,F,[0,0.25,0.5,0.75,1]);
+  for(let i=0;i<40;i++){
+    if(!S.uHist[i]) continue;
+    const x1=F.X(i/40), x2=F.X((i+1)/40);
+    ax.fillStyle='rgba(227,179,65,0.55)';
+    ax.fillRect(x1+0.5,Y(S.uHist[i]),x2-x1-1,F.y+F.h-Y(S.uHist[i]));
+  }
+  if(S.ivCount){
+    const exp=S.ivCount/40;
+    line(ax,F.x,Y(exp),F.x+F.w,Y(exp),'#3fb950',1.8,[5,4]);
+    txt(ax,'expected',F.x+F.w-8,Y(exp)-9,'#3fb950','9px Segoe UI','right');
+  }
+  txt(ax,'no structure in, all the structure out — the CDF does the shaping',
+      F.x+F.w/2,F.y+F.h+38,'#6e7681','10px Segoe UI');
+
+  // right: convergence of the measured pmf to the target
+  const nMax=Math.max(200,S.ivCount*1.3);
+  const G=frame(ax,600,34,410,180,1,Math.log10(nMax),-3,0,
+    'samples  (log scale)','log₁₀ max|measured − target|','The output matches the target');
+  const tks=[];
+  for(let e=1;e<=Math.ceil(Math.log10(nMax));e++) for(const mm of [1,2,5]){ const v=mm*Math.pow(10,e); if(v<=nMax) tks.push(v); }
+  tks.forEach(v=>{ const xx=G.X(Math.log10(v)); line(ax,xx,G.y,xx,G.y+G.h,'#21262d',1);
+    txt(ax,v>=1000?(v/1000)+'k':String(v),xx,G.y+G.h+13,'#6e7681','9px Segoe UI'); });
+  [-3,-2,-1,0].forEach(v=>{ const yy=G.Y(v); line(ax,G.x,yy,G.x+G.w,yy,'#21262d',1);
+    txt(ax,'10^'+v,G.x-6,yy,'#6e7681','9px Segoe UI','right'); });
+  ax.strokeStyle='#3fb950'; ax.lineWidth=1.8; ax.setLineDash([5,4]); ax.beginPath();
+  for(let i=0;i<=100;i++){ const L=1+(Math.log10(nMax)-1)*i/100;
+    const v=Math.log10(0.5/Math.sqrt(Math.pow(10,L)));
+    i?ax.lineTo(G.X(L),G.Y(v)):ax.moveTo(G.X(L),G.Y(v)); }
+  ax.stroke(); ax.setLineDash([]);
+  txt(ax,'∝ 1/√n',G.x+G.w-12,G.Y(Math.log10(0.5/Math.sqrt(nMax)))-10,'#3fb950','9px Segoe UI','right');
+  if(S.ivErrHist.length>1){
+    ax.strokeStyle='#58a6ff'; ax.lineWidth=2; ax.beginPath(); let st=false;
+    S.ivErrHist.forEach(h=>{ if(h.n<10||!h.e) return;
+      const X=G.X(Math.log10(h.n)), Yv=G.Y(Math.max(Math.log10(h.e),-3));
+      st?ax.lineTo(X,Yv):ax.moveTo(X,Yv); st=true; });
+    ax.stroke();
+  } else txt(ax,'draw some samples',G.x+G.w/2,G.y+G.h/2,'#484f58','11px Segoe UI');
+}
+/* editing the pmf by dragging a bar */
+function ivEditAt(px,py){
+  const G=ivGeom(), N=G.N;
+  if(px<G.px0-10||px>G.px0+G.pw+10) return false;
+  if(py<G.py0-60||py>G.py0+G.ph+60) return false;
+  py=Math.max(G.py0,Math.min(G.py0+G.ph,py));    // clamp rather than ignore, so dragging
+  const m=ivAxisMax();                            // past the top pins the bar at the axis max
+  // which bar?
+  let best=0,bd=1e9;
+  for(let k=0;k<N;k++){ const d=Math.abs(px-G.pX(k)); if(d<bd){bd=d;best=k;} }
+  let want=(G.py0+G.ph-py)/G.ph*m;
+  want=Math.max(0.002,Math.min(0.95,want));
+  // solve w_best so that the NORMALIZED height lands where the cursor is
+  const others=S.pmfW.reduce((a,b,i)=>a+(i===best?0:b),0);
+  S.pmfW[best]= others>0 ? want*others/(1-want) : 1;
+  resetIv();
+  return true;
+}
+
+/* ================= tab metadata ================= */
+const TABS=[
+{ title:'Sampling Distribution of the Mean',
+  aux:'Diagnostics — Q–Q plot and the raw samples',
+  eq:'X̄<sub>n</sub> = (X₁ + ⋯ + X<sub>n</sub>)/n &nbsp;&nbsp;→&nbsp;&nbsp; (X̄<sub>n</sub> − μ)/(σ/√n) &nbsp;⇒&nbsp; N(0, 1) &nbsp;&nbsp;as n → ∞',
+  desc:'Each trial draws n samples and records their average. Collect thousands of those averages and their histogram fills in a Gaussian — whatever the source distribution was.',
+  legend:[['#58a6ff','source pdf / pmf'],['#d2a8ff','histogram of sample means'],['#3fb950','N(μ, σ²/n)'],
+          ['#f97583','μ'],['#e3b341','±σ']] },
+{ title:'Running Average vs Number of Samples',
+  aux:'Rate of convergence',
+  eq:'P( |X̄<sub>n</sub> − μ| &gt; ε ) → 0 &nbsp;&nbsp;as n → ∞ &nbsp;&nbsp;·&nbsp;&nbsp; Chebyshev: P( |X̄<sub>n</sub> − μ| &gt; ε ) ≤ σ²/(nε²)',
+  desc:'The average of more and more samples settles onto μ. It does not get there smoothly — it wanders inside a funnel that narrows like 1/√n.',
+  legend:[['#f97583','μ'],['#3fb950','95% band μ ± 1.96σ/√n'],['#e3b341','μ ± ε'],['#58a6ff','independent sample paths']] },
+{ title:'Exact Distribution of the Standardized Sum Sₙ',
+  aux:'Selected n — standardized and at true scale',
+  eq:'f<sub>S₂</sub> = f<sub>X</sub> ∗ f<sub>X</sub>,&nbsp;&nbsp; f<sub>S₃</sub> = f<sub>S₂</sub> ∗ f<sub>X</sub>,&nbsp; … &nbsp;&nbsp;→&nbsp;&nbsp; each convolution smooths the shape toward a Gaussian',
+  desc:'No random numbers here: adding independent random variables convolves their densities, and this is that convolution carried out numerically, n times over.',
+  legend:[['#d2a8ff','exact density / pmf of Sₙ'],['#3fb950','standard normal N(0,1)']] },
+{ title:'Galton Board — Binomial Built One Bounce at a Time',
+  aux:'Convergence to the pmf, and the normal approximation',
+  eq:'bin = Σ Bernoulli(p) ~ Binomial(n, p) &nbsp;&nbsp;→&nbsp;&nbsp; N(np, np(1−p)) &nbsp;&nbsp;(de Moivre–Laplace)',
+  desc:'Every peg is one coin flip. The bin a ball lands in counts its right turns, so the pile that builds up is a binomial pmf — and for many rows, a bell curve.',
+  legend:[['#d2a8ff','falling ball'],['#58a6ff','accumulated bins'],['#3fb950','exact Binomial pmf'],['#f0883e','Normal approximation']] },
+{ title:'Inverse-Transform Sampling — one uniform draw becomes any distribution you like',
+  aux:'The input is flat; the output matches the target',
+  eq:'U ~ Uniform(0, 1) &nbsp;&nbsp;→&nbsp;&nbsp; X = min{ k : U ≤ F(k) } &nbsp;&nbsp;⇒&nbsp;&nbsp; P(X = k) = F(k) − F(k−1) = p(k)',
+  desc:'The CDF slices the unit interval into bands whose heights are exactly the probabilities. Drop a uniform draw onto that ruler and read off which band it fell in — that is the whole algorithm.',
+  legend:[['#e3b341','U, drawn uniformly on (0,1)'],['#58a6ff','CDF staircase — each riser is p(k)'],
+          ['#e6edf3','measured frequency'],['#7ee787','drag the bars to reshape the pmf']] }
+];
+
+/* ================= info ================= */
+const INFO=[
+`<strong>The claim.</strong> Take <em>any</em> distribution with a finite mean μ and variance σ², average n independent draws from it, and the distribution of that average approaches <code>N(μ, σ²/n)</code>. Nothing about the source shape survives — only μ and σ.
+<ul>
+<li><strong>Try the bimodal source at n = 1.</strong> Two separated humps, nothing Gaussian about it. Push n to 5 and the gap fills in; by n = 30 it is a clean bell.</li>
+<li><strong>Skewness is the slow part.</strong> Start with the exponential: at n = 5 the histogram still leans right. Skewness of X̄ₙ falls like 1/√n, so a skewed source needs a larger n than a symmetric one — this is why "n &gt; 30" is a rule of thumb, not a theorem.</li>
+<li><strong>The spread shrinks like 1/√n, not 1/n.</strong> Watch the σ/√n meter: quadrupling n only halves the standard error. That factor sets every error bar and confidence interval you will ever compute.</li>
+<li><strong>The Q–Q plot is the honest test.</strong> A histogram can look bell-ish while the tails are wrong; on the Q–Q plot bad tails bend away from the line.</li>
+<li><strong>Cauchy breaks it.</strong> Its variance is infinite, the theorem does not apply, and the average of n Cauchy samples is distributed exactly like a single one. The hypotheses are not decoration.</li>
+</ul>`,
+`<strong>Two different statements.</strong> The LLN says where X̄ₙ ends up; the CLT says how it fluctuates on the way. They are complementary, and the plot shows both at once.
+<ul>
+<li><strong>The funnel is the CLT.</strong> The green band is μ ± 1.96σ/√n, so about 19 of every 20 paths should be inside it at any given n. Count the strays — that is the CLT making a checkable prediction.</li>
+<li><strong>Chebyshev is true but loose.</strong> Compare the bound σ²/(nε²) with the CLT estimate at the bottom of the lower plot; Chebyshev is often orders of magnitude larger. It buys generality — it needs only a finite variance, not a limiting shape.</li>
+<li><strong>Log axes are essential.</strong> On a linear axis all the action is crushed into the first pixel. On log–log the error tracks a straight line of slope −½: that <em>is</em> the 1/√n rate.</li>
+<li><strong>Early wandering is normal.</strong> A path that sits far from μ at n = 20 tells you nothing about n = 5000. There is no "law of averages" forcing a correction — later terms simply outnumber the early ones.</li>
+<li><strong>Cauchy again.</strong> The running average jumps forever, because a single enormous sample can dominate any partial sum.</li>
+</ul>`,
+`<strong>Why the sum smooths out.</strong> If X and Y are independent, the density of X + Y is the convolution <code>f<sub>X</sub> ∗ f<sub>Y</sub></code>. Convolution is a smoothing operation — every sharp feature gets averaged against the whole of the other density.
+<ul>
+<li><strong>Watch the die.</strong> n = 1 is flat, n = 2 is the familiar triangle of two-dice sums, n = 3 is already curved, n = 10 is indistinguishable from a Gaussian by eye.</li>
+<li><strong>These are exact.</strong> No sampling noise anywhere in this tab — discrete sources are convolved on the integer lattice, continuous ones on a fine grid. Any wiggle you see is real structure, not Monte Carlo error.</li>
+<li><strong>Lattice distributions stay discrete forever.</strong> A sum of dice is always integer-valued; what converges is the <em>envelope</em>, not the pmf pointwise. That is exactly why a continuity correction helps when you approximate a binomial by a normal.</li>
+<li><strong>The Kolmogorov distance</strong> max|F(z) − Φ(z)| is printed under the plot. It falls roughly like 1/√n — the Berry–Esseen theorem makes that precise and shows the constant depends on the source's skewness.</li>
+<li>Compare the right-hand panel: <strong>Sₙ spreads out</strong> (σ√n grows) while <strong>X̄ₙ concentrates</strong> (σ/√n shrinks). Same theorem, two different normalizations.</li>
+</ul>`,
+`<strong>A mechanical proof of the binomial.</strong> A ball meeting a peg goes right with probability p, and the row it lands in counts how many rights it took. That is the definition of a binomial random variable, built out of physical Bernoulli trials.
+<ul>
+<li><strong>Follow one ball.</strong> Set the fall speed to <em>slow</em> (or hit "Drop 1 ball") and a single ball falls on its own, trailing the route it took. The letters under the board are its left/right sequence, and the bin it ends in is nothing more than the number of R's — that is the definition of a binomial random variable, happening in front of you.</li>
+<li><strong>Watch the exact pmf appear.</strong> The green steps are C(n,k)p<sup>k</sup>(1−p)<sup>n−k</sup>, drawn before any ball falls. The blue bars climb to meet them — that is the LLN acting on each bin's relative frequency.</li>
+<li><strong>The dashed orange curve is de Moivre–Laplace</strong>, the CLT's first historical special case: Binomial(n, p) ≈ N(np, np(1−p)). Set rows to 4 and the fit is poor; at 20 rows it is excellent.</li>
+<li><strong>Skew the pegs.</strong> With p = 0.1 the pile bunches against the left wall and the normal approximation overhangs into impossible negative bins — the usual guidance is that np and n(1−p) should both exceed about 5.</li>
+<li><strong>Total variation distance</strong> between the empirical histogram and the true pmf is printed below; it shrinks like 1/√(balls), independently of how good the normal approximation is. Two different convergences, happening at once.</li>
+</ul>`,
+`<strong>Where do random variables actually come from?</strong> A computer gives you one thing: <code>U</code>, uniform on (0,1). Every other distribution has to be manufactured from it, and the CDF is the tool that does it.
+<ul>
+<li><strong>The CDF is a ruler for the unit interval.</strong> Its risers partition (0,1) into bands, and the band for outcome k has height F(k) − F(k−1) = p(k). So P(U lands in band k) = p(k) — which is the entire proof, read straight off the picture.</li>
+<li><strong>The algorithm is one line:</strong> <code>X = min{ k : U ≤ F(k) }</code>. Draw a uniform, walk up the staircase until you reach it, return that step. Watch it happen with the speed on <em>slow</em>.</li>
+<li><strong>Drag the bars and the machine retunes itself.</strong> Nothing in the method knows or cares what shape you asked for; a taller bar simply becomes a taller riser, which catches a wider range of U. Try the <em>random</em> preset — an arbitrary lumpy pmf is no harder than a uniform one.</li>
+<li><strong>The two lower panels are the honest audit.</strong> On the left, the U values stay flat — no structure goes in. On the right, the gap between the measured frequencies and your target falls like 1/√n. All the shaping is done by the CDF, none of it by the random number generator.</li>
+<li><strong>It works for continuous distributions too</strong>, where it is even cleaner: X = F⁻¹(U). That is exactly how the exponential source on the first tab is generated — <code>−ln(1 − U)</code> is the inverse CDF of Exponential(1). The staircase just becomes a smooth curve.</li>
+<li><strong>Why anyone bothers:</strong> it is the reason a simulation can sample a channel model, a service time, or an arrival count at all. When F⁻¹ has no closed form you fall back on rejection or table lookup — but the CDF idea underneath is this one.</li>
+</ul>`
+];
+
+/* ================= meters ================= */
+const fmt=(v,d)=>v===null||v===undefined||!isFinite(v)?'—':v.toFixed(d===undefined?4:d);
+const METERS={
+  0:[['Source',()=>D.short],['μ',()=>D.noMean?'—':fmt(MOM.mean)],['σ',()=>D.noMean?'∞':fmt(MOM.sd)],
+     ['n',()=>S.n],['σ/√n',()=>D.noMean?'—':fmt(MOM.sd/Math.sqrt(S.n))],
+     ['Trials',()=>S.means.length.toLocaleString()],
+     ['Measured mean',()=>{const e=empStats();return e?fmt(e.mean):'—';}],
+     ['Measured sd',()=>{const e=empStats();return e?fmt(e.sd):'—';}],
+     ['Skewness',()=>{const e=empStats();return e&&e.N>2?fmt(e.skew,3):'—';}],
+     ['Excess kurtosis',()=>{const e=empStats();return e&&e.N>3?fmt(e.kurt,3):'—';}]],
+  1:[['Source',()=>D.short],['μ',()=>D.noMean?'—':fmt(MOM.mean)],['σ',()=>D.noMean?'∞':fmt(MOM.sd)],
+     ['Samples N',()=>S.NN.toLocaleString()],['Paths',()=>S.paths],['ε',()=>fmt(S.eps,2)],
+     ['σ/√N',()=>D.noMean?'—':fmt(MOM.sd/Math.sqrt(S.NN))],
+     ['Chebyshev bound',()=>D.noMean?'—':fmt(Math.min(1,MOM.var/(S.NN*S.eps*S.eps)),4)],
+     ['CLT estimate',()=>D.noMean?'—':(2*(1-normCdf(S.eps*Math.sqrt(S.NN)/MOM.sd))).toExponential(2)],
+     ['Paths outside ε',()=>{let o=0;S.pathData.forEach(P=>{if(Math.abs(P.ys[P.ys.length-1]-MOM.mean)>S.eps)o++;});
+       return o+' / '+S.pathData.length;}]],
+  2:[['Source',()=>D.short],['μ',()=>D.noMean?'—':fmt(MOM.mean)],['σ',()=>D.noMean?'∞':fmt(MOM.sd)],
+     ['n terms',()=>S.convN],['mean of Sₙ',()=>D.noMean?'—':fmt(S.convN*MOM.mean)],
+     ['sd of Sₙ',()=>D.noMean?'—':fmt(MOM.sd*Math.sqrt(S.convN))],
+     ['mean of X̄ₙ',()=>D.noMean?'—':fmt(MOM.mean)],
+     ['sd of X̄ₙ',()=>D.noMean?'—':fmt(MOM.sd/Math.sqrt(S.convN))],
+     ['lattice?',()=>D.discrete?'yes':'no'],
+     ['method',()=>'exact convolution']],
+  3:[['Rows n',()=>S.rows],['p',()=>fmt(S.gp,2)],['Balls',()=>S.dropped.toLocaleString()],
+     ['np',()=>fmt(S.rows*S.gp,3)],['σ = √(np(1−p))',()=>fmt(Math.sqrt(S.rows*S.gp*(1-S.gp)),3)],
+     ['Measured mean',()=>{if(!S.dropped)return'—';let m=0;for(let b=0;b<=S.rows;b++)m+=b*S.bins[b]/S.dropped;return fmt(m,3);}],
+     ['Measured sd',()=>{if(!S.dropped)return'—';let m=0,v=0;
+       for(let b=0;b<=S.rows;b++)m+=b*S.bins[b]/S.dropped;
+       for(let b=0;b<=S.rows;b++)v+=(b-m)*(b-m)*S.bins[b]/S.dropped;return fmt(Math.sqrt(v),3);}],
+     ['Total variation',()=>{const t=galtonTV();return t===null?'—':fmt(t,4);}],
+     ['In flight',()=>S.balls.length],
+     ['Fall speed',()=>S.fallSpeed<0.05?'slow':S.fallSpeed<0.12?'normal':'fast']],
+  4:[['Outcomes N',()=>S.ivN],['Samples',()=>S.ivCount.toLocaleString()],
+     ['Last U',()=>S.ivAnim?fmt(S.ivAnim.u,4):'—'],['Last X',()=>S.ivAnim?String(S.ivAnim.k):'—'],
+     ['Target mean',()=>{const p=pmfNorm();let m=0;p.forEach((v,k)=>m+=k*v);return fmt(m,3);}],
+     ['Measured mean',()=>{if(!S.ivCount)return'—';let m=0;
+       for(let k=0;k<S.ivN;k++)m+=k*S.ivHist[k]/S.ivCount;return fmt(m,3);}],
+     ['Target sd',()=>{const p=pmfNorm();let m=0,v=0;p.forEach((q,k)=>m+=k*q);
+       p.forEach((q,k)=>v+=(k-m)*(k-m)*q);return fmt(Math.sqrt(v),3);}],
+     ['Measured sd',()=>{if(!S.ivCount)return'—';let m=0,v=0;
+       for(let k=0;k<S.ivN;k++)m+=k*S.ivHist[k]/S.ivCount;
+       for(let k=0;k<S.ivN;k++)v+=(k-m)*(k-m)*S.ivHist[k]/S.ivCount;return fmt(Math.sqrt(v),3);}],
+     ['max |error|',()=>{const e=ivMaxErr();return e===null?'—':fmt(e,4);}],
+     ['Σ p(k)',()=>fmt(pmfNorm().reduce((a,b)=>a+b,0),6)]]
+};
+function buildMeters(){
+  document.getElementById('meters').innerHTML=METERS[S.tab].map((m,i)=>
+    `<div class="meter"><div class="ml">${m[0]}</div><div class="mv" id="mv${i}">—</div></div>`).join('');
+}
+function updateMeters(){
+  const set=METERS[S.tab];
+  for(let i=0;i<set.length;i++){
+    const el=document.getElementById('mv'+i);
+    if(el) el.textContent=String(set[i][1]());
+  }
+}
+
+/* ================= distribution selector ================= */
+const DIST_LIST=[['uniform','Uniform'],['exp','Exponential'],['tri','Triangular'],['bimodal','Bimodal'],
+                 ['bern','Bernoulli'],['die','Fair die'],['pois','Poisson'],['cauchy','Cauchy ⚠ no mean']];
+document.getElementById('presets').innerHTML=
+  '<span style="font-size:.76em;color:#6e7681;align-self:center;margin-right:4px">source distribution:</span>'+
+  DIST_LIST.map(d=>`<div class="preset${d[0]==='cauchy'?' warn':''}" data-d="${d[0]}">${d[1]}</div>`).join('');
+document.querySelectorAll('.preset:not(.pmf)').forEach(el=>el.addEventListener('click',()=>{
+  S.dist=el.dataset.d; markDist(); refreshDist(); syncParamVis(); draw();
+}));
+const PMF_LIST=[['uniform','Uniform'],['binom','Binomial'],['geom','Geometric'],['poisson','Poisson'],
+                ['bimodal','Bimodal'],['ramp','Ramp'],['random','Random ⟳']];
+document.getElementById('pmfPresets').innerHTML=
+  '<span style="font-size:.76em;color:#6e7681;align-self:center;margin-right:4px">target pmf:</span>'+
+  PMF_LIST.map(d=>`<div class="preset pmf" data-w="${d[0]}">${d[1]}</div>`).join('');
+document.querySelectorAll('.preset.pmf').forEach(el=>el.addEventListener('click',()=>{
+  setPmf(el.dataset.w);
+  document.querySelectorAll('.preset.pmf').forEach(e2=>e2.classList.toggle('active',e2===el));
+  draw();
+}));
+function markDist(){
+  document.querySelectorAll('.preset:not(.pmf)').forEach(el=>
+    el.classList.toggle('active',el.dataset.d===S.dist));
+}
+function syncParamVis(){
+  document.getElementById('cgP').classList.toggle('hidden',S.dist!=='bern');
+  document.getElementById('cgLam').classList.toggle('hidden',S.dist!=='pois');
+}
+
+/* ================= render dispatch ================= */
+function draw(){
+  if(S.tab===0) drawCLT();
+  else if(S.tab===1) drawLLN();
+  else if(S.tab===2) drawConv();
+  else if(S.tab===3) drawGalton();
+  else drawInverse();
+  updateMeters();
+}
+function setTab(t){
+  S.tab=t;
+  document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active',+el.dataset.tab===t));
+  const T=TABS[t];
+  document.getElementById('mainTitle').textContent=T.title;
+  document.getElementById('auxTitle').textContent=T.aux;
+  document.getElementById('eqText').innerHTML=T.eq;
+  document.getElementById('eqDesc').textContent=T.desc;
+  document.getElementById('legend').innerHTML=T.legend.map(l=>
+    `<div class="legend-item"><div class="legend-dot" style="background:${l[0]}"></div>${l[1]}</div>`).join('');
+  document.getElementById('info').innerHTML=INFO[t];
+  document.querySelectorAll('.cg[data-tabs]').forEach(el=>
+    el.classList.toggle('hidden',!el.dataset.tabs.split(',').includes(String(t))));
+  document.getElementById('presets').classList.toggle('hidden',t>=3);
+  document.getElementById('pmfPresets').classList.toggle('hidden',t!==4);
+  mainC.height=(t===3)?600:(t===4)?400:400;   // the peg board plus a full-size histogram needs the room
+  buildMeters();
+  syncParamVis();
+  if(t===1&&!S.pathData.length) runLLN();
+  draw();
+}
+document.querySelectorAll('.tab').forEach(el=>el.addEventListener('click',()=>setTab(+el.dataset.tab)));
+
+/* ================= controls ================= */
+const $=id=>document.getElementById(id);
+$('slP').addEventListener('input',e=>{S.p=+e.target.value;$('vP').textContent=S.p.toFixed(2);refreshDist();draw();});
+$('slLam').addEventListener('input',e=>{S.lam=+e.target.value;$('vLam').textContent=S.lam.toFixed(1);refreshDist();draw();});
+$('slN').addEventListener('input',e=>{S.n=+e.target.value;$('vN').textContent=S.n;resetCLT();draw();});
+$('slSpeed').addEventListener('input',e=>{S.speed=+e.target.value;$('vSpeed').textContent=S.speed;});
+$('ckStd').addEventListener('change',e=>{S.standardize=e.target.checked;draw();});
+$('slNN').addEventListener('input',e=>{S.NN=+e.target.value;$('vNN').textContent=S.NN.toLocaleString();runLLN();draw();});
+$('slPaths').addEventListener('input',e=>{S.paths=+e.target.value;$('vPaths').textContent=S.paths;runLLN();draw();});
+$('slEps').addEventListener('input',e=>{S.eps=+e.target.value;$('vEps').textContent=S.eps.toFixed(2);draw();});
+$('slConvN').addEventListener('input',e=>{S.convN=+e.target.value;$('vConvN').textContent=S.convN;draw();});
+$('slRows').addEventListener('input',e=>{S.rows=+e.target.value;$('vRows').textContent=S.rows;resetGalton();draw();});
+$('slGp').addEventListener('input',e=>{S.gp=+e.target.value;$('vGp').textContent=S.gp.toFixed(2);resetGalton();draw();});
+
+$('btnRun').addEventListener('click',()=>{ S.running=!S.running; $('btnRun').textContent=S.running?'⏸ Pause':'▶ Run'; });
+$('btnOne').addEventListener('click',()=>{addTrial(1);draw();});
+$('btnHundred').addEventListener('click',()=>{addTrial(500);draw();});
+$('slFall').addEventListener('input',e=>{
+  S.fallSpeed=+e.target.value;
+  $('vFall').textContent=S.fallSpeed<0.05?'slow':S.fallSpeed<0.12?'normal':'fast';
+});
+$('btnDrop1').addEventListener('click',()=>dropBalls(1));
+$('slIvN').addEventListener('input',e=>{
+  S.ivN=+e.target.value; $('vIvN').textContent=S.ivN;
+  const act=document.querySelector('.preset.pmf.active');
+  setPmf(act?act.dataset.w:'uniform'); draw();
+});
+$('slIvRate').addEventListener('input',e=>{
+  S.ivRate=+e.target.value;
+  $('vIvRate').textContent=S.ivRate===0?'slow':S.ivRate<25?'fast':'very fast';
+});
+$('btnIv1').addEventListener('click',()=>{
+  const F=cdfArr(), u=Math.random();
+  S.ivAnim={u,k:invCdf(u,F),p:0,counted:false}; draw();
+});
+$('btnIv1000').addEventListener('click',()=>{ ivDraw(1000); draw(); });
+$('btnDrop').addEventListener('click',()=>dropBalls(200));
+$('btnRerun').addEventListener('click',()=>{runLLN();draw();});
+$('btnReset').addEventListener('click',()=>{
+  if(S.tab===0) resetCLT();
+  else if(S.tab===1) runLLN();
+  else if(S.tab===3) resetGalton();
+  else if(S.tab===4) resetIv();
+  draw();
+});
+
+// drag the pmf bars on tab 4
+function canvasPos(ev){
+  const r=mainC.getBoundingClientRect();
+  return {x:(ev.clientX-r.left)*(mainC.width/r.width),
+          y:(ev.clientY-r.top)*(mainC.height/r.height)};
+}
+mainC.addEventListener('mousedown',ev=>{
+  if(S.tab!==4) return;
+  const q=canvasPos(ev);
+  if(ivEditAt(q.x,q.y)){ S.ivDrag=true; draw(); }
+});
+window.addEventListener('mousemove',ev=>{
+  if(S.tab!==4||!S.ivDrag) return;
+  const q=canvasPos(ev); ivEditAt(q.x,q.y); draw();
+});
+window.addEventListener('mouseup',()=>{ S.ivDrag=false; });
+
+/* ================= animation ================= */
+function loop(){
+  if(S.running&&S.tab===0){ addTrial(S.speed); draw(); }
+  else if(S.tab===4){
+    if(S.running){
+      if(S.ivRate===0){
+        // slow: animate one draw end to end, counting it as the drop lands
+        if(!S.ivAnim||S.ivAnim.p>=1){
+          const F=cdfArr(), u=Math.random();
+          S.ivAnim={u,k:invCdf(u,F),p:0,counted:false};
+        } else {
+          S.ivAnim.p+=0.022;
+          if(S.ivAnim.p>=0.82&&!S.ivAnim.counted){
+            S.ivHist[S.ivAnim.k]++; S.ivCount++;
+            const ub=Math.min(39,Math.floor(S.ivAnim.u*40)); S.uHist[ub]++;
+            S.ivAnim.counted=true; recordIvErr();
+          }
+        }
+      } else {
+        ivDraw(S.ivRate);
+        const F=cdfArr(), u=Math.random();
+        S.ivAnim={u,k:invCdf(u,F),p:1,counted:true};
+      }
+    }
+    drawInverse(); updateMeters();
+  }
+  else if(S.tab===3){
+    if(S.running){
+      // slow setting: a single ball in flight so its path can be followed
+      const cap = S.fallSpeed<0.05?1 : S.fallSpeed<0.12?10 : 90;
+      if(S.balls.length<cap) dropBalls(S.fallSpeed<0.12?1:3);
+    }
+    drawGalton(); updateMeters();
+  }
+  requestAnimationFrame(loop);
+}
+markDist(); syncParamVis(); resetGalton(); resetCLT();
+setPmf('binom');
+document.querySelector('.preset.pmf[data-w="binom"]').classList.add('active');
+setTab(0); loop();
+</script>
+</body>
+</html>
