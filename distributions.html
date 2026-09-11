@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Distribution Explorer — ECE 302</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',system-ui,sans-serif;
+    display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:18px}
+  h1{font-size:1.5em;color:#e0e0ff}
+  .subtitle{color:#7d8590;margin-bottom:10px;font-size:.92em;text-align:center;max-width:900px}
+  canvas{display:block;border-radius:10px;max-width:100%}
+
+  .tabs{display:flex;gap:6px;margin:10px 0;flex-wrap:wrap;justify-content:center}
+  .tab{padding:8px 18px;border-radius:8px;cursor:pointer;font-size:.86em;
+    background:#161b22;border:1px solid #30363d;color:#8b949e;transition:.2s}
+  .tab:hover{border-color:#58a6ff;color:#e6edf3}
+  .tab.active{background:#1f6feb;border-color:#1f6feb;color:white;font-weight:bold}
+
+  .eq-box{background:#161b22;border:1px solid #30363d;border-radius:10px;
+    padding:8px 14px;margin:6px 0;max-width:1120px;width:100%;text-align:center}
+  .eq{font-size:1.05em;font-family:'Times New Roman',serif;color:#e0e0ff}
+  .eq-desc{font-size:.78em;color:#7d8590;margin-top:3px}
+
+  .legend{display:flex;gap:12px;justify-content:center;margin:6px 0;flex-wrap:wrap}
+  .legend-item{display:flex;align-items:center;gap:4px;font-size:.76em;color:#8b949e}
+  .legend-dot{width:9px;height:9px;border-radius:3px}
+
+  .row{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:8px;max-width:1120px;width:100%}
+  .panel{background:#161b22;border-radius:12px;padding:12px;border:1px solid #30363d;width:100%}
+  .panel h2{font-size:.88em;color:#8b949e;margin-bottom:6px;text-align:center}
+
+  .meters{display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap;max-width:1120px}
+  .meter{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:4px 10px;text-align:center;min-width:92px}
+  .meter .ml{font-size:.68em;color:#8b949e}
+  .meter .mv{font-size:.9em;font-weight:bold;font-family:'Courier New',monospace;color:#e6edf3}
+
+  .controls{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;justify-content:center;align-items:center;
+    max-width:1120px;width:100%;background:#161b22;border:1px solid #30363d;border-radius:12px;padding:12px}
+  .cg{display:flex;align-items:center;gap:5px}
+  .cg label{font-size:.78em;color:#8b949e;white-space:nowrap}
+  input[type="range"]{width:120px;accent-color:#58a6ff}
+  .val{font-size:.78em;color:#58a6ff;min-width:44px;font-family:'Courier New',monospace}
+  button{background:#238636;color:white;border:none;padding:6px 14px;border-radius:6px;
+    cursor:pointer;font-size:.82em;transition:.2s}
+  button:hover{background:#2ea043}
+  button.sec{background:#30363d}
+  button.sec:hover{background:#484f58}
+  .chk{display:flex;align-items:center;gap:4px;font-size:.76em;color:#8b949e;cursor:pointer;user-select:none}
+  .chk input{accent-color:#58a6ff;cursor:pointer}
+
+  .presets{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:10px;max-width:1120px}
+  .preset{padding:5px 13px;border-radius:6px;cursor:pointer;font-size:.76em;
+    background:#21262d;border:1px solid #30363d;color:#8b949e;transition:.2s}
+  .preset:hover{border-color:#58a6ff;color:#e6edf3}
+  .preset.active{background:#1f6feb;border-color:#1f6feb;color:white}
+  .preset.disc.active{background:#8957e5;border-color:#8957e5}
+
+  .info{max-width:1120px;width:100%;background:#161b22;border-radius:12px;
+    padding:14px 18px;border:1px solid #30363d;margin-top:14px;font-size:.84em;line-height:1.65;color:#8b949e}
+  .info strong{color:#e0e0ff}
+  .info code{color:#f0883e;background:#21262d;padding:1px 5px;border-radius:3px;font-size:.95em}
+  .info ul{margin:6px 0 0 20px}
+  .info li{margin:3px 0}
+  .hidden{display:none!important}
+  a{color:#58a6ff}
+  .back{margin-top:16px;font-size:.82em}
+</style>
+</head>
+<body>
+
+<h1>Distribution Explorer</h1>
+<p class="subtitle">The standard families side by side — pmf/pdf against CDF, with the mean, the spread, and P(a ≤ X ≤ b) shaded live. Most of these are the same distribution wearing different clothes, and the last tab shows which turns into which.</p>
+
+<div class="tabs">
+  <div class="tab active" data-tab="0">PDF &amp; CDF</div>
+  <div class="tab" data-tab="1">Probability of an Interval</div>
+  <div class="tab" data-tab="2">Moments &amp; Shape</div>
+  <div class="tab" data-tab="3">How They Are Related</div>
+</div>
+
+<div class="eq-box">
+  <div class="eq" id="eqText"></div>
+  <div class="eq-desc" id="eqDesc"></div>
+</div>
+
+<div class="presets" id="presets"></div>
+<div class="legend" id="legend"></div>
+
+<div class="row">
+  <div class="panel"><h2 id="mainTitle">Distribution</h2>
+    <canvas id="mainCanvas" width="1080" height="400"></canvas></div>
+</div>
+<div class="row">
+  <div class="panel"><h2 id="auxTitle">Detail</h2>
+    <canvas id="auxCanvas" width="1080" height="250"></canvas></div>
+</div>
+
+<div class="meters" id="meters"></div>
+
+<div class="controls">
+  <div class="cg" id="cgA"><label id="labA">a:</label>
+    <input type="range" id="slA" min="0" max="1" step="0.001" value="0.5">
+    <span class="val" id="vA">0.5</span></div>
+  <div class="cg" id="cgB"><label id="labB">b:</label>
+    <input type="range" id="slB" min="0" max="1" step="0.001" value="0.5">
+    <span class="val" id="vB">0.5</span></div>
+
+  <div class="cg" data-tabs="1"><label>interval [a, b]:</label>
+    <input type="range" id="slLo" min="0" max="1" step="0.001" value="0.25">
+    <span class="val" id="vLo">—</span>
+    <input type="range" id="slHi" min="0" max="1" step="0.001" value="0.75">
+    <span class="val" id="vHi">—</span></div>
+
+  <div class="cg" data-tabs="0,1"><label class="chk"><input type="checkbox" id="ckStd"> overlay Normal approximation</label></div>
+  <div class="cg"><button class="sec" id="btnReset">Reset</button></div>
+</div>
+
+<div class="info" id="info"></div>
+<div class="back"><a href="index.html">← All demos</a> &nbsp;·&nbsp; <a href="clt-lln.html">CLT &amp; LLN</a> &nbsp;·&nbsp; <a href="bayes.html">Bayes</a></div>
+
+<script>
+/* ================= numeric helpers ================= */
+const SQ2PI=Math.sqrt(2*Math.PI);
+function erf(x){
+  const s=Math.sign(x); x=Math.abs(x);
+  const t=1/(1+0.3275911*x);
+  const y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);
+  return s*y;
+}
+const normCdf=z=>0.5*(1+erf(z/Math.SQRT2));
+const normPdf=z=>Math.exp(-z*z/2)/SQ2PI;
+function logGamma(x){
+  const g=[76.18009172947146,-86.50532032941677,24.01409824083091,-1.231739572450155,
+           0.1208650973866179e-2,-0.5395239384953e-5];
+  let y=x, tmp=x+5.5; tmp-=(x+0.5)*Math.log(tmp); let ser=1.000000000190015;
+  for(let j=0;j<6;j++) ser+=g[j]/++y;
+  return -tmp+Math.log(2.5066282746310005*ser/x);
+}
+const logFact=n=>logGamma(n+1);
+const logChoose=(n,k)=>logFact(n)-logFact(k)-logFact(n-k);
+
+/* ================= the families ================= */
+/* Each: discrete flag, parameter metadata, pmf/pdf, cdf, mean, var, skew, exKurt, plot range */
+const FAM={
+  bernoulli:{name:'Bernoulli(p)',disc:true,short:'Bernoulli',
+    pars:[{k:'p',lab:'p',min:0.01,max:0.99,step:0.01,def:0.5}],
+    eq:'P(X = 1) = p,&nbsp; P(X = 0) = 1 − p',
+    sup:P=>[0,1],
+    pmf:(k,P)=>k===1?P.p:(k===0?1-P.p:0),
+    mean:P=>P.p, vari:P=>P.p*(1-P.p),
+    skew:P=>(1-2*P.p)/Math.sqrt(P.p*(1-P.p)),
+    kurt:P=>(1-6*P.p*(1-P.p))/(P.p*(1-P.p))},
+
+  binomial:{name:'Binomial(n, p)',disc:true,short:'Binomial',
+    pars:[{k:'n',lab:'n',min:1,max:60,step:1,def:20},{k:'p',lab:'p',min:0.01,max:0.99,step:0.01,def:0.4}],
+    eq:'P(X = k) = C(n, k) p<sup>k</sup>(1 − p)<sup>n−k</sup>',
+    sup:P=>[0,Math.round(P.n)],
+    pmf:(k,P)=>{ const n=Math.round(P.n);
+      if(k<0||k>n) return 0;
+      return Math.exp(logChoose(n,k)+k*Math.log(P.p)+(n-k)*Math.log(1-P.p)); },
+    mean:P=>Math.round(P.n)*P.p, vari:P=>Math.round(P.n)*P.p*(1-P.p),
+    skew:P=>(1-2*P.p)/Math.sqrt(Math.round(P.n)*P.p*(1-P.p)),
+    kurt:P=>(1-6*P.p*(1-P.p))/(Math.round(P.n)*P.p*(1-P.p))},
+
+  geometric:{name:'Geometric(p) — trials until the first success',disc:true,short:'Geometric',
+    pars:[{k:'p',lab:'p',min:0.02,max:0.95,step:0.01,def:0.25}],
+    eq:'P(X = k) = (1 − p)<sup>k−1</sup> p,&nbsp; k = 1, 2, 3, …',
+    sup:P=>[1,Math.max(8,Math.ceil(Math.log(0.002)/Math.log(1-P.p)))],
+    pmf:(k,P)=>k>=1?Math.pow(1-P.p,k-1)*P.p:0,
+    mean:P=>1/P.p, vari:P=>(1-P.p)/(P.p*P.p),
+    skew:P=>(2-P.p)/Math.sqrt(1-P.p),
+    kurt:P=>6+P.p*P.p/(1-P.p)},
+
+  poisson:{name:'Poisson(λ)',disc:true,short:'Poisson',
+    pars:[{k:'lam',lab:'λ',min:0.2,max:30,step:0.1,def:4}],
+    eq:'P(X = k) = e<sup>−λ</sup> λ<sup>k</sup> / k!',
+    sup:P=>[0,Math.max(10,Math.ceil(P.lam+5*Math.sqrt(P.lam)))],
+    pmf:(k,P)=>k>=0?Math.exp(-P.lam+k*Math.log(P.lam)-logFact(k)):0,
+    mean:P=>P.lam, vari:P=>P.lam,
+    skew:P=>1/Math.sqrt(P.lam), kurt:P=>1/P.lam},
+
+  uniform:{name:'Uniform(a, b)',disc:false,short:'Uniform',
+    pars:[{k:'a',lab:'a',min:-5,max:5,step:0.1,def:0},{k:'b',lab:'b',min:-5,max:10,step:0.1,def:1}],
+    eq:'f(x) = 1/(b − a)&nbsp; for a ≤ x ≤ b',
+    sup:P=>{const a=Math.min(P.a,P.b-0.1); return [a-(P.b-a)*0.25,P.b+(P.b-a)*0.25];},
+    pdf:(x,P)=>{const a=Math.min(P.a,P.b-0.1); return (x>=a&&x<=P.b)?1/(P.b-a):0;},
+    cdf:(x,P)=>{const a=Math.min(P.a,P.b-0.1); return x<a?0:(x>P.b?1:(x-a)/(P.b-a));},
+    mean:P=>(Math.min(P.a,P.b-0.1)+P.b)/2,
+    vari:P=>{const a=Math.min(P.a,P.b-0.1); return (P.b-a)*(P.b-a)/12;},
+    skew:()=>0, kurt:()=>-1.2},
+
+  exponential:{name:'Exponential(λ)',disc:false,short:'Exponential',
+    pars:[{k:'lam',lab:'λ',min:0.1,max:5,step:0.05,def:1}],
+    eq:'f(x) = λe<sup>−λx</sup>,&nbsp; x ≥ 0',
+    sup:P=>[0,Math.max(6/P.lam,1)],
+    pdf:(x,P)=>x>=0?P.lam*Math.exp(-P.lam*x):0,
+    cdf:(x,P)=>x>=0?1-Math.exp(-P.lam*x):0,
+    mean:P=>1/P.lam, vari:P=>1/(P.lam*P.lam),
+    skew:()=>2, kurt:()=>6},
+
+  normal:{name:'Normal(μ, σ²)',disc:false,short:'Normal',
+    pars:[{k:'mu',lab:'μ',min:-5,max:5,step:0.1,def:0},{k:'sd',lab:'σ',min:0.2,max:4,step:0.05,def:1}],
+    eq:'f(x) = (1/σ√(2π)) · e<sup>−(x−μ)²/2σ²</sup>',
+    sup:P=>[P.mu-4.2*P.sd,P.mu+4.2*P.sd],
+    pdf:(x,P)=>normPdf((x-P.mu)/P.sd)/P.sd,
+    cdf:(x,P)=>normCdf((x-P.mu)/P.sd),
+    mean:P=>P.mu, vari:P=>P.sd*P.sd, skew:()=>0, kurt:()=>0},
+
+  gamma:{name:'Erlang/Gamma(k, λ) — sum of k exponentials',disc:false,short:'Erlang',
+    pars:[{k:'kk',lab:'k',min:1,max:15,step:1,def:3},{k:'lam',lab:'λ',min:0.2,max:4,step:0.05,def:1}],
+    eq:'f(x) = λ<sup>k</sup>x<sup>k−1</sup>e<sup>−λx</sup> / (k−1)!',
+    sup:P=>[0,(Math.round(P.kk)+5*Math.sqrt(Math.round(P.kk)))/P.lam],
+    pdf:(x,P)=>{ const k=Math.round(P.kk);
+      return x>0?Math.exp(k*Math.log(P.lam)+(k-1)*Math.log(x)-P.lam*x-logFact(k-1)):(k===1?P.lam:0); },
+    // regularised lower incomplete gamma, series + continued fraction
+    cdf:(x,P)=>{ const k=Math.round(P.kk); return x<=0?0:gammaP(k,P.lam*x); },
+    mean:P=>Math.round(P.kk)/P.lam, vari:P=>Math.round(P.kk)/(P.lam*P.lam),
+    skew:P=>2/Math.sqrt(Math.round(P.kk)), kurt:P=>6/Math.round(P.kk)}
+};
+/* regularised incomplete gamma P(a,x) */
+function gammaP(a,x){
+  if(x<=0) return 0;
+  if(x<a+1){
+    let ap=a, sum=1/a, del=sum;
+    for(let n=1;n<200;n++){ ap++; del*=x/ap; sum+=del; if(Math.abs(del)<Math.abs(sum)*1e-14) break; }
+    return sum*Math.exp(-x+a*Math.log(x)-logGamma(a));
+  }
+  let b=x+1-a, c=1e300, d=1/b, h=d;
+  for(let i=1;i<300;i++){
+    const an=-i*(i-a); b+=2; d=an*d+b; if(Math.abs(d)<1e-300) d=1e-300;
+    c=b+an/c; if(Math.abs(c)<1e-300) c=1e-300;
+    d=1/d; const del=d*c; h*=del;
+    if(Math.abs(del-1)<1e-14) break;
+  }
+  return 1-Math.exp(-x+a*Math.log(x)-logGamma(a))*h;
+}
+
+/* ================= state ================= */
+const S={ tab:0, fam:'binomial', P:{}, lo:0, hi:1, showNorm:false };
+function F(){ return FAM[S.fam]; }
+function initPars(){ S.P={}; F().pars.forEach(p=>S.P[p.k]=p.def);
+  const r=range(); S.lo=r[0]+(r[1]-r[0])*0.3; S.hi=r[0]+(r[1]-r[0])*0.6; }
+function range(){ return F().sup(S.P); }
+function isDisc(){ return !!F().disc; }
+const mean=()=>F().mean(S.P), vari=()=>F().vari(S.P), sd=()=>Math.sqrt(Math.max(vari(),0));
+
+/* discrete pmf over its support, plus the cdf built from it */
+function atoms(){
+  const [lo,hi]=range(), out=[];
+  for(let k=Math.round(lo);k<=Math.round(hi);k++) out.push({x:k,p:F().pmf(k,S.P)});
+  return out;
+}
+function cdfAt(x){
+  if(!isDisc()) return F().cdf(x,S.P);
+  const [lo]=range(); let c=0;
+  for(let k=Math.round(lo);k<=x+1e-9;k++) c+=F().pmf(k,S.P);
+  return Math.min(c,1);
+}
+function densAt(x){ return isDisc()?F().pmf(Math.round(x),S.P):F().pdf(x,S.P); }
+// P(a <= X <= b)
+function probInterval(a,b){
+  if(a>b) return 0;
+  if(isDisc()){
+    let s=0;
+    for(let k=Math.ceil(a-1e-9);k<=Math.floor(b+1e-9);k++) s+=F().pmf(k,S.P);
+    return Math.min(Math.max(s,0),1);
+  }
+  return Math.min(Math.max(F().cdf(b,S.P)-F().cdf(a,S.P),0),1);
+}
+
+const mainC=document.getElementById('mainCanvas'), mx=mainC.getContext('2d');
+const auxC=document.getElementById('auxCanvas'),  ax=auxC.getContext('2d');
+
+/* ================= drawing helpers ================= */
+function clear(ctx,c){ ctx.fillStyle='#0d1117'; ctx.fillRect(0,0,c.width,c.height); }
+function txt(ctx,s,x,y,col,font,align){
+  ctx.fillStyle=col||'#8b949e'; ctx.font=font||'11px Segoe UI';
+  ctx.textAlign=align||'center'; ctx.textBaseline='middle'; ctx.fillText(s,x,y);
+}
+function line(ctx,x1,y1,x2,y2,col,w,dash){
+  ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=w||1; if(dash)ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); ctx.restore();
+}
+function dot(ctx,x,y,r,col){ ctx.fillStyle=col; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); }
+function niceTicks(a,b,count){
+  const span=b-a||1, raw=span/count, mag=Math.pow(10,Math.floor(Math.log10(raw)));
+  const norm=raw/mag, step=(norm<1.5?1:norm<3?2:norm<7?5:10)*mag;
+  const out=[]; for(let v=Math.ceil(a/step)*step; v<=b+1e-9; v+=step) out.push(+v.toFixed(10));
+  return out;
+}
+function frame(ctx,x,y,w,h,x0,x1,y0,y1,title,xlabel,ylabel){
+  const X=v=>x+(v-x0)/(x1-x0)*w, Y=v=>y+h-(v-y0)/(y1-y0)*h;
+  ctx.strokeStyle='#30363d'; ctx.lineWidth=1; ctx.strokeRect(x,y,w,h);
+  if(title) txt(ctx,title,x+w/2,y-14,'#8b949e','bold 11px Segoe UI');
+  if(xlabel) txt(ctx,xlabel,x+w/2,y+h+30,'#6e7681','10px Segoe UI');
+  if(ylabel){ ctx.save(); ctx.translate(x-38,y+h/2); ctx.rotate(-Math.PI/2);
+    txt(ctx,ylabel,0,0,'#6e7681','10px Segoe UI'); ctx.restore(); }
+  return {X,Y,x,y,w,h,x0,x1,y0,y1};
+}
+function axes(ctx,Fr,xt,yt,xf,yf){
+  xt.forEach(v=>{ const xx=Fr.X(v); if(xx<Fr.x-1||xx>Fr.x+Fr.w+1) return;
+    line(ctx,xx,Fr.y,xx,Fr.y+Fr.h,'#21262d',1);
+    txt(ctx,xf?xf(v):String(+v.toFixed(3)),xx,Fr.y+Fr.h+13,'#6e7681','9px Segoe UI'); });
+  yt.forEach(v=>{ const yy=Fr.Y(v); if(yy<Fr.y-1||yy>Fr.y+Fr.h+1) return;
+    line(ctx,Fr.x,yy,Fr.x+Fr.w,yy,'#21262d',1);
+    txt(ctx,yf?yf(v):String(+v.toFixed(3)),Fr.x-6,yy,'#6e7681','9px Segoe UI','right'); });
+}
+function maxDens(){
+  const [lo,hi]=range();
+  let m=0;
+  if(isDisc()) atoms().forEach(a=>m=Math.max(m,a.p));
+  else for(let i=0;i<=600;i++) m=Math.max(m,F().pdf(lo+(hi-lo)*i/600,S.P));
+  return m>0?m:1;
+}
+/* draw the density/pmf; shade [a,b] when given */
+function drawDensity(ctx,Fr,shadeA,shadeB){
+  const [lo,hi]=range();
+  if(isDisc()){
+    const A=atoms(), bw=Math.max(2.5,Math.min(26,Fr.w/(A.length*1.5)));
+    A.forEach(a=>{
+      if(a.p<=0) return;
+      const inside=shadeA!==undefined && a.x>=Math.ceil(shadeA-1e-9) && a.x<=Math.floor(shadeB+1e-9);
+      const x=Fr.X(a.x);
+      ctx.fillStyle=inside?'#e3b341':'#8957e5';
+      ctx.fillRect(x-bw/2,Fr.Y(a.p),bw,Fr.y+Fr.h-Fr.Y(a.p));
+      if(bw>6) dot(ctx,x,Fr.Y(a.p),2.4,inside?'#ffd866':'#d2a8ff');
+    });
+  } else {
+    if(shadeA!==undefined){
+      ctx.fillStyle='rgba(227,179,65,0.38)'; ctx.beginPath();
+      ctx.moveTo(Fr.X(Math.max(shadeA,lo)),Fr.Y(0));
+      for(let i=0;i<=300;i++){ const x=Math.max(shadeA,lo)+(Math.min(shadeB,hi)-Math.max(shadeA,lo))*i/300;
+        ctx.lineTo(Fr.X(x),Fr.Y(F().pdf(x,S.P))); }
+      ctx.lineTo(Fr.X(Math.min(shadeB,hi)),Fr.Y(0)); ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle='rgba(88,166,255,0.16)'; ctx.beginPath(); ctx.moveTo(Fr.X(lo),Fr.Y(0));
+    for(let i=0;i<=600;i++){ const x=lo+(hi-lo)*i/600; ctx.lineTo(Fr.X(x),Fr.Y(F().pdf(x,S.P))); }
+    ctx.lineTo(Fr.X(hi),Fr.Y(0)); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle='#58a6ff'; ctx.lineWidth=2.4; ctx.beginPath();
+    for(let i=0;i<=600;i++){ const x=lo+(hi-lo)*i/600;
+      i?ctx.lineTo(Fr.X(x),Fr.Y(F().pdf(x,S.P))):ctx.moveTo(Fr.X(x),Fr.Y(F().pdf(x,S.P))); }
+    ctx.stroke();
+  }
+}
+function drawNormalOverlay(ctx,Fr){
+  if(!S.showNorm) return;
+  const m=mean(), s=sd(); if(!(s>0)) return;
+  const [lo,hi]=range();
+  ctx.strokeStyle='#3fb950'; ctx.lineWidth=2; ctx.setLineDash([5,4]); ctx.beginPath();
+  for(let i=0;i<=400;i++){
+    const x=lo+(hi-lo)*i/400;
+    const v=normPdf((x-m)/s)/s;
+    i?ctx.lineTo(Fr.X(x),Fr.Y(v)):ctx.moveTo(Fr.X(x),Fr.Y(v));
+  }
+  ctx.stroke(); ctx.setLineDash([]);
+  txt(ctx,'N(μ, σ²)',Fr.x+Fr.w-8,Fr.y+14,'#3fb950','bold 10px Segoe UI','right');
+}
+function drawMeanSd(ctx,Fr){
+  const m=mean(), s=sd();
+  line(ctx,Fr.X(m),Fr.y,Fr.X(m),Fr.y+Fr.h,'#f85149',1.8,[4,3]);
+  txt(ctx,'μ = '+m.toFixed(3),Fr.X(m),Fr.y+11,'#f85149','bold 10px Segoe UI');
+  if(s>0){
+    const y=Fr.y+Fr.h-10;
+    line(ctx,Fr.X(m-s),y,Fr.X(m+s),y,'#e3b341',1.8);
+    line(ctx,Fr.X(m-s),y-5,Fr.X(m-s),y+5,'#e3b341',1.8);
+    line(ctx,Fr.X(m+s),y-5,Fr.X(m+s),y+5,'#e3b341',1.8);
+    txt(ctx,'μ ± σ  (σ = '+s.toFixed(3)+')',Fr.X(m),y-12,'#e3b341','10px Segoe UI');
+  }
+}
+
+/* ================= TAB 0 : pdf + cdf ================= */
+function drawPdfCdf(){
+  clear(mx,mainC);
+  const [lo,hi]=range();
+  const dm=maxDens()*1.22;
+  const A=frame(mx,80,42,930,150,lo,hi,0,dm,
+    (isDisc()?'Probability mass function  P(X = k)':'Probability density  f(x)')+'   —   '+F().name,
+    null,isDisc()?'P(X = k)':'f(x)');
+  axes(mx,A,niceTicks(lo,hi,8),niceTicks(0,dm,4));
+  drawDensity(mx,A);
+  drawNormalOverlay(mx,A);
+  drawMeanSd(mx,A);
+
+  const B=frame(mx,80,262,930,110,lo,hi,0,1.04,'Cumulative distribution  F(x) = P(X ≤ x)',
+    isDisc()?'k':'x','F(x)');
+  axes(mx,B,niceTicks(lo,hi,8),[0,0.25,0.5,0.75,1]);
+  if(isDisc()){
+    const A2=atoms(); let c=0;
+    mx.strokeStyle='#8957e5'; mx.lineWidth=2.4;
+    A2.forEach((a,i)=>{
+      const prev=c; c=Math.min(c+a.p,1);
+      const x0=B.X(a.x), x1=i<A2.length-1?B.X(A2[i+1].x):B.x+B.w;
+      mx.beginPath(); mx.moveTo(x0,B.Y(c)); mx.lineTo(x1,B.Y(c)); mx.stroke();     // tread
+      mx.beginPath(); mx.moveTo(x0,B.Y(prev)); mx.lineTo(x0,B.Y(c)); mx.stroke();  // riser = pmf
+      dot(mx,x0,B.Y(c),2.6,'#d2a8ff');
+    });
+    txt(mx,'each riser height is exactly P(X = k)',B.x+B.w-8,B.y+13,'#d2a8ff','9px Segoe UI','right');
+  } else {
+    mx.strokeStyle='#8957e5'; mx.lineWidth=2.6; mx.beginPath();
+    for(let i=0;i<=600;i++){ const x=lo+(hi-lo)*i/600;
+      i?mx.lineTo(B.X(x),B.Y(F().cdf(x,S.P))):mx.moveTo(B.X(x),B.Y(F().cdf(x,S.P))); }
+    mx.stroke();
+    txt(mx,'slope of F is f',B.x+B.w-8,B.y+13,'#d2a8ff','9px Segoe UI','right');
+  }
+  const m=mean();
+  line(mx,B.X(m),B.y,B.X(m),B.y+B.h,'#f85149',1.4,[4,3]);
+  // median
+  let med=lo, best=1e9;
+  for(let i=0;i<=800;i++){ const x=lo+(hi-lo)*i/800, d=Math.abs(cdfAt(x)-0.5);
+    if(d<best){best=d;med=x;} }
+  line(mx,B.X(med),B.y,B.X(med),B.y+B.h,'#3fb950',1.4,[3,3]);
+  txt(mx,'median ≈ '+(isDisc()?Math.round(med):med.toFixed(3)),B.X(med),B.y+B.h-11,'#3fb950','10px Segoe UI');
+
+  clear(ax,auxC);
+  drawQuantiles(ax);
+}
+function drawQuantiles(ctx){
+  const [lo,hi]=range();
+  const Fr=frame(ctx,80,40,930,170,0,1,lo,hi,'Quantile function  F⁻¹(u)  —  the inverse-CDF sampler',
+    'u  (a uniform draw)','value returned');
+  axes(ctx,Fr,[0,0.25,0.5,0.75,1],niceTicks(lo,hi,6));
+  ctx.strokeStyle='#e3b341'; ctx.lineWidth=2.6; ctx.beginPath();
+  let prev=null;
+  for(let i=0;i<=400;i++){
+    const u=i/400;
+    // invert by scanning the cdf
+    let x=lo;
+    if(isDisc()){
+      const A=atoms(); let c=0; x=A[A.length-1].x;
+      for(const a of A){ c+=a.p; if(u<=c){ x=a.x; break; } }
+    } else {
+      let a=lo,b=hi;
+      for(let it=0;it<50;it++){ const mid=(a+b)/2; (F().cdf(mid,S.P)<u)?a=mid:b=mid; }
+      x=(a+b)/2;
+    }
+    const X=Fr.X(u), Y=Fr.Y(x);
+    if(isDisc()&&prev!==null&&x!==prev){ ctx.lineTo(X,Fr.Y(prev)); }
+    i?ctx.lineTo(X,Y):ctx.moveTo(X,Y);
+    prev=x;
+  }
+  ctx.stroke();
+  txt(ctx,'feed this a uniform draw and you get a sample — see the CLT demo',
+      Fr.x+Fr.w/2,Fr.y+Fr.h+46,'#6e7681','10px Segoe UI');
+}
+
+/* ================= TAB 1 : interval probability ================= */
+function drawInterval(){
+  clear(mx,mainC);
+  const [lo,hi]=range();
+  const a=Math.min(S.lo,S.hi), b=Math.max(S.lo,S.hi);
+  const dm=maxDens()*1.22;
+  const Fr=frame(mx,80,46,930,300,lo,hi,0,dm,
+    'P(a ≤ X ≤ b)  is the shaded area'+(isDisc()?' (sum of the highlighted bars)':''),
+    isDisc()?'k':'x',isDisc()?'P(X = k)':'f(x)');
+  axes(mx,Fr,niceTicks(lo,hi,8),niceTicks(0,dm,5));
+  drawDensity(mx,Fr,a,b);
+  drawNormalOverlay(mx,Fr);
+  drawMeanSd(mx,Fr);
+  [['a',a],['b',b]].forEach(([lab,v])=>{
+    line(mx,Fr.X(v),Fr.y,Fr.X(v),Fr.y+Fr.h,'#e3b341',2);
+    txt(mx,lab+' = '+(isDisc()?Math.round(v):v.toFixed(3)),Fr.X(v),Fr.y-4,'#e3b341','bold 11px Segoe UI');
+  });
+  const p=probInterval(isDisc()?Math.ceil(a-1e-9):a, isDisc()?Math.floor(b+1e-9):b);
+  txt(mx,'P(a ≤ X ≤ b) = '+p.toFixed(6),Fr.x+Fr.w/2,Fr.y+Fr.h+46,'#e3b341','bold 14px Courier New');
+
+  clear(ax,auxC);
+  const B=frame(ax,80,42,930,150,lo,hi,0,1.04,'On the CDF, the same probability is a vertical gap',
+    isDisc()?'k':'x','F(x)');
+  axes(ax,B,niceTicks(lo,hi,8),[0,0.25,0.5,0.75,1]);
+  ax.strokeStyle='#8957e5'; ax.lineWidth=2.4;
+  if(isDisc()){
+    const A2=atoms(); let c=0;
+    A2.forEach((at,i)=>{ const prev=c; c=Math.min(c+at.p,1);
+      const x0=B.X(at.x), x1=i<A2.length-1?B.X(A2[i+1].x):B.x+B.w;
+      ax.beginPath(); ax.moveTo(x0,B.Y(c)); ax.lineTo(x1,B.Y(c)); ax.stroke();
+      ax.beginPath(); ax.moveTo(x0,B.Y(prev)); ax.lineTo(x0,B.Y(c)); ax.stroke(); });
+  } else {
+    ax.beginPath();
+    for(let i=0;i<=600;i++){ const x=lo+(hi-lo)*i/600;
+      i?ax.lineTo(B.X(x),B.Y(F().cdf(x,S.P))):ax.moveTo(B.X(x),B.Y(F().cdf(x,S.P))); }
+    ax.stroke();
+  }
+  const Fa=isDisc()?cdfAt(Math.ceil(a-1e-9)-1):F().cdf(a,S.P);
+  const Fb=isDisc()?cdfAt(Math.floor(b+1e-9)):F().cdf(b,S.P);
+  [[a,Fa,'F(a⁻)'],[b,Fb,'F(b)']].forEach(([v,fv,lab])=>{
+    line(ax,B.X(v),B.y,B.X(v),B.Y(fv),'#e3b341',1.4,[3,3]);
+    line(ax,B.x,B.Y(fv),B.X(v),B.Y(fv),'#e3b341',1.4,[3,3]);
+    dot(ax,B.X(v),B.Y(fv),4,'#e3b341');
+    txt(ax,lab+' = '+fv.toFixed(4),B.x+52,B.Y(fv)-10,'#e3b341','10px Courier New');
+  });
+  ax.fillStyle='rgba(227,179,65,0.25)';
+  ax.fillRect(B.x,B.Y(Fb),18,B.Y(Fa)-B.Y(Fb));
+  txt(ax,'P = F(b) − F(a⁻) = '+(Fb-Fa).toFixed(6),B.x+B.w/2,B.y+B.h+34,'#e3b341','bold 12px Courier New');
+  if(S.showNorm&&sd()>0){
+    const z1=(a-mean())/sd(), z2=(b-mean())/sd();
+    txt(ax,'normal approximation: Φ('+z2.toFixed(3)+') − Φ('+z1.toFixed(3)+') = '+
+          (normCdf(z2)-normCdf(z1)).toFixed(6)+
+          (isDisc()?('      with continuity correction: '+
+            (normCdf((Math.floor(b)+0.5-mean())/sd())-normCdf((Math.ceil(a)-0.5-mean())/sd())).toFixed(6)):''),
+        B.x+B.w/2,B.y+B.h+52,'#3fb950','11px Courier New');
+  }
+}
+
+/* ================= TAB 2 : moments ================= */
+function drawMoments(){
+  clear(mx,mainC);
+  const [lo,hi]=range();
+  const dm=maxDens()*1.25;
+  const Fr=frame(mx,80,46,600,300,lo,hi,0,dm,'Shape, with the first four moments marked',
+    isDisc()?'k':'x',isDisc()?'P(X = k)':'f(x)');
+  axes(mx,Fr,niceTicks(lo,hi,7),niceTicks(0,dm,5));
+  drawDensity(mx,Fr);
+  drawNormalOverlay(mx,Fr);
+  drawMeanSd(mx,Fr);
+  // mode & median
+  let med=lo,best=1e9,mode=lo,bd=-1;
+  for(let i=0;i<=800;i++){ const x=lo+(hi-lo)*i/800;
+    const d=Math.abs(cdfAt(x)-0.5); if(d<best){best=d;med=x;}
+    const f=densAt(x); if(f>bd){bd=f;mode=x;} }
+  [[med,'median','#3fb950'],[mode,'mode','#d2a8ff']].forEach(([v,lab,c])=>{
+    line(mx,Fr.X(v),Fr.y+Fr.h*0.15,Fr.X(v),Fr.y+Fr.h,c,1.4,[3,3]);
+    txt(mx,lab,Fr.X(v),Fr.y+Fr.h*0.15-9,c,'10px Segoe UI'); });
+
+  // moment bars
+  const rows=[
+    ['mean  μ',mean(),'#f85149'],
+    ['variance  σ²',vari(),'#e3b341'],
+    ['std dev  σ',sd(),'#e3b341'],
+    ['skewness',F().skew(S.P),'#58a6ff'],
+    ['excess kurtosis',F().kurt(S.P),'#8957e5']
+  ];
+  const bx=740;
+  txt(mx,'Moments',bx+150,32,'#8b949e','bold 11px Segoe UI');
+  rows.forEach((r,i)=>{
+    const y=64+i*56;
+    txt(mx,r[0],bx,y,'#8b949e','11px Segoe UI','left');
+    txt(mx,isFinite(r[1])?r[1].toFixed(4):'—',bx+300,y,r[2],'bold 13px Courier New','right');
+    const w=300, v=r[1];
+    const lim=(i>=3)?4:Math.max(Math.abs(v)*1.3,1e-9);
+    mx.fillStyle='#21262d'; mx.fillRect(bx,y+10,w,8);
+    if(i>=3){
+      const zero=bx+w/2;
+      line(mx,zero,y+8,zero,y+20,'#484f58',1);
+      const len=Math.max(-w/2,Math.min(w/2,v/lim*(w/2)));
+      mx.fillStyle=r[2]; mx.fillRect(Math.min(zero,zero+len),y+10,Math.abs(len),8);
+    } else {
+      mx.fillStyle=r[2]; mx.fillRect(bx,y+10,Math.max(Math.min(v/lim*w,w),0),8);
+    }
+  });
+  txt(mx,'skewness 0 and excess kurtosis 0 is the Normal',bx+150,64+5*56-6,'#6e7681','9.5px Segoe UI');
+
+  clear(ax,auxC);
+  const G=frame(ax,90,42,420,160,-2.2,2.2,-1.6,7,'Where this family sits in the skew–kurtosis plane',
+    'skewness','excess kurtosis');
+  axes(ax,G,[-2,-1,0,1,2],[0,2,4,6]);
+  line(ax,G.X(0),G.y,G.X(0),G.y+G.h,'#30363d',1);
+  line(ax,G.x,G.Y(0),G.x+G.w,G.Y(0),'#30363d',1);
+  dot(ax,G.X(0),G.Y(0),5,'#3fb950');
+  txt(ax,'Normal',G.X(0)+6,G.Y(0)-11,'#3fb950','9px Segoe UI','left');
+  dot(ax,G.X(2),G.Y(6),5,'#f0883e');
+  txt(ax,'Exponential',G.X(2)-6,G.Y(6)-11,'#f0883e','9px Segoe UI','right');
+  dot(ax,G.X(0),G.Y(-1.2),5,'#58a6ff');
+  txt(ax,'Uniform',G.X(0)+6,G.Y(-1.2)+11,'#58a6ff','9px Segoe UI','left');
+  const sk=F().skew(S.P), ku=F().kurt(S.P);
+  if(isFinite(sk)&&isFinite(ku)){
+    dot(ax,G.X(Math.max(-2.2,Math.min(2.2,sk))),G.Y(Math.max(-1.6,Math.min(7,ku))),7,'#fff');
+    dot(ax,G.X(Math.max(-2.2,Math.min(2.2,sk))),G.Y(Math.max(-1.6,Math.min(7,ku))),4.5,'#d2a8ff');
+    txt(ax,F().short,G.X(Math.max(-2.2,Math.min(2.2,sk))),G.Y(Math.max(-1.6,Math.min(7,ku)))+16,'#d2a8ff','bold 10px Segoe UI');
+  }
+
+  // Chebyshev vs reality
+  const H=frame(ax,600,42,410,160,0,4,0,1.05,'P(|X − μ| ≥ kσ):  Chebyshev bound vs the truth','k','probability');
+  axes(ax,H,[0,1,2,3,4],[0,0.25,0.5,0.75,1]);
+  ax.strokeStyle='#f85149'; ax.lineWidth=2; ax.beginPath();
+  for(let i=0;i<=200;i++){ const k=0.4+3.6*i/200, v=Math.min(1,1/(k*k));
+    i?ax.lineTo(H.X(k),H.Y(v)):ax.moveTo(H.X(k),H.Y(v)); }
+  ax.stroke();
+  txt(ax,'1/k² (Chebyshev)',H.x+H.w-8,H.Y(0.9),'#f85149','9px Segoe UI','right');
+  ax.strokeStyle='#3fb950'; ax.lineWidth=2.4; ax.beginPath();
+  const m=mean(), s=sd();
+  for(let i=0;i<=120;i++){
+    const k=0.4+3.6*i/120;
+    const v=s>0?1-probInterval(m-k*s,m+k*s):0;
+    i?ax.lineTo(H.X(k),H.Y(Math.max(0,Math.min(1,v)))):ax.moveTo(H.X(k),H.Y(Math.max(0,Math.min(1,v))));
+  }
+  ax.stroke();
+  txt(ax,'actual, for this family',H.x+8,H.Y(0.12),'#3fb950','9px Segoe UI','left');
+}
+
+/* ================= TAB 3 : relationships ================= */
+const RELS=[
+  {from:'Bernoulli',to:'Binomial',how:'add up n independent trials',key:'binomial'},
+  {from:'Binomial',to:'Poisson',how:'n → ∞, p → 0, np = λ fixed',key:'poisson'},
+  {from:'Binomial',to:'Normal',how:'n large (de Moivre–Laplace)',key:'normal'},
+  {from:'Poisson',to:'Normal',how:'λ large',key:'normal'},
+  {from:'Geometric',to:'Exponential',how:'the continuous-time limit; both memoryless',key:'exponential'},
+  {from:'Exponential',to:'Erlang',how:'add up k independent waits',key:'gamma'},
+  {from:'Erlang',to:'Normal',how:'k large (it is a sum — the CLT again)',key:'normal'}
+];
+function drawRelations(){
+  clear(mx,mainC);
+  const nodes={
+    Bernoulli:[150,90], Binomial:[420,90], Poisson:[700,90], Normal:[880,250],
+    Geometric:[150,300], Exponential:[420,300], Erlang:[660,300]
+  };
+  // edges
+  RELS.forEach(r=>{
+    const a=nodes[r.from], b=nodes[r.to];
+    if(!a||!b) return;
+    const active=(F().short===r.from)||(F().short===r.to);
+    line(mx,a[0]+58,a[1],b[0]-58,b[1],active?'#58a6ff':'#30363d',active?2.4:1.4);
+    const mxp=(a[0]+b[0])/2, myp=(a[1]+b[1])/2;
+    txt(mx,r.how,mxp,myp-10,active?'#8b949e':'#484f58','9px Segoe UI');
+  });
+  Object.entries(nodes).forEach(([k,[x,y]])=>{
+    const cur=F().short===k;
+    mx.fillStyle=cur?'#1f6feb':'#161b22';
+    mx.strokeStyle=cur?'#58a6ff':'#30363d'; mx.lineWidth=cur?2.4:1.4;
+    mx.beginPath(); mx.ellipse(x,y,56,26,0,0,Math.PI*2); mx.fill(); mx.stroke();
+    txt(mx,k,x,y,cur?'#fff':'#8b949e',cur?'bold 11px Segoe UI':'11px Segoe UI');
+  });
+  txt(mx,'Discrete families on the left and top; continuous on the right. Nearly every arrow is either'
+      +' "add independent copies" (the CLT) or "take a limit".',mainC.width/2,378,'#6e7681','11px Segoe UI');
+
+  /* live limit demo: Binomial -> Poisson -> Normal */
+  clear(ax,auxC);
+  const lam=4;
+  const G=frame(ax,90,42,920,160,-0.5,14.5,0,0.28,
+    'The Binomial → Poisson limit, live:  n → ∞ with np = λ = 4 held fixed','k','probability');
+  axes(ax,G,[0,2,4,6,8,10,12,14],[0,0.1,0.2]);
+  const ns=[5,10,40,400];
+  const cols=['#1f4f6f','#2a9d8f','#58a6ff','#e3b341'];
+  ns.forEach((n,i)=>{
+    const p=lam/n;
+    ax.strokeStyle=cols[i]; ax.lineWidth=1.8; ax.beginPath();
+    for(let k=0;k<=14;k++){
+      const v=k<=n?Math.exp(logChoose(n,k)+k*Math.log(p)+(n-k)*Math.log(1-p)):0;
+      k?ax.lineTo(G.X(k),G.Y(v)):ax.moveTo(G.X(k),G.Y(v));
+    }
+    ax.stroke();
+    txt(ax,'n='+n,G.x+G.w-16,G.y+14+i*13,cols[i],'9px Segoe UI','right');
+  });
+  ax.strokeStyle='#f85149'; ax.lineWidth=2.6; ax.setLineDash([5,4]); ax.beginPath();
+  for(let k=0;k<=14;k++){
+    const v=Math.exp(-lam+k*Math.log(lam)-logFact(k));
+    k?ax.lineTo(G.X(k),G.Y(v)):ax.moveTo(G.X(k),G.Y(v));
+  }
+  ax.stroke(); ax.setLineDash([]);
+  txt(ax,'Poisson(4)',G.x+G.w-16,G.y+14+4*13,'#f85149','bold 9px Segoe UI','right');
+}
+
+/* ================= tab metadata ================= */
+const TABS=[
+{title:'Density and Distribution Together',aux:'Quantile function',
+ eq:'',desc:'The pmf/pdf on top, the CDF underneath, sharing an x-axis. For a discrete family each riser of the CDF is exactly one probability mass; for a continuous one the CDF is the running integral.',
+ legend:[['#58a6ff','pdf'],['#8957e5','pmf / CDF'],['#f85149','mean μ'],['#e3b341','±σ'],['#3fb950','median']]},
+{title:'P(a ≤ X ≤ b)',aux:'The same thing on the CDF',
+ eq:'',desc:'Slide the endpoints. On the density it is an area (a sum of bars when discrete); on the CDF it is the vertical gap F(b) − F(a⁻). Those are the same number, computed two ways.',
+ legend:[['#e3b341','the interval [a, b]'],['#58a6ff','pdf'],['#8957e5','CDF'],['#3fb950','Normal approximation']]},
+{title:'Moments and Shape',aux:'Skew–kurtosis plane, and Chebyshev',
+ eq:'',desc:'Mean locates it, variance spreads it, skewness tilts it, kurtosis fattens the tails. The bottom-left plot places your family among the landmarks; the bottom-right shows how loose Chebyshev really is.',
+ legend:[['#f85149','mean'],['#e3b341','±σ'],['#3fb950','median'],['#d2a8ff','mode']]},
+{title:'The Family Tree',aux:'Binomial → Poisson, computed live',
+ eq:'',desc:'Almost every standard distribution is reachable from another by adding independent copies or taking a limit. Pick a family above and its edges light up.',
+ legend:[['#58a6ff','edges touching your current family'],['#f85149','the limiting distribution']]}
+];
+const INFO=[
+`<strong>Two views of the same object.</strong> The pmf/pdf says where the probability is concentrated; the CDF accumulates it. Neither is more fundamental — but the CDF always exists, and for discrete families it is the one that behaves.
+<ul>
+<li><strong>For a discrete family, look at the risers.</strong> Each vertical jump in F is exactly P(X = k). That is why the CDF of a discrete variable is a staircase and why P(X ≤ k) and P(X &lt; k) differ — a point genuinely carries mass.</li>
+<li><strong>For a continuous family, f is the slope of F.</strong> Where the density peaks, the CDF climbs fastest. A density can exceed 1 (try Uniform with b − a &lt; 1, or a small σ) — it is a <em>density</em>, only its integral is a probability.</li>
+<li><strong>The quantile plot below is the sampler.</strong> Feed F⁻¹ a uniform number and out comes a draw from this distribution — exactly the machine built in the <a href="clt-lln.html">CLT demo</a>'s last tab.</li>
+<li><strong>Mean versus median.</strong> For Exponential or Geometric they are visibly different: the long right tail drags the mean above the median. For symmetric families they coincide.</li>
+</ul>`,
+`<strong>Every probability question is an interval question.</strong> Once you have F, computing P(a ≤ X ≤ b) never requires integration again — just subtract.
+<ul>
+<li><strong>Mind the endpoints when discrete.</strong> P(a ≤ X ≤ b) = F(b) − F(a⁻), <em>not</em> F(b) − F(a): the mass sitting exactly at a belongs inside the interval. For continuous families the distinction evaporates because P(X = a) = 0.</li>
+<li><strong>Turn on the Normal overlay</strong> and compare. For Binomial with n large it is excellent; near p = 0 or p = 1 it is poor, and the panel prints both the naive and the continuity-corrected approximation so you can see the half-step earn its keep.</li>
+<li><strong>Try a narrow interval on a continuous family.</strong> As b → a the probability goes to zero — the density at that point stays finite and positive. Density is not probability.</li>
+<li><strong>Useful sanity check:</strong> set [a, b] to μ ± σ and read off the number. For a Normal it is 68.3%; for Exponential it is about 86%; for Uniform, 57.7%. "One sigma" is not a universal quantity.</li>
+</ul>`,
+`<strong>Four numbers, four jobs.</strong> Mean is location, variance is scale, skewness is asymmetry, kurtosis is tail weight. Together they pin down a lot, though never everything.
+<ul>
+<li><strong>Poisson is the odd one.</strong> Mean and variance are both λ, so you cannot move one without the other. That single fact is what makes over-dispersion a diagnostic in count data.</li>
+<li><strong>Skewness dies like 1/√n.</strong> Compare Binomial at n = 3 with n = 60: same p, but the second is nearly symmetric. Same reason the CLT needs larger n for skewed sources.</li>
+<li><strong>Exponential never changes shape.</strong> Skewness is always 2 and excess kurtosis always 6 whatever λ does — λ is a pure scale parameter, and scale cannot alter shape.</li>
+<li><strong>Chebyshev is provably loose.</strong> The bound says P(|X − μ| ≥ 2σ) ≤ 25%; the truth for a Normal is 4.6%. The bound's virtue is that it holds for <em>every</em> distribution with a finite variance, which is precisely why it cannot be tight for any particular one.</li>
+<li><strong>Uniform has negative excess kurtosis</strong> (−1.2): lighter tails than a Normal, because it has no tails at all.</li>
+</ul>`,
+`<strong>Fewer distributions than it looks.</strong> The zoo in a probability course is mostly one structure seen from different distances.
+<ul>
+<li><strong>Add independent copies</strong> and you move along the "sum" arrows: Bernoulli → Binomial, Exponential → Erlang. Keep adding and the CLT drags everything toward the Normal.</li>
+<li><strong>Take a limit</strong> and you move along the others. Binomial → Poisson is the useful one: many trials, each very unlikely, with np held fixed. The panel below computes it live — by n = 400 the Binomial is indistinguishable from Poisson(4).</li>
+<li><strong>Memorylessness</strong> is what Geometric and Exponential share, and they are the <em>only</em> discrete and continuous families with the property: P(X &gt; s + t | X &gt; s) = P(X &gt; t). A component that has survived an hour is as good as new.</li>
+<li><strong>Which arrow to use in practice?</strong> Poisson when counting rare events in a fixed window, Normal when whatever you are measuring is a sum of many small contributions. Getting this choice right is most of applied probability.</li>
+<li>All of these show up again as noise models, arrival processes, and bit-error counts the moment you reach communications and networks.</li>
+</ul>`
+];
+
+/* ================= meters ================= */
+const MET=[
+  ['Family',()=>F().short],
+  ['Support',()=>{const r=range(); return isDisc()?(Math.round(r[0])+'…'+Math.round(r[1])):('['+r[0].toFixed(1)+', '+r[1].toFixed(1)+']');}],
+  ['Mean μ',()=>mean().toFixed(4)],
+  ['Variance σ²',()=>vari().toFixed(4)],
+  ['Std dev σ',()=>sd().toFixed(4)],
+  ['Skewness',()=>{const v=F().skew(S.P); return isFinite(v)?v.toFixed(4):'—';}],
+  ['Excess kurtosis',()=>{const v=F().kurt(S.P); return isFinite(v)?v.toFixed(4):'—';}],
+  ['P(a ≤ X ≤ b)',()=>probInterval(Math.min(S.lo,S.hi),Math.max(S.lo,S.hi)).toFixed(5)],
+  ['P(μ−σ ≤ X ≤ μ+σ)',()=>probInterval(mean()-sd(),mean()+sd()).toFixed(4)],
+  ['total mass',()=>{const r=range();
+    return (isDisc()?atoms().reduce((a,b)=>a+b.p,0):F().cdf(r[1],S.P)-F().cdf(r[0],S.P)).toFixed(6);}]
+];
+document.getElementById('meters').innerHTML=MET.map((m,i)=>
+  `<div class="meter"><div class="ml">${m[0]}</div><div class="mv" id="mv${i}">—</div></div>`).join('');
+function updateMeters(){ MET.forEach((m,i)=>{
+  const el=document.getElementById('mv'+i); if(el) el.textContent=String(m[1]()); }); }
+
+/* ================= selector ================= */
+const ORDER=['bernoulli','binomial','geometric','poisson','uniform','exponential','normal','gamma'];
+document.getElementById('presets').innerHTML=ORDER.map(k=>
+  `<div class="preset${FAM[k].disc?' disc':''}" data-f="${k}">${FAM[k].short}</div>`).join('');
+document.querySelectorAll('.preset').forEach(el=>el.addEventListener('click',()=>{
+  S.fam=el.dataset.f; initPars(); markFam(); syncPars(); draw();
+}));
+function markFam(){ document.querySelectorAll('.preset').forEach(el=>
+  el.classList.toggle('active',el.dataset.f===S.fam)); }
+
+/* ================= controls ================= */
+const $=id=>document.getElementById(id);
+function syncPars(){
+  const ps=F().pars;
+  [0,1].forEach(i=>{
+    const cg=$(i===0?'cgA':'cgB'), sl=$(i===0?'slA':'slB'),
+          lb=$(i===0?'labA':'labB'), vv=$(i===0?'vA':'vB');
+    if(i<ps.length){
+      cg.classList.remove('hidden');
+      const p=ps[i];
+      lb.textContent=p.lab+':'; sl.min=p.min; sl.max=p.max; sl.step=p.step;
+      sl.value=S.P[p.k]; vv.textContent=fmtPar(S.P[p.k],p);
+    } else cg.classList.add('hidden');
+  });
+  const r=range();
+  ['slLo','slHi'].forEach(id=>{ const s=$(id); s.min=r[0]; s.max=r[1];
+    s.step=isDisc()?1:(r[1]-r[0])/400; });
+  $('slLo').value=S.lo; $('slHi').value=S.hi;
+  $('vLo').textContent=isDisc()?String(Math.round(S.lo)):S.lo.toFixed(2);
+  $('vHi').textContent=isDisc()?String(Math.round(S.hi)):S.hi.toFixed(2);
+}
+const fmtPar=(v,p)=>p.step>=1?String(Math.round(v)):v.toFixed(2);
+[0,1].forEach(i=>{
+  $(i===0?'slA':'slB').addEventListener('input',e=>{
+    const p=F().pars[i]; if(!p) return;
+    S.P[p.k]=+e.target.value;
+    $(i===0?'vA':'vB').textContent=fmtPar(S.P[p.k],p);
+    const r=range();
+    S.lo=Math.max(r[0],Math.min(r[1],S.lo)); S.hi=Math.max(r[0],Math.min(r[1],S.hi));
+    syncPars(); draw();
+  });
+});
+$('slLo').addEventListener('input',e=>{ S.lo=+e.target.value;
+  $('vLo').textContent=isDisc()?String(Math.round(S.lo)):S.lo.toFixed(2); draw(); });
+$('slHi').addEventListener('input',e=>{ S.hi=+e.target.value;
+  $('vHi').textContent=isDisc()?String(Math.round(S.hi)):S.hi.toFixed(2); draw(); });
+$('ckStd').addEventListener('change',e=>{ S.showNorm=e.target.checked; draw(); });
+$('btnReset').addEventListener('click',()=>{ initPars(); syncPars(); draw(); });
+
+/* ================= dispatch ================= */
+function draw(){
+  if(S.tab===0) drawPdfCdf();
+  else if(S.tab===1) drawInterval();
+  else if(S.tab===2) drawMoments();
+  else drawRelations();
+  updateMeters();
+}
+function setTab(t){
+  S.tab=t;
+  document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active',+el.dataset.tab===t));
+  const T=TABS[t];
+  $('mainTitle').textContent=T.title; $('auxTitle').textContent=T.aux;
+  $('eqText').innerHTML=T.eq||F().eq; $('eqDesc').textContent=T.desc;
+  $('legend').innerHTML=T.legend.map(l=>
+    `<div class="legend-item"><div class="legend-dot" style="background:${l[0]}"></div>${l[1]}</div>`).join('');
+  $('info').innerHTML=INFO[t];
+  document.querySelectorAll('.cg[data-tabs]').forEach(el=>
+    el.classList.toggle('hidden',!el.dataset.tabs.split(',').includes(String(t))));
+  draw();
+}
+document.querySelectorAll('.tab').forEach(el=>el.addEventListener('click',()=>setTab(+el.dataset.tab)));
+
+initPars(); markFam(); syncPars(); setTab(0);
+</script>
+</body>
+</html>

@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bayes' Theorem &amp; the Base-Rate Trap — ECE 302</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',system-ui,sans-serif;
+    display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:18px}
+  h1{font-size:1.5em;color:#e0e0ff}
+  .subtitle{color:#7d8590;margin-bottom:10px;font-size:.92em;text-align:center;max-width:900px}
+  canvas{display:block;border-radius:10px;max-width:100%}
+
+  .tabs{display:flex;gap:6px;margin:10px 0;flex-wrap:wrap;justify-content:center}
+  .tab{padding:8px 18px;border-radius:8px;cursor:pointer;font-size:.86em;
+    background:#161b22;border:1px solid #30363d;color:#8b949e;transition:.2s}
+  .tab:hover{border-color:#58a6ff;color:#e6edf3}
+  .tab.active{background:#1f6feb;border-color:#1f6feb;color:white;font-weight:bold}
+
+  .eq-box{background:#161b22;border:1px solid #30363d;border-radius:10px;
+    padding:8px 14px;margin:6px 0;max-width:1120px;width:100%;text-align:center}
+  .eq{font-size:1.05em;font-family:'Times New Roman',serif;color:#e0e0ff}
+  .eq-desc{font-size:.78em;color:#7d8590;margin-top:3px}
+
+  .legend{display:flex;gap:12px;justify-content:center;margin:6px 0;flex-wrap:wrap}
+  .legend-item{display:flex;align-items:center;gap:4px;font-size:.76em;color:#8b949e}
+  .legend-dot{width:9px;height:9px;border-radius:3px}
+
+  .row{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:8px;max-width:1120px;width:100%}
+  .panel{background:#161b22;border-radius:12px;padding:12px;border:1px solid #30363d;width:100%}
+  .panel h2{font-size:.88em;color:#8b949e;margin-bottom:6px;text-align:center}
+
+  .meters{display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap;max-width:1120px}
+  .meter{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:4px 10px;text-align:center;min-width:96px}
+  .meter .ml{font-size:.68em;color:#8b949e}
+  .meter .mv{font-size:.9em;font-weight:bold;font-family:'Courier New',monospace;color:#e6edf3}
+
+  .controls{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;justify-content:center;align-items:center;
+    max-width:1120px;width:100%;background:#161b22;border:1px solid #30363d;border-radius:12px;padding:12px}
+  .cg{display:flex;align-items:center;gap:5px}
+  .cg label{font-size:.78em;color:#8b949e;white-space:nowrap}
+  input[type="range"]{width:130px;accent-color:#58a6ff}
+  .val{font-size:.78em;color:#58a6ff;min-width:58px;font-family:'Courier New',monospace}
+  button{background:#238636;color:white;border:none;padding:6px 14px;border-radius:6px;
+    cursor:pointer;font-size:.82em;transition:.2s}
+  button:hover{background:#2ea043}
+  button.sec{background:#30363d}
+  button.sec:hover{background:#484f58}
+  .chk{display:flex;align-items:center;gap:4px;font-size:.76em;color:#8b949e;cursor:pointer;user-select:none}
+  .chk input{accent-color:#58a6ff;cursor:pointer}
+
+  .presets{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:10px;max-width:1120px}
+  .preset{padding:5px 13px;border-radius:6px;cursor:pointer;font-size:.76em;
+    background:#21262d;border:1px solid #30363d;color:#8b949e;transition:.2s}
+  .preset:hover{border-color:#58a6ff;color:#e6edf3}
+  .preset.active{background:#1f6feb;border-color:#1f6feb;color:white}
+
+  .info{max-width:1120px;width:100%;background:#161b22;border-radius:12px;
+    padding:14px 18px;border:1px solid #30363d;margin-top:14px;font-size:.84em;line-height:1.65;color:#8b949e}
+  .info strong{color:#e0e0ff}
+  .info code{color:#f0883e;background:#21262d;padding:1px 5px;border-radius:3px;font-size:.95em}
+  .info ul{margin:6px 0 0 20px}
+  .info li{margin:3px 0}
+  .hidden{display:none!important}
+  a{color:#58a6ff}
+  .back{margin-top:16px;font-size:.82em}
+</style>
+</head>
+<body>
+
+<h1>Bayes' Theorem &amp; the Base-Rate Trap</h1>
+<p class="subtitle">A test that is 99% accurate can still be wrong about you most of the time. Bayes' theorem says exactly when — and the reason is always the same: how many people had the condition before anyone was tested.</p>
+
+<div class="tabs">
+  <div class="tab active" data-tab="0">The Test</div>
+  <div class="tab" data-tab="1">Unit Square</div>
+  <div class="tab" data-tab="2">Odds &amp; Likelihood Ratio</div>
+  <div class="tab" data-tab="3">Why Base Rate Rules</div>
+</div>
+
+<div class="eq-box">
+  <div class="eq" id="eqText"></div>
+  <div class="eq-desc" id="eqDesc"></div>
+</div>
+
+<div class="presets" id="presets"></div>
+<div class="legend" id="legend"></div>
+
+<div class="row">
+  <div class="panel">
+    <h2 id="mainTitle">Population</h2>
+    <canvas id="mainCanvas" width="1080" height="430"></canvas>
+  </div>
+</div>
+<div class="row">
+  <div class="panel">
+    <h2 id="auxTitle">Results</h2>
+    <canvas id="auxCanvas" width="1080" height="250"></canvas>
+  </div>
+</div>
+
+<div class="meters" id="meters"></div>
+
+<div class="controls">
+  <div class="cg"><label>Prevalence P(D):</label>
+    <input type="range" id="slPrev" min="-4" max="-0.301" step="0.001" value="-2">
+    <span class="val" id="vPrev">1.00%</span></div>
+  <div class="cg"><label>Sensitivity P(+|D):</label>
+    <input type="range" id="slSe" min="0.5" max="1" step="0.001" value="0.99">
+    <span class="val" id="vSe">99.0%</span></div>
+  <div class="cg"><label>Specificity P(−|¬D):</label>
+    <input type="range" id="slSp" min="0.5" max="1" step="0.001" value="0.99">
+    <span class="val" id="vSp">99.0%</span></div>
+
+  <div class="cg" data-tabs="0"><label>Population:</label>
+    <select id="selPop" style="background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:6px;padding:5px 8px;font-size:.8em">
+      <option value="100">100</option>
+      <option value="1000">1,000</option>
+      <option value="10000" selected>10,000</option>
+    </select></div>
+  <div class="cg" data-tabs="0"><label class="chk"><input type="checkbox" id="ckOnlyPos"> dim everyone who tested negative</label></div>
+
+  <div class="cg" data-tabs="2"><label>Test results:</label>
+    <button class="sec" id="btnPos">+ positive</button>
+    <button class="sec" id="btnNeg">− negative</button>
+    <button class="sec" id="btnClearSeq">clear</button></div>
+
+  <div class="cg"><button class="sec" id="btnReset">Reset</button></div>
+</div>
+
+<div class="info" id="info"></div>
+<div class="back"><a href="index.html">← All demos</a> &nbsp;·&nbsp; <a href="clt-lln.html">CLT &amp; LLN</a></div>
+
+<script>
+/* ================= state ================= */
+const S={ tab:0, prev:0.01, se:0.99, sp:0.99, pop:10000, onlyPos:false, seq:[] };
+
+const mainC=document.getElementById('mainCanvas'), mx=mainC.getContext('2d');
+const auxC=document.getElementById('auxCanvas'),  ax=auxC.getContext('2d');
+
+/* ================= the four cells ================= */
+function cells(){
+  const p=S.prev, se=S.se, sp=S.sp;
+  return { TP:p*se, FN:p*(1-se), FP:(1-p)*(1-sp), TN:(1-p)*sp };
+}
+function stats(){
+  const c=cells();
+  const pos=c.TP+c.FP, neg=c.TN+c.FN;
+  return {...c, pos, neg,
+    ppv: pos>0 ? c.TP/pos : NaN,
+    npv: neg>0 ? c.TN/neg : NaN,
+    fdr: pos>0 ? c.FP/pos : NaN,
+    lrP: (1-S.sp)>0 ? S.se/(1-S.sp) : Infinity,
+    lrN: S.sp>0 ? (1-S.se)/S.sp : Infinity };
+}
+// integer headcounts that still sum to the population (largest remainder)
+function headcount(N){
+  const c=cells(), raw=[c.TP,c.FN,c.FP,c.TN].map(v=>v*N);
+  const fl=raw.map(Math.floor);
+  let rem=Math.round(N-fl.reduce((a,b)=>a+b,0));
+  const order=raw.map((v,i)=>({i,f:v-fl[i]})).sort((a,b)=>b.f-a.f);
+  for(let j=0;j<rem;j++) fl[order[j%4].i]++;
+  return {TP:fl[0],FN:fl[1],FP:fl[2],TN:fl[3]};
+}
+const COL={TP:'#f85149',FN:'#7d2620',FP:'#e3b341',TN:'#1f3b5c'};
+const NAME={TP:'sick, tested +',FN:'sick, tested −',FP:'healthy, tested +',TN:'healthy, tested −'};
+
+/* ================= drawing helpers ================= */
+function clear(ctx,c){ ctx.fillStyle='#0d1117'; ctx.fillRect(0,0,c.width,c.height); }
+function txt(ctx,s,x,y,col,font,align){
+  ctx.fillStyle=col||'#8b949e'; ctx.font=font||'11px Segoe UI';
+  ctx.textAlign=align||'center'; ctx.textBaseline='middle'; ctx.fillText(s,x,y);
+}
+function line(ctx,x1,y1,x2,y2,col,w,dash){
+  ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=w||1; if(dash)ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); ctx.restore();
+}
+function dot(ctx,x,y,r,col){ ctx.fillStyle=col; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); }
+function roundRect(ctx,x,y,w,h,r,fill,stroke){
+  r=Math.min(r,w/2,h/2);
+  ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+  if(fill){ctx.fillStyle=fill;ctx.fill();} if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1.4;ctx.stroke();}
+}
+const pct=(v,d)=>isFinite(v)?(v*100).toFixed(d===undefined?2:d)+'%':'—';
+function smartPct(v){
+  if(!isFinite(v)) return '—';
+  const p=v*100;
+  if(p>=10) return p.toFixed(1)+'%';
+  if(p>=1)  return p.toFixed(2)+'%';
+  if(p>=0.01) return p.toFixed(3)+'%';
+  return p.toExponential(2)+'%';
+}
+function niceTicks(a,b,count){
+  const span=b-a, raw=span/count, mag=Math.pow(10,Math.floor(Math.log10(raw)));
+  const norm=raw/mag, step=(norm<1.5?1:norm<3?2:norm<7?5:10)*mag;
+  const out=[]; for(let v=Math.ceil(a/step)*step; v<=b+1e-9; v+=step) out.push(+v.toFixed(10));
+  return out;
+}
+
+/* ================= TAB 0 : tree + population ================= */
+function drawTest(){
+  clear(mx,mainC);
+  const N=S.pop, h=headcount(N), st=stats();
+
+  /* ---- probability tree ---- */
+  const x0=60, x1=210, x2=400, yc=180;
+  dot(mx,x0,yc,6,'#8b949e');
+  txt(mx,N.toLocaleString()+' people',x0,yc-22,'#e6edf3','bold 11px Segoe UI');
+  const yD=100, yH=268;
+  line(mx,x0,yc,x1,yD,'#f85149',2); line(mx,x0,yc,x1,yH,'#3fb950',2);
+  txt(mx,'P(D) = '+smartPct(S.prev),(x0+x1)/2-4,(yc+yD)/2-12,'#f85149','10px Segoe UI');
+  txt(mx,'P(¬D) = '+smartPct(1-S.prev),(x0+x1)/2+6,(yc+yH)/2+12,'#3fb950','10px Segoe UI');
+  dot(mx,x1,yD,5,'#f85149'); dot(mx,x1,yH,5,'#3fb950');
+  txt(mx,'sick  ('+(h.TP+h.FN).toLocaleString()+')',x1,yD-18,'#f85149','bold 11px Segoe UI');
+  txt(mx,'healthy  ('+(h.FP+h.TN).toLocaleString()+')',x1,yH+18,'#3fb950','bold 11px Segoe UI');
+
+  const leaves=[
+    {k:'TP',y:56, from:yD, lab:'test +', p:S.se,    branchCol:'#f85149'},
+    {k:'FN',y:132,from:yD, lab:'test −', p:1-S.se,  branchCol:'#7d2620'},
+    {k:'FP',y:228,from:yH, lab:'test +', p:1-S.sp,  branchCol:'#e3b341'},
+    {k:'TN',y:304,from:yH, lab:'test −', p:S.sp,    branchCol:'#3fb950'}
+  ];
+  leaves.forEach(L=>{
+    line(mx,x1,L.from,x2,L.y,L.branchCol,2);
+    txt(mx,L.lab+'  '+pct(L.p,1),(x1+x2)/2,L.y+(L.y<L.from?-11:11),L.branchCol,'10px Segoe UI');
+    const isPos=(L.k==='TP'||L.k==='FP');
+    roundRect(mx,x2,L.y-16,196,32,7,isPos?'rgba(248,81,73,0.13)':'#12171d',COL[L.k]);
+    txt(mx,NAME[L.k],x2+8,L.y-6,COL[L.k]==='#1f3b5c'?'#7d8590':COL[L.k],'10px Segoe UI','left');
+    txt(mx,h[L.k].toLocaleString()+'   ('+smartPct(cells()[L.k])+')',x2+8,L.y+7,'#e6edf3','bold 11px Courier New','left');
+  });
+  // bracket: everyone who tested positive
+  line(mx,x2+205,leaves[0].y,x2+218,leaves[0].y,'#e3b341',1.6);
+  line(mx,x2+218,leaves[0].y,x2+218,leaves[2].y,'#e3b341',1.6);
+  line(mx,x2+205,leaves[2].y,x2+218,leaves[2].y,'#e3b341',1.6);
+  txt(mx,'everyone who',x2+262,leaves[0].y+50,'#e3b341','10px Segoe UI');
+  txt(mx,'tested positive:',x2+262,leaves[0].y+64,'#e3b341','10px Segoe UI');
+  txt(mx,(h.TP+h.FP).toLocaleString(),x2+262,leaves[0].y+82,'#e3b341','bold 14px Courier New');
+  txt(mx,'of those, '+h.TP.toLocaleString()+' are really sick',x2+262,leaves[0].y+100,'#8b949e','10px Segoe UI');
+  txt(mx,'PPV = '+smartPct(st.ppv),x2+262,leaves[0].y+122,'#f85149','bold 15px Segoe UI');
+
+  /* ---- population icon array ---- */
+  const gx=760, gy=40, gw=300, gh=350;
+  const cols=Math.ceil(Math.sqrt(N*gw/gh));
+  const rows=Math.ceil(N/cols);
+  const cw=gw/cols, ch=Math.min(gh/rows,cw);
+  txt(mx,'each square is one person',gx+gw/2,gy-16,'#8b949e','bold 11px Segoe UI');
+  const order=['TP','FN','FP','TN'];
+  let idx=0;
+  order.forEach(k=>{
+    const dim=S.onlyPos&&(k==='FN'||k==='TN');
+    mx.fillStyle=COL[k]; mx.globalAlpha=dim?0.12:1;
+    for(let j=0;j<h[k];j++){
+      const r=Math.floor(idx/cols), c=idx%cols;
+      mx.fillRect(gx+c*cw, gy+r*ch, Math.max(cw-0.6,0.6), Math.max(ch-0.6,0.6));
+      idx++;
+    }
+    mx.globalAlpha=1;
+  });
+  // outline the positives as one block is not contiguous, so just label counts
+  let ly=gy+gh+14;
+  order.forEach((k,i)=>{
+    const bx=gx+(i%2)*152, by=ly+Math.floor(i/2)*16;
+    mx.fillStyle=COL[k]; mx.fillRect(bx,by-5,9,9);
+    txt(mx,NAME[k]+': '+h[k].toLocaleString(),bx+14,by,'#8b949e','9.5px Segoe UI','left');
+  });
+  drawTestAux(h,st);
+}
+function drawTestAux(h,st){
+  clear(ax,auxC);
+  /* confusion matrix */
+  const x=90,y=54,w=300,hh=130;
+  const cw=w/2, chh=hh/2;
+  txt(ax,'Confusion matrix',x+w/2,y-30,'#8b949e','bold 11px Segoe UI');
+  txt(ax,'actually sick',x+cw/2,y-13,'#f85149','10px Segoe UI');
+  txt(ax,'actually healthy',x+cw+cw/2,y-13,'#3fb950','10px Segoe UI');
+  ax.save(); ax.translate(x-16,y+chh/2); ax.rotate(-Math.PI/2); txt(ax,'test +',0,0,'#e3b341','10px Segoe UI'); ax.restore();
+  ax.save(); ax.translate(x-16,y+chh+chh/2); ax.rotate(-Math.PI/2); txt(ax,'test −',0,0,'#7d8590','10px Segoe UI'); ax.restore();
+  const grid=[['TP',0,0],['FP',1,0],['FN',0,1],['TN',1,1]];
+  grid.forEach(([k,cx_,cy_])=>{
+    const bx=x+cx_*cw, by=y+cy_*chh;
+    roundRect(ax,bx,by,cw-3,chh-3,6,'#12171d',COL[k]);
+    txt(ax,k,bx+cw/2-1,by+22,COL[k]==='#1f3b5c'?'#7d8590':COL[k],'bold 11px Segoe UI');
+    txt(ax,h[k].toLocaleString(),bx+cw/2-1,by+44,'#e6edf3','bold 15px Courier New');
+    txt(ax,smartPct(cells()[k]),bx+cw/2-1,by+60,'#6e7681','9px Courier New');
+  });
+
+  /* the PPV bar: of everyone who tested positive, how many are sick */
+  const bx=470, by=60, bw=540, bh=44;
+  txt(ax,'Of everyone who tested POSITIVE …',bx,by-16,'#e3b341','bold 11px Segoe UI','left');
+  const tot=h.TP+h.FP;
+  if(tot>0){
+    const fTP=h.TP/tot;
+    ax.fillStyle=COL.TP; ax.fillRect(bx,by,bw*fTP,bh);
+    ax.fillStyle=COL.FP; ax.fillRect(bx+bw*fTP,by,bw*(1-fTP),bh);
+    ax.strokeStyle='#30363d'; ax.strokeRect(bx,by,bw,bh);
+    if(fTP>0.06) txt(ax,'really sick',bx+bw*fTP/2,by+bh/2,'#fff','bold 11px Segoe UI');
+    if(1-fTP>0.06) txt(ax,'false alarms',bx+bw*fTP+bw*(1-fTP)/2,by+bh/2,'#3d2c00','bold 11px Segoe UI');
+    txt(ax,'PPV = P(D | +) = '+smartPct(st.ppv),bx,by+bh+18,'#f85149','bold 13px Segoe UI','left');
+    txt(ax,h.TP.toLocaleString()+' sick  vs  '+h.FP.toLocaleString()+' false alarms',bx+bw,by+bh+18,'#8b949e','11px Courier New','right');
+  } else txt(ax,'nobody tests positive',bx+bw/2,by+bh/2,'#484f58','11px Segoe UI');
+
+  /* the arithmetic, spelled out */
+  const fy=by+bh+48;
+  txt(ax,'P(D | +)  =   P(+|D)·P(D)   /   [ P(+|D)·P(D) + P(+|¬D)·P(¬D) ]',bx,fy,'#8b949e','11px Courier New','left');
+  const c=cells();
+  txt(ax,'=   '+c.TP.toExponential(3)+'  /  [ '+c.TP.toExponential(3)+' + '+c.FP.toExponential(3)+' ]   =   '+smartPct(st.ppv),
+      bx,fy+20,'#e6edf3','11px Courier New','left');
+  txt(ax,'NPV = P(¬D | −) = '+smartPct(st.npv)+'      false-discovery rate = '+smartPct(st.fdr),
+      bx,fy+42,'#7d8590','11px Courier New','left');
+}
+
+/* ================= TAB 1 : unit square ================= */
+function drawSquare(){
+  clear(mx,mainC);
+  const X=150, Y=44, W=620, H=330;
+  const p=S.prev, st=stats();
+  const wD=Math.max(W*p,1.5), wH=W-wD;
+  const hTP=H*S.se, hFP=H*(1-S.sp);
+
+  txt(mx,'width = who has the disease          height = how the test responds',X+W/2,Y-24,'#8b949e','bold 11px Segoe UI');
+  // sick column
+  mx.fillStyle=COL.TP; mx.fillRect(X,Y,wD,hTP);
+  mx.fillStyle=COL.FN; mx.fillRect(X,Y+hTP,wD,H-hTP);
+  // healthy column
+  mx.fillStyle=COL.FP; mx.fillRect(X+wD,Y,wH,hFP);
+  mx.fillStyle=COL.TN; mx.fillRect(X+wD,Y+hFP,wH,H-hFP);
+  mx.strokeStyle='#30363d'; mx.lineWidth=1.4; mx.strokeRect(X,Y,W,H);
+  line(mx,X+wD,Y,X+wD,Y+H,'#e6edf3',2);
+
+  // labels
+  txt(mx,'P(D) = '+smartPct(p),X+wD/2,Y+H+16,'#f85149','bold 10px Segoe UI');
+  txt(mx,'P(¬D) = '+smartPct(1-p),X+wD+wH/2,Y+H+16,'#3fb950','bold 10px Segoe UI');
+  if(wD>54){
+    txt(mx,'TP',X+wD/2,Y+hTP/2-8,'#fff','bold 12px Segoe UI');
+    txt(mx,smartPct(st.TP),X+wD/2,Y+hTP/2+8,'#fff','10px Courier New');
+  }
+  if(wH>60){
+    txt(mx,'FP  '+smartPct(st.FP),X+wD+wH/2,Y+hFP/2,hFP>18?'#3d2c00':'#e3b341','bold 11px Segoe UI');
+    txt(mx,'TN  '+smartPct(st.TN),X+wD+wH/2,Y+hFP+(H-hFP)/2,'#9fb8d4','bold 11px Segoe UI');
+  }
+  if(hFP<16){
+    line(mx,X+wD+wH/2,Y+hFP,X+wD+wH/2,Y-6,'#e3b341',1.2,[3,2]);
+    txt(mx,'FP = '+smartPct(st.FP),X+wD+wH/2,Y-14,'#e3b341','bold 10px Segoe UI');
+  }
+
+  // the "+" region, pulled out on the right
+  const RX=820, RY=Y, RW=180, RH=H;
+  txt(mx,'everyone who tested +',RX+RW/2,RY-24,'#e3b341','bold 11px Segoe UI');
+  const tot=st.TP+st.FP;
+  const fTP=tot>0?st.TP/tot:0;
+  mx.fillStyle=COL.TP; mx.fillRect(RX,RY,RW,RH*fTP);
+  mx.fillStyle=COL.FP; mx.fillRect(RX,RY+RH*fTP,RW,RH*(1-fTP));
+  mx.strokeStyle='#e3b341'; mx.lineWidth=1.6; mx.strokeRect(RX,RY,RW,RH);
+  if(fTP>0.05) txt(mx,'TP',RX+RW/2,RY+RH*fTP/2,'#fff','bold 12px Segoe UI');
+  if(1-fTP>0.05) txt(mx,'FP',RX+RW/2,RY+RH*fTP+RH*(1-fTP)/2,'#3d2c00','bold 12px Segoe UI');
+  txt(mx,'PPV = TP/(TP+FP)',RX+RW/2,RY+RH+16,'#8b949e','10px Segoe UI');
+  txt(mx,smartPct(st.ppv),RX+RW/2,RY+RH+36,'#f85149','bold 16px Segoe UI');
+  // connectors
+  line(mx,X+wD,Y,RX,RY,'#e3b341',1,[4,3]);
+  line(mx,X+W,Y+hFP,RX,RY+RH*fTP,'#e3b341',1,[4,3]);
+  txt(mx,'renormalise: throw away everyone who tested −,',(X+W+RX)/2,Y+H-40,'#6e7681','10px Segoe UI');
+  txt(mx,'then ask what fraction of what is left is red',(X+W+RX)/2,Y+H-26,'#6e7681','10px Segoe UI');
+
+  clear(ax,auxC);
+  const F={x:90,y:48,w:920,h:150};
+  txt(ax,'The same picture as one bar of total probability 1',F.x+F.w/2,F.y-20,'#8b949e','bold 11px Segoe UI');
+  let cx=F.x;
+  [['TP',st.TP],['FP',st.FP],['FN',st.FN],['TN',st.TN]].forEach(([k,v])=>{
+    const w=F.w*v;
+    ax.fillStyle=COL[k]; ax.fillRect(cx,F.y,Math.max(w,0),F.h);
+    if(w>44){
+      txt(ax,k,cx+w/2,F.y+F.h/2-9,k==='TN'?'#9fb8d4':'#fff','bold 12px Segoe UI');
+      txt(ax,smartPct(v),cx+w/2,F.y+F.h/2+9,k==='TN'?'#9fb8d4':'#fff','10px Courier New');
+    }
+    cx+=w;
+  });
+  ax.strokeStyle='#30363d'; ax.strokeRect(F.x,F.y,F.w,F.h);
+  const posW=F.w*(st.TP+st.FP);
+  line(ax,F.x,F.y-8,F.x+posW,F.y-8,'#e3b341',2);
+  txt(ax,'P(+) = '+smartPct(st.TP+st.FP),F.x+Math.max(posW/2,40),F.y-18,'#e3b341','bold 10px Segoe UI');
+  txt(ax,'Bayes just rescales the yellow-bracketed slice back up to 1.',F.x+F.w/2,F.y+F.h+26,'#6e7681','11px Segoe UI');
+}
+
+/* ================= TAB 2 : odds & likelihood ratio ================= */
+// A perfect test (specificity exactly 1) gives LR+ = infinity, and infinity/(1+infinity)
+// is NaN; a contradictory sequence on a perfect test gives 0*infinity, also NaN. Clamping
+// the ratio keeps the arithmetic finite and yields the limit as specificity approaches 1.
+const LR_CLAMP=1e12;
+const safeLR=v=>Math.max(1/LR_CLAMP,Math.min(LR_CLAMP,v));
+const oddsToP=o=>{ if(Number.isNaN(o)) return NaN; if(!isFinite(o)) return 1; return o/(1+o); };
+function seqPosterior(){
+  const st=stats();
+  let odds=S.prev/(1-S.prev);
+  const path=[{n:0,odds,p:S.prev,res:null}];
+  S.seq.forEach((r,i)=>{
+    odds*= (r==='+')?safeLR(st.lrP):safeLR(st.lrN);
+    path.push({n:i+1,odds,p:oddsToP(odds),res:r});
+  });
+  return path;
+}
+function drawOdds(){
+  clear(mx,mainC);
+  const st=stats(), path=seqPosterior();
+
+  /* the odds identity, laid out */
+  const y0=52;
+  txt(mx,'prior odds   ×   likelihood ratio   =   posterior odds',mainC.width/2,y0-24,'#8b949e','bold 12px Segoe UI');
+  const boxes=[
+    ['prior odds', (S.prev/(1-S.prev)).toExponential(3), '#58a6ff'],
+    ['LR+ = se/(1−sp)', isFinite(st.lrP)?st.lrP.toFixed(2):'∞', '#e3b341'],
+    ['LR− = (1−se)/sp', st.lrN.toFixed(4), '#7d8590']
+  ];
+  boxes.forEach((b,i)=>{
+    const bx=150+i*270;
+    roundRect(mx,bx,y0,236,54,8,'#12171d',b[2]);
+    txt(mx,b[0],bx+118,y0+17,b[2],'10px Segoe UI');
+    txt(mx,b[1],bx+118,y0+37,'#e6edf3','bold 14px Courier New');
+  });
+
+  /* log-odds number line */
+  const LX=110, LW=880, LY=190;
+  const lo=-8, hi=8;
+  const toX=l=>LX+(Math.max(lo,Math.min(hi,l))-lo)/(hi-lo)*LW;
+  line(mx,LX,LY,LX+LW,LY,'#484f58',1.6);
+  txt(mx,'log-odds  ln[ P(D)/P(¬D) ]   — every test result is a fixed-size step along this axis',
+      LX+LW/2,LY-56,'#8b949e','bold 11px Segoe UI');
+  for(let l=lo;l<=hi;l+=2){
+    const x=toX(l); line(mx,x,LY-6,x,LY+6,'#484f58',1);
+    const pr=1/(1+Math.exp(-l));
+    txt(mx,String(l),x,LY+18,'#6e7681','9px Segoe UI');
+    txt(mx,smartPct(pr),x,LY+32,'#484f58','8.5px Segoe UI');
+  }
+  // walk the sequence along the line
+  path.forEach((pt,i)=>{
+    const l=Math.log(Math.max(pt.odds,1e-300)), x=toX(l);
+    const yy=LY-14-i*0;
+    if(i>0){
+      const prev=Math.log(Math.max(path[i-1].odds,1e-300)), px=toX(prev);
+      const col=pt.res==='+'?'#e3b341':'#7d8590';
+      line(mx,px,LY-18,x,LY-18,col,2.5);
+      const mxp=(px+x)/2;
+      txt(mx,pt.res,mxp,LY-30,col,'bold 12px Segoe UI');
+    }
+    dot(mx,x,LY,i===path.length-1?6:3.5,i===0?'#58a6ff':(i===path.length-1?'#f85149':'#484f58'));
+  });
+  const last=path[path.length-1];
+  txt(mx,'start  '+smartPct(S.prev),toX(Math.log(S.prev/(1-S.prev))),LY+50,'#58a6ff','bold 10px Segoe UI');
+  if(path.length>1)
+    txt(mx,'now  '+smartPct(last.p),toX(Math.log(Math.max(last.odds,1e-300))),LY-42,'#f85149','bold 12px Segoe UI');
+  txt(mx,'a positive adds ln(LR+) = '+(isFinite(st.lrP)?Math.log(st.lrP).toFixed(3):'∞ (perfect test)')+
+        '     a negative adds ln(LR−) = '+Math.log(st.lrN).toFixed(3),
+      LX+LW/2,LY+72,'#6e7681','11px Courier New');
+
+  /* posterior after each result */
+  const PX=110, PY=280, PW=880, PH=110;
+  mx.strokeStyle='#30363d'; mx.strokeRect(PX,PY,PW,PH);
+  [0,0.25,0.5,0.75,1].forEach(v=>{
+    const yy=PY+PH-v*PH; line(mx,PX,yy,PX+PW,yy,'#21262d',1);
+    txt(mx,pct(v,0),PX-6,yy,'#6e7681','9px Segoe UI','right');
+  });
+  txt(mx,'P(D | results so far)',PX+PW/2,PY-12,'#8b949e','bold 11px Segoe UI');
+  const n=Math.max(path.length-1,1);
+  const stepX=PW/Math.max(n,6);
+  mx.strokeStyle='#f85149'; mx.lineWidth=2.4; mx.beginPath();
+  path.forEach((pt,i)=>{ const x=PX+i*stepX, y=PY+PH-pt.p*PH; i?mx.lineTo(x,y):mx.moveTo(x,y); });
+  mx.stroke();
+  path.forEach((pt,i)=>{
+    const x=PX+i*stepX, y=PY+PH-pt.p*PH;
+    dot(mx,x,y,4,i===0?'#58a6ff':'#f85149');
+    if(i>0) txt(mx,pt.res,x,PY+PH+13,pt.res==='+'?'#e3b341':'#7d8590','bold 11px Segoe UI');
+    if(i===path.length-1) txt(mx,smartPct(pt.p),x,y-14,'#f85149','bold 11px Courier New');
+  });
+  if(S.seq.length===0)
+    txt(mx,'press  + positive  or  − negative  to feed the machine test results',PX+PW/2,PY+PH/2,'#484f58','12px Segoe UI');
+
+  clear(ax,auxC);
+  const G={x:110,y:44,w:880,h:160};
+  txt(ax,'How many consecutive positives before you should believe it?',G.x+G.w/2,G.y-20,'#8b949e','bold 11px Segoe UI');
+  ax.strokeStyle='#30363d'; ax.strokeRect(G.x,G.y,G.w,G.h);
+  [0,0.25,0.5,0.75,1].forEach(v=>{
+    const yy=G.y+G.h-v*G.h; line(ax,G.x,yy,G.x+G.w,yy,'#21262d',1);
+    txt(ax,pct(v,0),G.x-6,yy,'#6e7681','9px Segoe UI','right'); });
+  const K=8, sx=G.w/K;
+  let odds=S.prev/(1-S.prev);
+  ax.strokeStyle='#e3b341'; ax.lineWidth=2.4; ax.beginPath();
+  for(let k=0;k<=K;k++){
+    const p=oddsToP(odds), x=G.x+k*sx, y=G.y+G.h-p*G.h;
+    k?ax.lineTo(x,y):ax.moveTo(x,y);
+    if(k<K) odds*=safeLR(st.lrP);
+  }
+  ax.stroke();
+  odds=S.prev/(1-S.prev);
+  for(let k=0;k<=K;k++){
+    const p=oddsToP(odds), x=G.x+k*sx, y=G.y+G.h-p*G.h;
+    dot(ax,x,y,4,'#e3b341');
+    txt(ax,smartPct(p),x,y-13,'#e3b341','9px Courier New');
+    txt(ax,String(k),x,G.y+G.h+14,'#6e7681','9px Segoe UI');
+    if(k<K) odds*=safeLR(st.lrP);
+  }
+  line(ax,G.x,G.y+G.h-0.5*G.h,G.x+G.w,G.y+G.h-0.5*G.h,'#3fb950',1.4,[5,4]);
+  txt(ax,'50%',G.x+G.w-8,G.y+G.h-0.5*G.h-9,'#3fb950','9px Segoe UI','right');
+  txt(ax,'number of independent positive tests',G.x+G.w/2,G.y+G.h+32,'#6e7681','10px Segoe UI');
+}
+
+/* ================= TAB 3 : base rate ================= */
+function ppvAt(prev,se,sp){
+  const tp=prev*se, fp=(1-prev)*(1-sp);
+  return (tp+fp)>0 ? tp/(tp+fp) : NaN;
+}
+function heatColor(v){
+  if(!isFinite(v)) return '#0d1117';
+  const stops=[[0,'#0d1b2a'],[0.25,'#1f4f6f'],[0.5,'#2a9d8f'],[0.75,'#e9c46a'],[1,'#f4a261']];
+  for(let i=0;i<stops.length-1;i++){
+    const [a,ca]=stops[i],[b,cb]=stops[i+1];
+    if(v>=a&&v<=b){
+      const t=(v-a)/(b-a);
+      const pa=ca.match(/\w\w/g).map(h=>parseInt(h,16));
+      const pb=cb.match(/\w\w/g).map(h=>parseInt(h,16));
+      return `rgb(${pa.map((c,j)=>Math.round(c+(pb[j]-c)*t)).join(',')})`;
+    }
+  }
+  return stops[stops.length-1][1];
+}
+function drawBaseRate(){
+  clear(mx,mainC);
+  /* PPV vs prevalence, log x */
+  const X=90,Y=44,W=560,H=330;
+  const lo=-6, hi=0;   // prevalence 1e-6 .. 1
+  mx.strokeStyle='#30363d'; mx.strokeRect(X,Y,W,H);
+  const toX=l=>X+(l-lo)/(hi-lo)*W, toY=v=>Y+H-v*H;
+  for(let e=lo;e<=hi;e++){
+    const x=toX(e); line(mx,x,Y,x,Y+H,'#21262d',1);
+    txt(mx,e===0?'100%':(Math.pow(10,e)*100).toExponential(0).replace('e','e')+'%',x,Y+H+14,'#6e7681','9px Segoe UI');
+  }
+  [0,0.25,0.5,0.75,1].forEach(v=>{ const y=toY(v); line(mx,X,y,X+W,y,'#21262d',1);
+    txt(mx,pct(v,0),X-6,y,'#6e7681','9px Segoe UI','right'); });
+  txt(mx,'PPV = P(disease | positive test)',X+W/2,Y-22,'#8b949e','bold 11px Segoe UI');
+  txt(mx,'prevalence  P(D)   (log scale)',X+W/2,Y+H+34,'#6e7681','10px Segoe UI');
+
+  // curves for a few specificities, current sensitivity
+  const sps=[0.9,0.99,0.999,S.sp];
+  sps.forEach((sp,i)=>{
+    const cur=(i===sps.length-1);
+    mx.strokeStyle=cur?'#f85149':['#1f4f6f','#2a9d8f','#e9c46a'][i];
+    mx.lineWidth=cur?3:1.6; if(!cur) mx.setLineDash([4,3]);
+    mx.beginPath();
+    for(let j=0;j<=300;j++){
+      const l=lo+(hi-lo)*j/300, pv=ppvAt(Math.pow(10,l),S.se,sp);
+      j?mx.lineTo(toX(l),toY(pv)):mx.moveTo(toX(l),toY(pv));
+    }
+    mx.stroke(); mx.setLineDash([]);
+    if(!cur) txt(mx,'sp='+pct(sp,1),toX(hi)-30,toY(ppvAt(Math.pow(10,hi-0.15),S.se,sp))-10,
+                 ['#1f4f6f','#2a9d8f','#e9c46a'][i],'9px Segoe UI','right');
+  });
+  // current operating point
+  const lNow=Math.log10(S.prev), pNow=ppvAt(S.prev,S.se,S.sp);
+  line(mx,toX(lNow),Y,toX(lNow),Y+H,'#d2a8ff',1.4,[4,3]);
+  dot(mx,toX(lNow),toY(pNow),6,'#f85149');
+  txt(mx,smartPct(pNow),toX(lNow),toY(pNow)-16,'#f85149','bold 12px Courier New');
+  txt(mx,'you are here',toX(lNow),Y+12,'#d2a8ff','10px Segoe UI');
+  // the crossover: PPV = 50% when prevalence = (1-sp)/(se + 1 - sp)
+  const pHalf=(1-S.sp)/(S.se+1-S.sp);
+  if(pHalf>Math.pow(10,lo)&&pHalf<1){
+    line(mx,toX(Math.log10(pHalf)),toY(0.5),toX(Math.log10(pHalf)),Y+H,'#3fb950',1.2,[3,3]);
+    dot(mx,toX(Math.log10(pHalf)),toY(0.5),4,'#3fb950');
+    txt(mx,'PPV hits 50% at prevalence '+smartPct(pHalf),toX(Math.log10(pHalf))+6,toY(0.5)-12,'#3fb950','10px Segoe UI','left');
+  }
+
+  /* heat map over (sensitivity, specificity) */
+  const HX=720,HY=44,HW=300,HH=300;
+  const NC=50;
+  for(let i=0;i<NC;i++) for(let j=0;j<NC;j++){
+    const se=0.5+0.5*(i+0.5)/NC, sp=0.5+0.5*(j+0.5)/NC;
+    mx.fillStyle=heatColor(ppvAt(S.prev,se,sp));
+    mx.fillRect(HX+i*HW/NC, HY+HH-(j+1)*HH/NC, HW/NC+0.5, HH/NC+0.5);
+  }
+  mx.strokeStyle='#30363d'; mx.strokeRect(HX,HY,HW,HH);
+  txt(mx,'PPV at this prevalence',HX+HW/2,HY-22,'#8b949e','bold 11px Segoe UI');
+  txt(mx,'sensitivity →',HX+HW/2,HY+HH+16,'#6e7681','10px Segoe UI');
+  mx.save(); mx.translate(HX-16,HY+HH/2); mx.rotate(-Math.PI/2);
+  txt(mx,'specificity →',0,0,'#6e7681','10px Segoe UI'); mx.restore();
+  [0.5,0.75,1].forEach(v=>{
+    txt(mx,pct(v,0),HX+(v-0.5)/0.5*HW,HY+HH+4,'#484f58','8px Segoe UI');
+    txt(mx,pct(v,0),HX-4,HY+HH-(v-0.5)/0.5*HH,'#484f58','8px Segoe UI','right');
+  });
+  dot(mx,HX+(S.se-0.5)/0.5*HW,HY+HH-(S.sp-0.5)/0.5*HH,6,'#fff');
+  dot(mx,HX+(S.se-0.5)/0.5*HW,HY+HH-(S.sp-0.5)/0.5*HH,3.5,'#f85149');
+  // colour key
+  for(let i=0;i<100;i++){
+    mx.fillStyle=heatColor(i/99);
+    mx.fillRect(HX+i*HW/100,HY+HH+26,HW/100+0.5,10);
+  }
+  txt(mx,'0%',HX,HY+HH+46,'#6e7681','8px Segoe UI');
+  txt(mx,'PPV',HX+HW/2,HY+HH+46,'#6e7681','8px Segoe UI');
+  txt(mx,'100%',HX+HW,HY+HH+46,'#6e7681','8px Segoe UI');
+
+  clear(ax,auxC);
+  const G={x:110,y:46,w:880,h:150};
+  txt(ax,'Holding the test fixed, how many false alarms per true find?',G.x+G.w/2,G.y-22,'#8b949e','bold 11px Segoe UI');
+  ax.strokeStyle='#30363d'; ax.strokeRect(G.x,G.y,G.w,G.h);
+  const toXg=l=>G.x+(l-lo)/(hi-lo)*G.w;
+  const ratio=pr=>{ const tp=pr*S.se, fp=(1-pr)*(1-S.sp); return tp>0?fp/tp:Infinity; };
+  const yLo=-2, yHi=5;   // log10 of the ratio
+  const toYg=v=>G.y+G.h-(Math.max(yLo,Math.min(yHi,v))-yLo)/(yHi-yLo)*G.h;
+  for(let e=yLo;e<=yHi;e++){ const y=toYg(e); line(ax,G.x,y,G.x+G.w,y,'#21262d',1);
+    txt(ax,e<0?('1 : '+Math.pow(10,-e)):(Math.pow(10,e)+' : 1'),G.x-6,y,'#6e7681','9px Segoe UI','right'); }
+  for(let e=lo;e<=hi;e++){ const x=toXg(e); line(ax,x,G.y,x,G.y+G.h,'#21262d',1);
+    txt(ax,(Math.pow(10,e)*100).toExponential(0)+'%',x,G.y+G.h+14,'#6e7681','9px Segoe UI'); }
+  ax.strokeStyle='#e3b341'; ax.lineWidth=2.4; ax.beginPath();
+  for(let j=0;j<=300;j++){ const l=lo+(hi-lo)*j/300, r=ratio(Math.pow(10,l));
+    const v=Math.log10(Math.max(r,1e-9));
+    j?ax.lineTo(toXg(l),toYg(v)):ax.moveTo(toXg(l),toYg(v)); }
+  ax.stroke();
+  line(ax,G.x,toYg(0),G.x+G.w,toYg(0),'#3fb950',1.4,[5,4]);
+  txt(ax,'break-even, 1 : 1',G.x+G.w-8,toYg(0)-10,'#3fb950','9px Segoe UI','right');
+  const rNow=ratio(S.prev);
+  dot(ax,toXg(lNow),toYg(Math.log10(Math.max(rNow,1e-9))),5,'#f85149');
+  txt(ax,isFinite(rNow)?(rNow>=1?rNow.toFixed(1)+' false alarms per true find':'1 false alarm per '+(1/rNow).toFixed(1)+' true finds'):'—',
+      toXg(lNow),toYg(Math.log10(Math.max(rNow,1e-9)))-14,'#f85149','bold 11px Courier New');
+  txt(ax,'prevalence  P(D)  (log scale)',G.x+G.w/2,G.y+G.h+32,'#6e7681','10px Segoe UI');
+}
+
+/* ================= tab metadata ================= */
+const TABS=[
+{ title:'One Test, One Population',
+  aux:'Confusion matrix and the positive-test breakdown',
+  eq:'P(D | +) = P(+ | D)·P(D) / [ P(+ | D)·P(D) + P(+ | ¬D)·P(¬D) ]',
+  desc:'Follow the whole population down the tree. The answer to "I tested positive, am I sick?" is just a headcount: of everyone who tested positive, what fraction actually has the disease.',
+  legend:[['#f85149','sick, tested + (true positive)'],['#7d2620','sick, tested − (missed)'],
+          ['#e3b341','healthy, tested + (false alarm)'],['#1f3b5c','healthy, tested − (true negative)']] },
+{ title:'The Whole Thing as One Square',
+  aux:'Flattened into a single bar of probability 1',
+  eq:'area = P(D ∩ +) = P(+ | D)·P(D) &nbsp;&nbsp;·&nbsp;&nbsp; P(D | +) = red area / (red + yellow area)',
+  desc:'Width is the base rate, height is the test’s response. Every probability in the problem is an area, and conditioning is nothing more than throwing away part of the square and rescaling what is left.',
+  legend:[['#f85149','TP'],['#7d2620','FN'],['#e3b341','FP'],['#1f3b5c','TN']] },
+{ title:'Odds Form — Evidence as Addition',
+  aux:'Consecutive positive tests',
+  eq:'posterior odds = prior odds × LR &nbsp;&nbsp;·&nbsp;&nbsp; LR⁺ = se/(1−sp), &nbsp; LR⁻ = (1−se)/sp',
+  desc:'In log-odds, Bayes stops being a fraction and becomes a sum: every test result slides your belief the same fixed distance along a line, no matter where you started.',
+  legend:[['#58a6ff','prior'],['#e3b341','a positive result'],['#7d8590','a negative result'],['#f85149','current posterior']] },
+{ title:'PPV Against Prevalence — and the Test You Chose',
+  aux:'False alarms per true find',
+  eq:'PPV = 50% &nbsp;⟺&nbsp; P(D) = (1−sp) / (se + 1 − sp)',
+  desc:'Fix the test and sweep the base rate. The collapse of PPV at low prevalence is not a flaw in the test — it is arithmetic, and no amount of sensitivity rescues it.',
+  legend:[['#f85149','your test'],['#2a9d8f','other specificities'],['#3fb950','the 50% crossover'],['#d2a8ff','current prevalence']] }
+];
+
+/* ================= info ================= */
+const INFO=[
+`<strong>Read it as a headcount, not a formula.</strong> Take 10,000 people, send them all down the tree, and count who ends up where. Every conditional probability in the problem is one of those counts divided by another.
+<ul>
+<li><strong>The default setting is the classic trap.</strong> A disease in 1% of people, a test that is 99% sensitive and 99% specific — and a positive result still means only a 50% chance of being sick. Out of 10,000 people, 99 true positives and 99 false alarms.</li>
+<li><strong>Why:</strong> the 1% who are sick is a small pool to draw true positives from, while the 99% who are healthy is an enormous pool to draw false alarms from. 1% of a huge number beats 99% of a tiny one.</li>
+<li><strong>Drag prevalence down to 0.1%</strong> and PPV falls to about 9% — the same test, the same person, a completely different conclusion. That is the base rate doing all the work.</li>
+<li><strong>Sensitivity and specificity are not interchangeable.</strong> Push sensitivity to 100% and PPV barely moves; push specificity from 99% to 99.9% and it leaps. When the disease is rare, only the false-alarm rate matters.</li>
+<li><strong>Tick "dim everyone who tested negative"</strong> to see what a positive result actually leaves you with: the red and yellow squares are your entire world, and PPV is just their ratio.</li>
+</ul>`,
+`<strong>Conditioning is cropping.</strong> Draw the sample space as a unit square: width is the base rate, height is how the test responds within each group. Then every joint probability is a rectangle, and every conditional probability is a rectangle divided by the strip it lives in.
+<ul>
+<li><strong>P(+ | D) = 0.99 is a height</strong> — it is a statement about the <em>narrow</em> sick column only, and says nothing about how wide that column is.</li>
+<li><strong>P(D | +) is a different cut entirely.</strong> Take the two "+" rectangles, stack them, rescale to 1. That is the bar on the right, and its red fraction is the PPV.</li>
+<li><strong>This is why the two get confused.</strong> They are the same two rectangles, divided by different denominators — sliced vertically versus horizontally. Bayes' theorem is precisely the bookkeeping for switching between them.</li>
+<li><strong>Make the disease rare</strong> and watch the red column shrink to a sliver while the thin yellow FP strip, spread across the whole healthy column, keeps a substantial area. The picture makes the collapse obvious before any arithmetic.</li>
+<li>The bar below is the same four areas laid end to end, which is a useful reminder that they sum to exactly 1.</li>
+</ul>`,
+`<strong>Multiplication is awkward; addition is not.</strong> Written in odds, Bayes' theorem loses its denominator entirely: <code>posterior odds = prior odds × LR</code>. Take logarithms and evidence simply accumulates.
+<ul>
+<li><strong>The likelihood ratio is the whole test.</strong> LR⁺ = se/(1−sp) is how many times more often a positive shows up in the sick than the healthy. Everything else about the test is irrelevant once you have it.</li>
+<li><strong>LR = 1 means a useless test.</strong> Set sensitivity and specificity both to 50% and the steps shrink to nothing: the posterior never leaves the prior, which is exactly what "no information" should look like.</li>
+<li><strong>Each result is the same-sized step</strong> along the log-odds axis, regardless of where you currently are. That is the sense in which log-odds is the natural coordinate for belief.</li>
+<li><strong>Stack up positives.</strong> One positive on a rare disease leaves you unconvinced; two or three independent positives usually settle it. The lower panel shows how many it takes to cross 50%.</li>
+<li><strong>The catch:</strong> this assumes the tests are <em>conditionally independent</em> given disease status. Re-running the same assay on the same sample mostly repeats the same error, so real repeat testing buys less than this curve promises.</li>
+</ul>`,
+`<strong>The base rate is not a detail.</strong> Fix the test and sweep prevalence across six orders of magnitude — PPV sweeps from nearly 1 to nearly 0 without a single property of the test changing.
+<ul>
+<li><strong>The crossover has a closed form:</strong> PPV reaches 50% exactly when <code>P(D) = (1−sp)/(se + 1 − sp)</code>. For a 99%/99% test that is about 1% — below that prevalence, a positive result still leaves the disease more likely absent than present.</li>
+<li><strong>The dashed curves are other specificities.</strong> They are nearly parallel and shifted — improving specificity by a factor of 10 buys you a factor of 10 in usable prevalence. Sensitivity, by contrast, barely moves the curve at all.</li>
+<li><strong>The heat map says the same thing more bluntly.</strong> At low prevalence the contours run almost vertically: PPV depends on specificity and almost not at all on sensitivity. Drag the sliders and watch the white dot move through the field.</li>
+<li><strong>The bottom panel is the operational version</strong> — false alarms per true find. This is what determines whether a screening programme is worth running, and it is why mass screening for rare conditions is so often a bad trade.</li>
+<li><strong>None of this is about medicine.</strong> Swap the words and it is radar detection, spam filtering, fault alarms on a production line, or anomaly detection on a network. Same formula, same trap.</li>
+</ul>`
+];
+
+/* ================= meters ================= */
+const fmtM=[
+  ['Prevalence',()=>smartPct(S.prev)],
+  ['Sensitivity',()=>pct(S.se,1)],
+  ['Specificity',()=>pct(S.sp,1)],
+  ['P(test +)',()=>smartPct(stats().pos)],
+  ['PPV = P(D|+)',()=>smartPct(stats().ppv)],
+  ['NPV = P(¬D|−)',()=>smartPct(stats().npv)],
+  ['False discovery',()=>smartPct(stats().fdr)],
+  ['LR+',()=>{const v=stats().lrP;return isFinite(v)?v.toFixed(2):'∞';}],
+  ['LR−',()=>stats().lrN.toFixed(4)],
+  ['PPV=50% at',()=>smartPct((1-S.sp)/(S.se+1-S.sp))]
+];
+document.getElementById('meters').innerHTML=fmtM.map((m,i)=>
+  `<div class="meter"><div class="ml">${m[0]}</div><div class="mv" id="mv${i}">—</div></div>`).join('');
+function updateMeters(){ fmtM.forEach((m,i)=>{
+  const el=document.getElementById('mv'+i); if(el) el.textContent=String(m[1]()); }); }
+
+/* ================= presets ================= */
+const PRESETS=[
+  ['Textbook 1% / 99% / 99%', 0.01,   0.99,  0.99],
+  ['Mammography, age 40',     0.004,  0.87,  0.89],
+  ['HIV ELISA screen',        0.003,  0.999, 0.9985],
+  ['Rapid antigen, low wave', 0.02,   0.65,  0.99],
+  ['Workplace drug test',     0.05,   0.97,  0.95],
+  ['Very rare disease',       0.0001, 0.99,  0.99],
+  ['Useless test (LR = 1)',   0.10,   0.50,  0.50]
+];
+document.getElementById('presets').innerHTML=PRESETS.map((p,i)=>
+  `<div class="preset" data-p="${i}">${p[0]}</div>`).join('');
+document.querySelectorAll('.preset').forEach(el=>el.addEventListener('click',()=>{
+  const p=PRESETS[+el.dataset.p];
+  S.prev=p[1]; S.se=p[2]; S.sp=p[3]; S.seq=[];
+  syncSliders(); markPreset(); draw();
+}));
+function markPreset(){
+  document.querySelectorAll('.preset').forEach(el=>{
+    const p=PRESETS[+el.dataset.p];
+    el.classList.toggle('active',
+      Math.abs(S.prev-p[1])<1e-9&&Math.abs(S.se-p[2])<1e-9&&Math.abs(S.sp-p[3])<1e-9);
+  });
+}
+
+/* ================= dispatch ================= */
+function draw(){
+  if(S.tab===0) drawTest();
+  else if(S.tab===1) drawSquare();
+  else if(S.tab===2) drawOdds();
+  else drawBaseRate();
+  updateMeters();
+}
+function setTab(t){
+  S.tab=t;
+  document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active',+el.dataset.tab===t));
+  const T=TABS[t];
+  document.getElementById('mainTitle').textContent=T.title;
+  document.getElementById('auxTitle').textContent=T.aux;
+  document.getElementById('eqText').innerHTML=T.eq;
+  document.getElementById('eqDesc').textContent=T.desc;
+  document.getElementById('legend').innerHTML=T.legend.map(l=>
+    `<div class="legend-item"><div class="legend-dot" style="background:${l[0]}"></div>${l[1]}</div>`).join('');
+  document.getElementById('info').innerHTML=INFO[t];
+  document.querySelectorAll('.cg[data-tabs]').forEach(el=>
+    el.classList.toggle('hidden',!el.dataset.tabs.split(',').includes(String(t))));
+  draw();
+}
+document.querySelectorAll('.tab').forEach(el=>el.addEventListener('click',()=>setTab(+el.dataset.tab)));
+
+/* ================= controls ================= */
+const $=id=>document.getElementById(id);
+function syncSliders(){
+  $('slPrev').value=Math.log10(S.prev); $('vPrev').textContent=smartPct(S.prev);
+  $('slSe').value=S.se; $('vSe').textContent=pct(S.se,1);
+  $('slSp').value=S.sp; $('vSp').textContent=pct(S.sp,1);
+}
+$('slPrev').addEventListener('input',e=>{ S.prev=Math.pow(10,+e.target.value);
+  $('vPrev').textContent=smartPct(S.prev); markPreset(); draw(); });
+$('slSe').addEventListener('input',e=>{ S.se=+e.target.value;
+  $('vSe').textContent=pct(S.se,1); markPreset(); draw(); });
+$('slSp').addEventListener('input',e=>{ S.sp=+e.target.value;
+  $('vSp').textContent=pct(S.sp,1); markPreset(); draw(); });
+$('selPop').addEventListener('change',e=>{ S.pop=+e.target.value; draw(); });
+$('ckOnlyPos').addEventListener('change',e=>{ S.onlyPos=e.target.checked; draw(); });
+$('btnPos').addEventListener('click',()=>{ if(S.seq.length<14){S.seq.push('+'); draw();} });
+$('btnNeg').addEventListener('click',()=>{ if(S.seq.length<14){S.seq.push('−'); draw();} });
+$('btnClearSeq').addEventListener('click',()=>{ S.seq=[]; draw(); });
+$('btnReset').addEventListener('click',()=>{
+  S.prev=0.01; S.se=0.99; S.sp=0.99; S.seq=[]; S.onlyPos=false;
+  $('ckOnlyPos').checked=false; syncSliders(); markPreset(); draw();
+});
+
+syncSliders(); markPreset(); setTab(0);
+</script>
+</body>
+</html>

@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Joint Distributions &amp; Correlation — ECE 302</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',system-ui,sans-serif;
+    display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:18px}
+  h1{font-size:1.5em;color:#e0e0ff}
+  .subtitle{color:#7d8590;margin-bottom:10px;font-size:.92em;text-align:center;max-width:900px}
+  canvas{display:block;border-radius:10px;max-width:100%}
+  .tabs{display:flex;gap:6px;margin:10px 0;flex-wrap:wrap;justify-content:center}
+  .tab{padding:8px 18px;border-radius:8px;cursor:pointer;font-size:.86em;
+    background:#161b22;border:1px solid #30363d;color:#8b949e;transition:.2s}
+  .tab:hover{border-color:#58a6ff;color:#e6edf3}
+  .tab.active{background:#1f6feb;border-color:#1f6feb;color:white;font-weight:bold}
+  .eq-box{background:#161b22;border:1px solid #30363d;border-radius:10px;
+    padding:8px 14px;margin:6px 0;max-width:1120px;width:100%;text-align:center}
+  .eq{font-size:1.05em;font-family:'Times New Roman',serif;color:#e0e0ff}
+  .eq-desc{font-size:.78em;color:#7d8590;margin-top:3px}
+  .legend{display:flex;gap:12px;justify-content:center;margin:6px 0;flex-wrap:wrap}
+  .legend-item{display:flex;align-items:center;gap:4px;font-size:.76em;color:#8b949e}
+  .legend-dot{width:9px;height:9px;border-radius:3px}
+  .row{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:8px;max-width:1120px;width:100%}
+  .panel{background:#161b22;border-radius:12px;padding:12px;border:1px solid #30363d;width:100%}
+  .panel h2{font-size:.88em;color:#8b949e;margin-bottom:6px;text-align:center}
+  .meters{display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap;max-width:1120px}
+  .meter{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:4px 10px;text-align:center;min-width:94px}
+  .meter .ml{font-size:.68em;color:#8b949e}
+  .meter .mv{font-size:.9em;font-weight:bold;font-family:'Courier New',monospace;color:#e6edf3}
+  .controls{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;justify-content:center;align-items:center;
+    max-width:1120px;width:100%;background:#161b22;border:1px solid #30363d;border-radius:12px;padding:12px}
+  .cg{display:flex;align-items:center;gap:5px}
+  .cg label{font-size:.78em;color:#8b949e;white-space:nowrap}
+  input[type="range"]{width:120px;accent-color:#58a6ff}
+  .val{font-size:.78em;color:#58a6ff;min-width:46px;font-family:'Courier New',monospace}
+  button{background:#238636;color:white;border:none;padding:6px 14px;border-radius:6px;
+    cursor:pointer;font-size:.82em;transition:.2s}
+  button:hover{background:#2ea043}
+  button.sec{background:#30363d}
+  button.sec:hover{background:#484f58}
+  .chk{display:flex;align-items:center;gap:4px;font-size:.76em;color:#8b949e;cursor:pointer;user-select:none}
+  .chk input{accent-color:#58a6ff;cursor:pointer}
+  .presets{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:10px;max-width:1120px}
+  .preset{padding:5px 13px;border-radius:6px;cursor:pointer;font-size:.76em;
+    background:#21262d;border:1px solid #30363d;color:#8b949e;transition:.2s}
+  .preset:hover{border-color:#58a6ff;color:#e6edf3}
+  .preset.active{background:#1f6feb;border-color:#1f6feb;color:white}
+  .preset.trap.active{background:#9e3b2e;border-color:#f85149}
+  .info{max-width:1120px;width:100%;background:#161b22;border-radius:12px;
+    padding:14px 18px;border:1px solid #30363d;margin-top:14px;font-size:.84em;line-height:1.65;color:#8b949e}
+  .info strong{color:#e0e0ff}
+  .info code{color:#f0883e;background:#21262d;padding:1px 5px;border-radius:3px;font-size:.95em}
+  .info ul{margin:6px 0 0 20px}
+  .info li{margin:3px 0}
+  .hidden{display:none!important}
+  a{color:#58a6ff}
+  .back{margin-top:16px;font-size:.82em}
+</style>
+</head>
+<body>
+
+<h1>Joint Distributions &amp; Correlation</h1>
+<p class="subtitle">Two random variables at once: the joint density, the marginals you get by squashing it flat, the conditional you get by slicing it — and the gap between "uncorrelated" and "independent" that ρ cannot see.</p>
+
+<div class="tabs">
+  <div class="tab active" data-tab="0">Scatter &amp; Marginals</div>
+  <div class="tab" data-tab="1">Conditional Slice</div>
+  <div class="tab" data-tab="2">Uncorrelated ≠ Independent</div>
+  <div class="tab" data-tab="3">Joint PMF Table</div>
+</div>
+
+<div class="eq-box">
+  <div class="eq" id="eqText"></div>
+  <div class="eq-desc" id="eqDesc"></div>
+</div>
+
+<div class="presets" id="presets"></div>
+<div class="legend" id="legend"></div>
+
+<div class="row"><div class="panel"><h2 id="mainTitle">Joint</h2>
+  <canvas id="mainCanvas" width="1080" height="440"></canvas></div></div>
+<div class="row"><div class="panel"><h2 id="auxTitle">Detail</h2>
+  <canvas id="auxCanvas" width="1080" height="250"></canvas></div></div>
+
+<div class="meters" id="meters"></div>
+
+<div class="controls">
+  <div class="cg" data-tabs="0,1"><label>ρ:</label>
+    <input type="range" id="slRho" min="-0.98" max="0.98" step="0.01" value="0.7">
+    <span class="val" id="vRho">0.70</span></div>
+  <div class="cg" data-tabs="0,1"><label>σ<sub>X</sub>:</label>
+    <input type="range" id="slSx" min="0.3" max="3" step="0.05" value="1">
+    <span class="val" id="vSx">1.00</span></div>
+  <div class="cg" data-tabs="0,1"><label>σ<sub>Y</sub>:</label>
+    <input type="range" id="slSy" min="0.3" max="3" step="0.05" value="1">
+    <span class="val" id="vSy">1.00</span></div>
+  <div class="cg" data-tabs="1"><label>slice at x =</label>
+    <input type="range" id="slCut" min="-3" max="3" step="0.05" value="1">
+    <span class="val" id="vCut">1.00</span></div>
+  <div class="cg" data-tabs="0,2"><label>samples:</label>
+    <input type="range" id="slN" min="200" max="6000" step="100" value="2000">
+    <span class="val" id="vN">2000</span></div>
+  <div class="cg" data-tabs="0,1,2"><label class="chk"><input type="checkbox" id="ckEll" checked> covariance ellipse</label></div>
+  <div class="cg" data-tabs="0"><label class="chk"><input type="checkbox" id="ckReg" checked> regression line E[Y|X]</label></div>
+  <div class="cg"><button class="sec" id="btnResample">Resample</button></div>
+  <div class="cg"><button class="sec" id="btnReset">Reset</button></div>
+</div>
+
+<div class="info" id="info"></div>
+<div class="back"><a href="index.html">← All demos</a> &nbsp;·&nbsp; <a href="distributions.html">Distributions</a> &nbsp;·&nbsp; <a href="clt-lln.html">CLT &amp; LLN</a></div>
+
+<script>
+/* ================= helpers ================= */
+const SQ2PI=Math.sqrt(2*Math.PI);
+const normPdf=z=>Math.exp(-z*z/2)/SQ2PI;
+let spare=null;
+function randn(){
+  if(spare!==null){ const v=spare; spare=null; return v; }
+  let u=0,v=0,s=0;
+  do{ u=2*Math.random()-1; v=2*Math.random()-1; s=u*u+v*v; }while(s===0||s>=1);
+  const f=Math.sqrt(-2*Math.log(s)/s);
+  spare=v*f; return u*f;
+}
+
+/* ================= shapes ================= */
+/* every shape yields samples; the Gaussian one also has a closed-form density */
+const SHAPES={
+  gauss:{name:'Bivariate Normal',trap:false,
+    sample:()=>{ const z1=randn(), z2=randn();
+      return [S.sx*z1, S.sy*(S.rho*z1+Math.sqrt(1-S.rho*S.rho)*z2)]; },
+    dens:(x,y)=>{ const r=S.rho, a=x/S.sx, b=y/S.sy;
+      const q=(a*a-2*r*a*b+b*b)/(1-r*r);
+      return Math.exp(-q/2)/(2*Math.PI*S.sx*S.sy*Math.sqrt(1-r*r)); }},
+  circle:{name:'Ring  (ρ = 0, strongly dependent)',trap:true,
+    sample:()=>{ const t=Math.random()*2*Math.PI, r=2+0.18*randn();
+      return [r*Math.cos(t), r*Math.sin(t)]; }},
+  parab:{name:'Y = X² + noise  (ρ ≈ 0)',trap:true,
+    sample:()=>{ const x=2.2*(Math.random()*2-1); return [x, x*x-1.6+0.22*randn()]; }},
+  cross:{name:'Cross  (ρ = 0, not independent)',trap:true,
+    sample:()=>{ return Math.random()<0.5 ? [2.4*(Math.random()*2-1),0.18*randn()]
+                                          : [0.18*randn(),2.4*(Math.random()*2-1)]; }},
+  fan:{name:'Fan  (ρ = 0, variance depends on X)',trap:true,
+    sample:()=>{ const x=2.6*(Math.random()*2-1); return [x,(0.12+0.55*Math.abs(x))*randn()]; }},
+  fourblob:{name:'Four blobs  (ρ = 0, not independent)',trap:true,
+    sample:()=>{ const s=Math.random()<0.5?1:-1;
+      const f=Math.random()<0.5;
+      return f?[s*1.8+0.3*randn(),s*1.8+0.3*randn()]
+              :[s*1.8+0.3*randn(),-s*1.8+0.3*randn()]; }},
+  indep:{name:'Independent  (ρ = 0 and truly independent)',trap:false,
+    sample:()=>[S.sx*randn(),S.sy*randn()]}
+};
+
+/* ================= state ================= */
+const S={ tab:0, shape:'gauss', rho:0.7, sx:1, sy:1, cut:1, n:2000,
+  pts:[], showEll:true, showReg:true,
+  // joint pmf table for tab 3
+  tbl:[[0.10,0.06,0.04],[0.08,0.20,0.12],[0.02,0.14,0.24]], tblIndep:false };
+
+const mainC=document.getElementById('mainCanvas'), mx=mainC.getContext('2d');
+const auxC=document.getElementById('auxCanvas'),  ax=auxC.getContext('2d');
+
+function resample(){
+  const f=SHAPES[S.shape].sample;
+  S.pts=[]; for(let i=0;i<S.n;i++) S.pts.push(f());
+}
+/* sample statistics of the current cloud */
+function sampleStats(){
+  const P=S.pts, n=P.length;
+  if(!n) return null;
+  let mx_=0,my=0; P.forEach(p=>{mx_+=p[0];my+=p[1];});
+  mx_/=n; my/=n;
+  let vx=0,vy=0,cxy=0;
+  P.forEach(p=>{ const a=p[0]-mx_, b=p[1]-my; vx+=a*a; vy+=b*b; cxy+=a*b; });
+  vx/=n; vy/=n; cxy/=n;
+  const sx=Math.sqrt(vx), sy=Math.sqrt(vy);
+  const r=(sx>0&&sy>0)?cxy/(sx*sy):0;
+  // distance correlation is overkill; use a simple dependence probe instead:
+  // correlation between |x-mean| and |y-mean| catches variance-dependence (the fan)
+  let ax_=0,ay=0; P.forEach(p=>{ax_+=Math.abs(p[0]-mx_);ay+=Math.abs(p[1]-my);});
+  ax_/=n; ay/=n;
+  let cab=0,va=0,vb=0;
+  P.forEach(p=>{ const a=Math.abs(p[0]-mx_)-ax_, b=Math.abs(p[1]-my)-ay;
+    cab+=a*b; va+=a*a; vb+=b*b; });
+  const rAbs=(va>0&&vb>0)?cab/Math.sqrt(va*vb):0;
+  return {n,mx:mx_,my,sx,sy,cov:cxy,rho:r,rAbs};
+}
+
+/* ================= drawing helpers ================= */
+function clear(ctx,c){ ctx.fillStyle='#0d1117'; ctx.fillRect(0,0,c.width,c.height); }
+function txt(ctx,s,x,y,col,font,align){
+  ctx.fillStyle=col||'#8b949e'; ctx.font=font||'11px Segoe UI';
+  ctx.textAlign=align||'center'; ctx.textBaseline='middle'; ctx.fillText(s,x,y);
+}
+function line(ctx,x1,y1,x2,y2,col,w,dash){
+  ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=w||1; if(dash)ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); ctx.restore();
+}
+function dot(ctx,x,y,r,col){ ctx.fillStyle=col; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); }
+const LIM=4.2;
+function frameXY(ctx,x,y,w,h,lim){
+  const L=lim||LIM;
+  const X=v=>x+(v+L)/(2*L)*w, Y=v=>y+h-(v+L)/(2*L)*h;
+  ctx.strokeStyle='#30363d'; ctx.strokeRect(x,y,w,h);
+  for(let v=-4;v<=4;v+=2){
+    line(ctx,X(v),y,X(v),y+h,'#1b222b',1);
+    line(ctx,x,Y(v),x+w,Y(v),'#1b222b',1);
+    txt(ctx,String(v),X(v),y+h+13,'#6e7681','9px Segoe UI');
+    txt(ctx,String(v),x-8,Y(v),'#6e7681','9px Segoe UI','right');
+  }
+  line(ctx,X(0),y,X(0),y+h,'#30363d',1);
+  line(ctx,x,Y(0),x+w,Y(0),'#30363d',1);
+  return {X,Y,x,y,w,h,L};
+}
+function drawEllipse(ctx,Fr,st,k,col,dash){
+  if(!st||!(st.sx>0)||!(st.sy>0)) return;
+  // principal axes of the sample covariance
+  const a=st.sx*st.sx, b=st.cov, c=st.sy*st.sy;
+  const tr=a+c, det=a*c-b*b;
+  const l1=tr/2+Math.sqrt(Math.max(tr*tr/4-det,0)), l2=tr/2-Math.sqrt(Math.max(tr*tr/4-det,0));
+  const th=0.5*Math.atan2(2*b,a-c);
+  ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=2; if(dash) ctx.setLineDash(dash);
+  ctx.beginPath();
+  for(let i=0;i<=120;i++){
+    const t=i/120*2*Math.PI;
+    const u=k*Math.sqrt(Math.max(l1,0))*Math.cos(t), v=k*Math.sqrt(Math.max(l2,0))*Math.sin(t);
+    const X=st.mx+u*Math.cos(th)-v*Math.sin(th), Y=st.my+u*Math.sin(th)+v*Math.cos(th);
+    i?ctx.lineTo(Fr.X(X),Fr.Y(Y)):ctx.moveTo(Fr.X(X),Fr.Y(Y));
+  }
+  ctx.stroke(); ctx.restore();
+}
+function drawCloud(ctx,Fr,alpha){
+  ctx.fillStyle='rgba(88,166,255,'+(alpha||0.5)+')';
+  S.pts.forEach(p=>{
+    const X=Fr.X(p[0]), Y=Fr.Y(p[1]);
+    if(X<Fr.x||X>Fr.x+Fr.w||Y<Fr.y||Y>Fr.y+Fr.h) return;
+    ctx.fillRect(X-1.1,Y-1.1,2.2,2.2);
+  });
+}
+/* histogram of one coordinate */
+function marginalHist(vals,bins,lim){
+  const H=new Float64Array(bins);
+  vals.forEach(v=>{ const b=Math.floor((v+lim)/(2*lim)*bins); if(b>=0&&b<bins) H[b]++; });
+  return H;
+}
+
+/* ================= TAB 0 : scatter + marginals ================= */
+function drawScatter(){
+  clear(mx,mainC);
+  const SZ=330, X0=250, Y0=52, HB=72;
+  const Fr=frameXY(mx,X0,Y0,SZ,SZ);
+  const st=sampleStats();
+
+  // joint density contours when we have a closed form
+  if(SHAPES[S.shape].dens){
+    const dens=SHAPES[S.shape].dens;
+    let dmax=0;
+    for(let i=0;i<60;i++) for(let j=0;j<60;j++){
+      const x=-LIM+2*LIM*(i+0.5)/60, y=-LIM+2*LIM*(j+0.5)/60;
+      dmax=Math.max(dmax,dens(x,y));
+    }
+    for(let i=0;i<60;i++) for(let j=0;j<60;j++){
+      const x=-LIM+2*LIM*(i+0.5)/60, y=-LIM+2*LIM*(j+0.5)/60;
+      const v=dens(x,y)/dmax;
+      if(v<0.01) continue;
+      mx.fillStyle='rgba(137,87,229,'+(v*0.45).toFixed(3)+')';
+      mx.fillRect(Fr.X(-LIM+2*LIM*i/60),Fr.Y(-LIM+2*LIM*(j+1)/60),SZ/60+0.6,SZ/60+0.6);
+    }
+  }
+  drawCloud(mx,Fr,0.45);
+  if(S.showEll&&st){
+    drawEllipse(mx,Fr,st,1,'#e3b341');
+    drawEllipse(mx,Fr,st,2,'#e3b341',[4,3]);
+    txt(mx,'1σ and 2σ covariance ellipse',X0+SZ/2,Y0+SZ+30,'#e3b341','10px Segoe UI');
+  }
+  if(S.showReg&&st&&st.sx>0){
+    const slope=st.cov/(st.sx*st.sx), b0=st.my-slope*st.mx;
+    line(mx,Fr.X(-LIM),Fr.Y(b0+slope*(-LIM)),Fr.X(LIM),Fr.Y(b0+slope*LIM),'#f85149',2.2);
+    txt(mx,'E[Y|X] ≈ '+b0.toFixed(2)+' + '+slope.toFixed(2)+'·x',X0+SZ/2,Y0+SZ+46,'#f85149','10px Courier New');
+  }
+  txt(mx,'X',X0+SZ/2,Y0+SZ+62,'#8b949e','11px Segoe UI');
+  mx.save(); mx.translate(X0-36,Y0+SZ/2); mx.rotate(-Math.PI/2);
+  txt(mx,'Y',0,0,'#8b949e','11px Segoe UI'); mx.restore();
+
+  /* marginal of X, on top */
+  const bins=54;
+  const hx=marginalHist(S.pts.map(p=>p[0]),bins,LIM);
+  let hmx=Math.max(...hx,1);
+  txt(mx,'marginal of X  —  integrate the joint over y',X0+SZ/2,Y0-HB-10,'#58a6ff','bold 10px Segoe UI');
+  for(let b=0;b<bins;b++){
+    const h=hx[b]/hmx*HB;
+    mx.fillStyle='rgba(88,166,255,0.6)';
+    mx.fillRect(X0+b*SZ/bins,Y0-8-h,SZ/bins-0.6,h);
+  }
+  /* marginal of Y, on the right */
+  const hy=marginalHist(S.pts.map(p=>p[1]),bins,LIM);
+  let hmy=Math.max(...hy,1);
+  for(let b=0;b<bins;b++){
+    const w=hy[b]/hmy*HB;
+    mx.fillStyle='rgba(63,185,80,0.6)';
+    mx.fillRect(X0+SZ+8,Y0+SZ-(b+1)*SZ/bins,w,SZ/bins-0.6);
+  }
+  mx.save(); mx.translate(X0+SZ+HB+26,Y0+SZ/2); mx.rotate(-Math.PI/2);
+  txt(mx,'marginal of Y',0,0,'#3fb950','bold 10px Segoe UI'); mx.restore();
+
+  /* numbers panel */
+  const px=740;
+  txt(mx,'Sample statistics  (n = '+S.n.toLocaleString()+')',px+150,Y0-10,'#8b949e','bold 11px Segoe UI');
+  const rows=st?[
+    ['mean of X',st.mx.toFixed(3)],['mean of Y',st.my.toFixed(3)],
+    ['σ_X',st.sx.toFixed(3)],['σ_Y',st.sy.toFixed(3)],
+    ['Cov(X, Y)',st.cov.toFixed(4)],
+    ['ρ = Cov/(σ_Xσ_Y)',st.rho.toFixed(4)],
+    ['ρ of |X−μ|,|Y−μ|',st.rAbs.toFixed(4)]
+  ]:[];
+  rows.forEach((r,i)=>{
+    const y=Y0+22+i*30;
+    txt(mx,r[0],px,y,'#8b949e','11px Segoe UI','left');
+    const hot=(i===5)||(i===6);
+    txt(mx,r[1],px+300,y,hot?(i===5?'#e3b341':'#d2a8ff'):'#e6edf3','bold 12px Courier New','right');
+  });
+  if(st){
+    // rho bar
+    const by=Y0+22+7*30+6, bw=300;
+    txt(mx,'ρ',px,by+10,'#8b949e','11px Segoe UI','left');
+    mx.fillStyle='#21262d'; mx.fillRect(px+20,by+4,bw-20,12);
+    const zero=px+20+(bw-20)/2;
+    line(mx,zero,by,zero,by+20,'#484f58',1);
+    const len=(bw-20)/2*Math.max(-1,Math.min(1,st.rho));
+    mx.fillStyle=st.rho>=0?'#3fb950':'#f85149';
+    mx.fillRect(Math.min(zero,zero+len),by+4,Math.abs(len),12);
+    txt(mx,'−1',px+20,by+28,'#6e7681','9px Segoe UI');
+    txt(mx,'0',zero,by+28,'#6e7681','9px Segoe UI');
+    txt(mx,'+1',px+bw,by+28,'#6e7681','9px Segoe UI');
+    if(SHAPES[S.shape].trap){
+      txt(mx,'ρ ≈ 0 — but look at the scatter.',px+150,by+56,'#f85149','bold 11px Segoe UI');
+      txt(mx,'X and Y are obviously dependent.',px+150,by+72,'#f85149','11px Segoe UI');
+    }
+  }
+  drawScatterAux();
+}
+function drawScatterAux(){
+  clear(ax,auxC);
+  const bins=54;
+  const panels=[
+    {lab:'f_X(x)  —  marginal of X',vals:S.pts.map(p=>p[0]),col:'#58a6ff',x:90},
+    {lab:'f_Y(y)  —  marginal of Y',vals:S.pts.map(p=>p[1]),col:'#3fb950',x:570}
+  ];
+  panels.forEach(P=>{
+    const x0=P.x, y0=48, w=400, h=150;
+    ax.strokeStyle='#30363d'; ax.strokeRect(x0,y0,w,h);
+    txt(ax,P.lab,x0+w/2,y0-14,P.col,'bold 11px Segoe UI');
+    const H=marginalHist(P.vals,bins,LIM);
+    const hm=Math.max(...H,1);
+    for(let b=0;b<bins;b++){
+      const hh=H[b]/hm*h;
+      ax.fillStyle=P.col; ax.globalAlpha=0.6;
+      ax.fillRect(x0+b*w/bins,y0+h-hh,w/bins-0.6,hh); ax.globalAlpha=1;
+    }
+    for(let v=-4;v<=4;v+=2){
+      const X=x0+(v+LIM)/(2*LIM)*w;
+      line(ax,X,y0,X,y0+h,'#1b222b',1);
+      txt(ax,String(v),X,y0+h+13,'#6e7681','9px Segoe UI');
+    }
+    // normal curve with the sample's own mean/sd
+    let m=0; P.vals.forEach(v=>m+=v); m/=Math.max(P.vals.length,1);
+    let s=0; P.vals.forEach(v=>s+=(v-m)*(v-m)); s=Math.sqrt(s/Math.max(P.vals.length,1));
+    if(s>0){
+      const binW=2*LIM/bins;
+      const scale=h/hm*P.vals.length*binW;
+      ax.strokeStyle='#e3b341'; ax.lineWidth=2; ax.setLineDash([4,3]); ax.beginPath();
+      for(let i=0;i<=200;i++){
+        const v=-LIM+2*LIM*i/200;
+        const d=normPdf((v-m)/s)/s*scale;
+        const X=x0+(v+LIM)/(2*LIM)*w;
+        i?ax.lineTo(X,y0+h-d):ax.moveTo(X,y0+h-d);
+      }
+      ax.stroke(); ax.setLineDash([]);
+    }
+    txt(ax,'mean '+m.toFixed(3)+'   sd '+s.toFixed(3),x0+w/2,y0+h+30,'#8b949e','10px Courier New');
+  });
+  txt(ax,'The marginals throw away every trace of how X and Y move together — '+
+        'both of these look the same whether ρ is 0 or 0.9.',auxC.width/2,auxC.height-12,'#6e7681','11px Segoe UI');
+}
+
+/* ================= TAB 1 : conditional slice ================= */
+function drawConditional(){
+  clear(mx,mainC);
+  const SZ=350, X0=150, Y0=50;
+  const Fr=frameXY(mx,X0,Y0,SZ,SZ);
+  const st=sampleStats();
+  drawCloud(mx,Fr,0.30);
+  if(S.showEll&&st){ drawEllipse(mx,Fr,st,1,'#e3b341'); drawEllipse(mx,Fr,st,2,'#e3b341',[4,3]); }
+
+  // the slice
+  const c=S.cut, halfW=0.22;
+  mx.fillStyle='rgba(227,179,65,0.16)';
+  mx.fillRect(Fr.X(c-halfW),Fr.y,Fr.X(c+halfW)-Fr.X(c-halfW),Fr.h);
+  line(mx,Fr.X(c),Fr.y,Fr.X(c),Fr.y+Fr.h,'#e3b341',2);
+  txt(mx,'x = '+c.toFixed(2),Fr.X(c),Fr.y-8,'#e3b341','bold 11px Segoe UI');
+  // highlight the points inside the slab
+  const inSlab=S.pts.filter(p=>Math.abs(p[0]-c)<=halfW);
+  mx.fillStyle='#e3b341';
+  inSlab.forEach(p=>{ const X=Fr.X(p[0]), Y=Fr.Y(p[1]);
+    if(Y>=Fr.y&&Y<=Fr.y+Fr.h) mx.fillRect(X-1.4,Y-1.4,2.8,2.8); });
+  // regression line
+  if(st&&st.sx>0){
+    const slope=st.cov/(st.sx*st.sx), b0=st.my-slope*st.mx;
+    line(mx,Fr.X(-LIM),Fr.Y(b0+slope*(-LIM)),Fr.X(LIM),Fr.Y(b0+slope*LIM),'#f85149',2.2);
+    dot(mx,Fr.X(c),Fr.Y(b0+slope*c),5,'#f85149');
+  }
+  txt(mx,'X',X0+SZ/2,Y0+SZ+30,'#8b949e','11px Segoe UI');
+
+  /* the conditional density itself */
+  const px=590, py=50, pw=420, ph=350;
+  mx.strokeStyle='#30363d'; mx.strokeRect(px,py,pw,ph);
+  txt(mx,'f(y | X = '+c.toFixed(2)+')   —   the slice, renormalised to area 1',px+pw/2,py-14,'#e3b341','bold 11px Segoe UI');
+  const bins=40;
+  const H=marginalHist(inSlab.map(p=>p[1]),bins,LIM);
+  const hm=Math.max(...H,1);
+  for(let b=0;b<bins;b++){
+    const w=H[b]/hm*(pw-60);
+    mx.fillStyle='rgba(227,179,65,0.55)';
+    mx.fillRect(px+8,py+ph-(b+1)*ph/bins,w,ph/bins-1);
+  }
+  for(let v=-4;v<=4;v+=2){
+    const Y=py+ph-(v+LIM)/(2*LIM)*ph;
+    line(mx,px,Y,px+pw,Y,'#1b222b',1);
+    txt(mx,String(v),px-8,Y,'#6e7681','9px Segoe UI','right');
+  }
+  // theoretical conditional for the Gaussian
+  if(S.shape==='gauss'){
+    const mc=S.rho*(S.sy/S.sx)*c, sc=S.sy*Math.sqrt(1-S.rho*S.rho);
+    const binW=2*LIM/bins;
+    const scale=(pw-60)/hm*Math.max(inSlab.length,1)*binW;
+    mx.strokeStyle='#3fb950'; mx.lineWidth=2.4; mx.beginPath();
+    for(let i=0;i<=200;i++){
+      const y=-LIM+2*LIM*i/200;
+      const d=normPdf((y-mc)/sc)/sc*scale;
+      const Y=py+ph-(y+LIM)/(2*LIM)*ph;
+      i?mx.lineTo(px+8+d,Y):mx.moveTo(px+8+d,Y);
+    }
+    mx.stroke();
+    line(mx,px,py+ph-(mc+LIM)/(2*LIM)*ph,px+pw,py+ph-(mc+LIM)/(2*LIM)*ph,'#f85149',1.6,[4,3]);
+    txt(mx,'E[Y|X=x] = ρ(σ_Y/σ_X)x = '+mc.toFixed(3),px+pw-10,py+ph-(mc+LIM)/(2*LIM)*ph-11,'#f85149','10px Courier New','right');
+    txt(mx,'sd = σ_Y√(1−ρ²) = '+sc.toFixed(3),px+pw-10,py+16,'#3fb950','10px Courier New','right');
+  }
+  txt(mx,inSlab.length+' of '+S.pts.length+' samples fall in this slab',px+pw/2,py+ph+22,'#8b949e','10px Segoe UI');
+
+  /* aux: conditional mean and sd as x moves */
+  clear(ax,auxC);
+  const G={x:110,y:44,w:880,h:160};
+  ax.strokeStyle='#30363d'; ax.strokeRect(G.x,G.y,G.w,G.h);
+  txt(ax,'E[Y | X = x]  and  ±sd(Y | X = x),  measured from the cloud in slabs',G.x+G.w/2,G.y-16,'#8b949e','bold 11px Segoe UI');
+  const X=v=>G.x+(v+LIM)/(2*LIM)*G.w, Y=v=>G.y+G.h-(v+LIM)/(2*LIM)*G.h;
+  for(let v=-4;v<=4;v+=2){
+    line(ax,X(v),G.y,X(v),G.y+G.h,'#1b222b',1);
+    line(ax,G.x,Y(v),G.x+G.w,Y(v),'#1b222b',1);
+    txt(ax,String(v),X(v),G.y+G.h+13,'#6e7681','9px Segoe UI');
+    txt(ax,String(v),G.x-8,Y(v),'#6e7681','9px Segoe UI','right');
+  }
+  const NB=26, band=[];
+  for(let b=0;b<NB;b++){
+    const lo=-LIM+2*LIM*b/NB, hi=-LIM+2*LIM*(b+1)/NB;
+    const sel=S.pts.filter(p=>p[0]>=lo&&p[0]<hi);
+    if(sel.length<6){ band.push(null); continue; }
+    let m=0; sel.forEach(p=>m+=p[1]); m/=sel.length;
+    let s=0; sel.forEach(p=>s+=(p[1]-m)*(p[1]-m)); s=Math.sqrt(s/sel.length);
+    band.push({x:(lo+hi)/2,m,s,n:sel.length});
+  }
+  ax.fillStyle='rgba(227,179,65,0.16)'; ax.beginPath();
+  let started=false;
+  band.forEach(b=>{ if(!b) return; const xx=X(b.x), yy=Y(b.m+b.s); started?ax.lineTo(xx,yy):ax.moveTo(xx,yy); started=true; });
+  for(let i=band.length-1;i>=0;i--){ const b=band[i]; if(!b) continue; ax.lineTo(X(b.x),Y(b.m-b.s)); }
+  ax.closePath(); ax.fill();
+  ax.strokeStyle='#f85149'; ax.lineWidth=2.4; ax.beginPath(); started=false;
+  band.forEach(b=>{ if(!b) return; const xx=X(b.x), yy=Y(b.m); started?ax.lineTo(xx,yy):ax.moveTo(xx,yy); started=true; });
+  ax.stroke();
+  if(S.shape==='gauss'){
+    ax.strokeStyle='#3fb950'; ax.lineWidth=1.8; ax.setLineDash([5,4]); ax.beginPath();
+    for(let i=0;i<=100;i++){ const x=-LIM+2*LIM*i/100, m=S.rho*(S.sy/S.sx)*x;
+      i?ax.lineTo(X(x),Y(m)):ax.moveTo(X(x),Y(m)); }
+    ax.stroke(); ax.setLineDash([]);
+    txt(ax,'theory: ρ(σ_Y/σ_X)x',G.x+G.w-10,G.y+16,'#3fb950','10px Courier New','right');
+  }
+  line(ax,X(S.cut),G.y,X(S.cut),G.y+G.h,'#e3b341',1.6,[4,3]);
+  txt(ax,'a flat red line means E[Y|X] does not depend on X;  a changing band width means the spread does',
+      G.x+G.w/2,G.y+G.h+32,'#6e7681','10px Segoe UI');
+}
+
+/* ================= TAB 2 : uncorrelated vs independent ================= */
+function drawTrap(){
+  clear(mx,mainC);
+  const keys=['gauss','circle','parab','cross','fan','fourblob'];
+  const SZ=180, cols=3;
+  keys.forEach((k,i)=>{
+    const cx=110+(i%cols)*320, cy=44+Math.floor(i/cols)*206;
+    const saveShape=S.shape, savePts=S.pts;
+    S.shape=k; S.pts=[]; const f=SHAPES[k].sample;
+    for(let j=0;j<1200;j++) S.pts.push(f());
+    const Fr=frameXY(mx,cx,cy,SZ,SZ);
+    drawCloud(mx,Fr,0.5);
+    const st=sampleStats();
+    if(S.showEll&&st) drawEllipse(mx,Fr,st,2,'#e3b341',[3,3]);
+    const cur=(saveShape===k);
+    if(cur){ mx.strokeStyle='#58a6ff'; mx.lineWidth=2.4; mx.strokeRect(cx-3,cy-3,SZ+6,SZ+6); }
+    txt(mx,SHAPES[k].name.replace(/\s*\(.*\)/,''),cx+SZ/2,cy-10,cur?'#58a6ff':'#8b949e','bold 10px Segoe UI');
+    txt(mx,'ρ = '+st.rho.toFixed(3),cx+SZ/2,cy+SZ+14,Math.abs(st.rho)<0.12?'#f85149':'#3fb950','bold 11px Courier New');
+    txt(mx,'dependence probe = '+st.rAbs.toFixed(3),cx+SZ/2,cy+SZ+28,
+        Math.abs(st.rAbs)>0.12?'#d2a8ff':'#6e7681','9.5px Courier New');
+    S.shape=saveShape; S.pts=savePts;
+  });
+  txt(mx,'Five of these six have ρ ≈ 0. Only the first and the independent case have no structure left to find.',
+      mainC.width/2,mainC.height-14,'#6e7681','11px Segoe UI');
+
+  clear(ax,auxC);
+  txt(ax,'ρ measures one thing only: how well a straight line fits.',auxC.width/2,40,'#e6edf3','bold 13px Segoe UI');
+  const msgs=[
+    ['ρ = 0  does NOT mean independent.','#f85149'],
+    ['independent  DOES imply  ρ = 0  (when the variances exist).','#3fb950'],
+    ['For jointly Gaussian X and Y — and only then — ρ = 0 does imply independence.','#58a6ff'],
+    ['The "dependence probe" above is corr(|X−μ_X|, |Y−μ_Y|): it catches the fan, where the spread of Y','#d2a8ff'],
+    ['depends on X even though the mean of Y does not. No single number catches every kind of dependence.','#d2a8ff']
+  ];
+  msgs.forEach((m,i)=>txt(ax,m[0],auxC.width/2,78+i*26,m[1],'11.5px Segoe UI'));
+}
+
+/* ================= TAB 3 : joint pmf table ================= */
+function tblStats(){
+  const T=S.tbl, nR=T.length, nC=T[0].length;
+  let tot=0; T.forEach(r=>r.forEach(v=>tot+=v));
+  const px=[], py=[];
+  for(let i=0;i<nR;i++){ let s=0; for(let j=0;j<nC;j++) s+=T[i][j]; px.push(s/tot); }
+  for(let j=0;j<nC;j++){ let s=0; for(let i=0;i<nR;i++) s+=T[i][j]; py.push(s/tot); }
+  let ex=0,ey=0,exy=0,ex2=0,ey2=0;
+  for(let i=0;i<nR;i++) for(let j=0;j<nC;j++){
+    const p=T[i][j]/tot; ex+=i*p; ey+=j*p; exy+=i*j*p; ex2+=i*i*p; ey2+=j*j*p;
+  }
+  const vx=ex2-ex*ex, vy=ey2-ey*ey, cov=exy-ex*ey;
+  const rho=(vx>0&&vy>0)?cov/Math.sqrt(vx*vy):0;
+  // is it a product of its marginals?
+  let maxDev=0;
+  for(let i=0;i<nR;i++) for(let j=0;j<nC;j++)
+    maxDev=Math.max(maxDev,Math.abs(T[i][j]/tot-px[i]*py[j]));
+  return {tot,px,py,ex,ey,vx,vy,cov,rho,maxDev,nR,nC};
+}
+function drawTable(){
+  clear(mx,mainC);
+  const T=S.tbl, st=tblStats();
+  const cw=96, chh=64, X0=250, Y0=90;
+  txt(mx,'Joint pmf  P(X = i, Y = j)   —   click a cell to change it',X0+st.nC*cw/2,Y0-46,'#8b949e','bold 12px Segoe UI');
+  for(let j=0;j<st.nC;j++) txt(mx,'Y = '+j,X0+j*cw+cw/2,Y0-16,'#3fb950','11px Segoe UI');
+  for(let i=0;i<st.nR;i++) txt(mx,'X = '+i,X0-30,Y0+i*chh+chh/2,'#58a6ff','11px Segoe UI','right');
+  for(let i=0;i<st.nR;i++) for(let j=0;j<st.nC;j++){
+    const x=X0+j*cw, y=Y0+i*chh, p=T[i][j]/st.tot;
+    const indep=st.px[i]*st.py[j];
+    const dev=p-indep;
+    mx.fillStyle='rgba(88,166,255,'+(0.12+p*1.7).toFixed(3)+')';
+    mx.fillRect(x+1,y+1,cw-2,chh-2);
+    mx.strokeStyle='#30363d'; mx.strokeRect(x,y,cw,chh);
+    txt(mx,p.toFixed(3),x+cw/2,y+22,'#e6edf3','bold 13px Courier New');
+    txt(mx,'indep: '+indep.toFixed(3),x+cw/2,y+40,'#6e7681','9px Courier New');
+    if(Math.abs(dev)>0.004)
+      txt(mx,(dev>0?'+':'')+dev.toFixed(3),x+cw/2,y+53,dev>0?'#3fb950':'#f85149','9px Courier New');
+  }
+  // marginals
+  const mx0=X0+st.nC*cw+16;
+  txt(mx,'P(X = i)',mx0+42,Y0-16,'#58a6ff','11px Segoe UI');
+  for(let i=0;i<st.nR;i++){
+    const y=Y0+i*chh;
+    mx.fillStyle='rgba(88,166,255,0.25)'; mx.fillRect(mx0,y+1,84,chh-2);
+    mx.strokeStyle='#30363d'; mx.strokeRect(mx0,y,84,chh);
+    txt(mx,st.px[i].toFixed(3),mx0+42,y+chh/2,'#58a6ff','bold 12px Courier New');
+  }
+  const my0=Y0+st.nR*chh+16;
+  txt(mx,'P(Y = j)',X0-30,my0+22,'#3fb950','11px Segoe UI','right');
+  for(let j=0;j<st.nC;j++){
+    const x=X0+j*cw;
+    mx.fillStyle='rgba(63,185,80,0.25)'; mx.fillRect(x+1,my0,cw-2,44);
+    mx.strokeStyle='#30363d'; mx.strokeRect(x,my0,cw,44);
+    txt(mx,st.py[j].toFixed(3),x+cw/2,my0+22,'#3fb950','bold 12px Courier New');
+  }
+  mx.fillStyle='#161b22'; mx.fillRect(mx0,my0,84,44);
+  mx.strokeStyle='#30363d'; mx.strokeRect(mx0,my0,84,44);
+  txt(mx,st.tot.toFixed(3),mx0+42,my0+22,'#e6edf3','bold 12px Courier New');
+  txt(mx,'sums to 1',mx0+42,my0+56,'#6e7681','9px Segoe UI');
+
+  const ix=760;
+  const rows=[
+    ['E[X]',st.ex.toFixed(4),'#58a6ff'],['E[Y]',st.ey.toFixed(4),'#3fb950'],
+    ['Var(X)',st.vx.toFixed(4),'#8b949e'],['Var(Y)',st.vy.toFixed(4),'#8b949e'],
+    ['Cov(X,Y)',st.cov.toFixed(4),'#e3b341'],['ρ',st.rho.toFixed(4),'#e3b341'],
+    ['max |P − P_X·P_Y|',st.maxDev.toFixed(4),st.maxDev<1e-6?'#3fb950':'#f85149']
+  ];
+  rows.forEach((r,i)=>{
+    const y=Y0-30+i*34;
+    txt(mx,r[0],ix,y,'#8b949e','11px Segoe UI','left');
+    txt(mx,r[1],ix+250,y,r[2],'bold 12px Courier New','right');
+  });
+  txt(mx,st.maxDev<1e-6?'independent: the table IS the product of its marginals'
+                       :'NOT independent — some cell differs from P(X)·P(Y)',
+      ix+125,Y0-30+7*34+6,st.maxDev<1e-6?'#3fb950':'#f85149','bold 11px Segoe UI');
+  if(Math.abs(st.rho)<1e-6&&st.maxDev>1e-6)
+    txt(mx,'…yet ρ = 0. Uncorrelated but dependent, in a 3×3 table.',ix+125,Y0-30+7*34+26,'#d2a8ff','11px Segoe UI');
+
+  clear(ax,auxC);
+  txt(ax,'Conditional distributions  P(Y = j | X = i)  —  each row renormalised to sum to 1',
+      auxC.width/2,32,'#8b949e','bold 11px Segoe UI');
+  const bw=150, bh=44;
+  for(let i=0;i<st.nR;i++){
+    const y=58+i*58;
+    txt(ax,'X = '+i,180,y+bh/2,'#58a6ff','11px Segoe UI','right');
+    let rowSum=0; for(let j=0;j<st.nC;j++) rowSum+=S.tbl[i][j];
+    let cx=200;
+    for(let j=0;j<st.nC;j++){
+      const p=rowSum>0?S.tbl[i][j]/rowSum:0;
+      const w=p*bw*3;
+      ax.fillStyle=['#1f6feb','#2a9d8f','#e3b341'][j%3];
+      ax.fillRect(cx,y,w,bh);
+      if(w>40) txt(ax,'Y='+j+'  '+p.toFixed(3),cx+w/2,y+bh/2,'#fff','10px Courier New');
+      cx+=w;
+    }
+    ax.strokeStyle='#30363d'; ax.strokeRect(200,y,bw*3,bh);
+  }
+  txt(ax,st.maxDev<1e-6?'All rows identical ⇒ knowing X tells you nothing about Y ⇒ independent.'
+                       :'The rows differ ⇒ knowing X changes the distribution of Y ⇒ dependent.',
+      auxC.width/2,auxC.height-16,st.maxDev<1e-6?'#3fb950':'#f85149','11.5px Segoe UI');
+}
+
+/* ================= tabs / info ================= */
+const TABS=[
+{title:'Scatter, Marginals and the Covariance Ellipse',aux:'The two marginals on their own',
+ eq:'Cov(X, Y) = E[(X − μ<sub>X</sub>)(Y − μ<sub>Y</sub>)] &nbsp;&nbsp;·&nbsp;&nbsp; ρ = Cov(X, Y) / (σ<sub>X</sub>σ<sub>Y</sub>)',
+ desc:'A cloud of samples with its marginals pressed against the axes. Squashing the joint onto one axis destroys every trace of the relationship between X and Y.',
+ legend:[['#58a6ff','samples / marginal of X'],['#3fb950','marginal of Y'],['#e3b341','1σ and 2σ ellipse'],['#f85149','E[Y|X] regression line']]},
+{title:'Slicing the Joint: the Conditional Distribution',aux:'E[Y|X=x] and its spread, across x',
+ eq:'f<sub>Y|X</sub>(y | x) = f<sub>XY</sub>(x, y) / f<sub>X</sub>(x) &nbsp;&nbsp;·&nbsp;&nbsp; Gaussian: E[Y|X=x] = ρ(σ<sub>Y</sub>/σ<sub>X</sub>)x, &nbsp;sd = σ<sub>Y</sub>√(1−ρ²)',
+ desc:'Conditioning is slicing the joint density at one x and renormalising that slice to area 1. For a bivariate Normal every slice is again Normal — with a shifted mean and a shrunken spread.',
+ legend:[['#e3b341','the slice at x'],['#3fb950','theoretical conditional'],['#f85149','E[Y|X=x]'],['#58a6ff','samples']]},
+{title:'Six Clouds, Almost All With ρ ≈ 0',aux:'What ρ can and cannot see',
+ eq:'X ⫫ Y &nbsp;⟹&nbsp; ρ = 0 &nbsp;&nbsp;&nbsp; but &nbsp;&nbsp;&nbsp; ρ = 0 &nbsp;⇏&nbsp; X ⫫ Y',
+ desc:'Correlation is a measure of linear association and nothing else. Every cloud here except the first has ρ near zero, and every one of them is strongly dependent.',
+ legend:[['#58a6ff','samples'],['#e3b341','2σ ellipse'],['#f85149','ρ ≈ 0'],['#d2a8ff','dependence probe']]},
+{title:'A Joint PMF You Can Edit',aux:'Row-by-row conditionals',
+ eq:'P(X = i, Y = j) &nbsp;vs&nbsp; P(X = i)·P(Y = j) &nbsp;&nbsp;·&nbsp;&nbsp; independence means these agree in <em>every</em> cell',
+ desc:'The discrete version, where you can check independence by hand. Click any cell to change it and watch the marginals, ρ, and the conditionals move.',
+ legend:[['#58a6ff','P(X = i)'],['#3fb950','P(Y = j)'],['#e3b341','covariance / ρ'],['#f85149','departure from independence']]}
+];
+const INFO=[
+`<strong>The joint holds everything; the marginals do not.</strong> f<sub>XY</sub> determines f<sub>X</sub> and f<sub>Y</sub>, but not the other way round — infinitely many joints share the same pair of marginals.
+<ul>
+<li><strong>Watch the bottom panel as you drag ρ.</strong> The two marginal histograms barely move: they are N(0, σ²) whatever ρ does. All the information about the relationship lives in the joint, and marginalising throws it away.</li>
+<li><strong>Covariance carries units</strong> — change σ<sub>X</sub> and Cov changes with it. ρ divides them out, which is why ρ is the comparable quantity and always lies in [−1, 1].</li>
+<li><strong>The ellipse is the covariance matrix, drawn.</strong> Its axes are the eigenvectors and its half-lengths the square roots of the eigenvalues. ρ = 0 with equal variances gives a circle; ρ → ±1 collapses it onto a line.</li>
+<li><strong>The regression line has slope Cov(X,Y)/Var(X)</strong> = ρ·σ<sub>Y</sub>/σ<sub>X</sub> — not ρ, and not σ<sub>Y</sub>/σ<sub>X</sub>. The extra factor of ρ is regression toward the mean, and it is why predicting Y from X always under-shoots the extremes.</li>
+</ul>`,
+`<strong>Conditioning is slicing.</strong> Cut the joint density along x = a constant, and what remains — rescaled so its area is 1 — is the conditional density of Y given that X.
+<ul>
+<li><strong>Slide the slice across.</strong> For the bivariate Normal, the shape never changes: every slice is Normal with the same width σ<sub>Y</sub>√(1−ρ²), sliding along at rate ρσ<sub>Y</sub>/σ<sub>X</sub>. That constancy is special to the Gaussian.</li>
+<li><strong>Knowing X shrinks your uncertainty about Y</strong> by the factor √(1−ρ²). At ρ = 0.7 that is only a 29% reduction — correlations that look impressive on a scatter plot buy less predictive power than people expect. At ρ = 0.9 it is 56%.</li>
+<li><strong>The lower plot separates two different things:</strong> the red line is how the <em>mean</em> of Y depends on x; the shaded band is how the <em>spread</em> does. Independence requires both to be flat.</li>
+<li><strong>Try the "Fan" preset here.</strong> The red line is flat — E[Y|X] genuinely does not depend on X, so ρ = 0 — yet the band fans out dramatically. X tells you nothing about where Y will be, and everything about how far away it might land.</li>
+</ul>`,
+`<strong>The most-misused number in applied probability.</strong> ρ answers exactly one question: how well does a straight line describe the relationship? Anything a straight line cannot capture, ρ cannot see.
+<ul>
+<li><strong>All six clouds are strongly dependent.</strong> Five have ρ ≈ 0. Knowing X pins down Y to a narrow range in the ring, the parabola and the four-blob case — that is as dependent as it gets, and ρ is blind to all of it.</li>
+<li><strong>The implication only runs one way.</strong> Independent ⟹ uncorrelated, because E[XY] factorises. The converse fails, and these are the counterexamples.</li>
+<li><strong>The one exception worth memorising:</strong> if X and Y are <em>jointly</em> Gaussian, ρ = 0 really does imply independence. Note "jointly" — two marginally-Normal variables can be uncorrelated and still dependent.</li>
+<li><strong>The dependence probe</strong> printed under each cloud is corr(|X − μ|, |Y − μ|). It catches the ring, the cross and the fan, which ordinary ρ misses entirely.</li>
+<li><strong>But look at the four blobs:</strong> ρ ≈ 0 <em>and</em> the probe ≈ 0, and the variables are still plainly dependent — knowing X = 1.8 tells you Y is ±1.8 and never 0. Two summary numbers both report "nothing here" while the scatter plot shows the structure immediately. No single statistic detects every kind of dependence, which is why you look at the data.</li>
+<li><strong>Why this matters downstream:</strong> "uncorrelated noise" is a weaker assumption than "independent noise". Many results in estimation and communications need one and are quietly stated with the other.</li>
+</ul>`,
+`<strong>Independence, checkable by hand.</strong> For a discrete pair, X and Y are independent exactly when P(X=i, Y=j) = P(X=i)·P(Y=j) in every single cell — not on average, not for most cells.
+<ul>
+<li><strong>Each cell prints three numbers:</strong> the joint probability, what it would be under independence, and the difference. Independence means every difference is zero.</li>
+<li><strong>Click any cell to edit it.</strong> The preset "independent table" is built as an outer product; nudge one cell and it immediately stops being independent, while ρ may barely move.</li>
+<li><strong>The "uncorrelated but dependent" preset</strong> has ρ = 0 exactly while the cells plainly disagree with the product of the marginals — the discrete twin of the ring on the previous tab.</li>
+<li><strong>The conditionals below are the intuitive test.</strong> If every row is the same bar chart, learning X told you nothing about Y. If the rows differ, it did.</li>
+<li><strong>A useful shortcut:</strong> if any cell is 0 while its row and column totals are both non-zero, the table cannot be independent. Zeros in a joint table are strong evidence of structure.</li>
+</ul>`
+];
+
+/* ================= meters ================= */
+const MET=[
+  ['Shape',()=>SHAPES[S.shape].name.replace(/\s*\(.*\)/,'')],
+  ['n',()=>S.pts.length.toLocaleString()],
+  ['mean X',()=>{const s=sampleStats();return s?s.mx.toFixed(3):'—';}],
+  ['mean Y',()=>{const s=sampleStats();return s?s.my.toFixed(3):'—';}],
+  ['σ_X',()=>{const s=sampleStats();return s?s.sx.toFixed(3):'—';}],
+  ['σ_Y',()=>{const s=sampleStats();return s?s.sy.toFixed(3):'—';}],
+  ['Cov(X,Y)',()=>{const s=sampleStats();return s?s.cov.toFixed(4):'—';}],
+  ['ρ (measured)',()=>{const s=sampleStats();return s?s.rho.toFixed(4):'—';}],
+  ['ρ (set)',()=>S.shape==='gauss'?S.rho.toFixed(2):'—'],
+  ['sd(Y|X)/σ_Y',()=>S.shape==='gauss'?Math.sqrt(1-S.rho*S.rho).toFixed(4):'—']
+];
+document.getElementById('meters').innerHTML=MET.map((m,i)=>
+  `<div class="meter"><div class="ml">${m[0]}</div><div class="mv" id="mv${i}">—</div></div>`).join('');
+function updateMeters(){ MET.forEach((m,i)=>{
+  const el=document.getElementById('mv'+i); if(el) el.textContent=String(m[1]()); }); }
+
+/* ================= presets ================= */
+const TBL_PRESETS={
+  dep:[[0.10,0.06,0.04],[0.08,0.20,0.12],[0.02,0.14,0.24]],
+  indep:null,     // built as an outer product below
+  uncorr:[[0.00,0.25,0.00],[0.25,0.00,0.25],[0.00,0.25,0.00]]
+};
+(function(){ const px=[0.3,0.45,0.25], py=[0.2,0.5,0.3];
+  TBL_PRESETS.indep=px.map(a=>py.map(b=>+(a*b).toFixed(6))); })();
+
+const ORDER=['gauss','indep','circle','parab','cross','fan','fourblob'];
+function buildPresets(){
+  const el=document.getElementById('presets');
+  if(S.tab===3){
+    el.innerHTML='<span style="font-size:.76em;color:#6e7681;align-self:center;margin-right:4px">table:</span>'+
+      [['dep','Dependent'],['indep','Independent'],['uncorr','Uncorrelated but dependent']]
+        .map(t=>`<div class="preset tbl" data-t="${t[0]}">${t[1]}</div>`).join('');
+    el.querySelectorAll('.preset').forEach(e=>e.addEventListener('click',()=>{
+      S.tbl=TBL_PRESETS[e.dataset.t].map(r=>r.slice());
+      el.querySelectorAll('.preset').forEach(x=>x.classList.toggle('active',x===e));
+      draw();
+    }));
+  } else {
+    el.innerHTML='<span style="font-size:.76em;color:#6e7681;align-self:center;margin-right:4px">joint shape:</span>'+
+      ORDER.map(k=>`<div class="preset${SHAPES[k].trap?' trap':''}" data-s="${k}">${
+        SHAPES[k].name.replace(/\s*\(.*\)/,'')}</div>`).join('');
+    el.querySelectorAll('.preset').forEach(e=>e.addEventListener('click',()=>{
+      S.shape=e.dataset.s; resample(); markShape(); draw();
+    }));
+    markShape();
+  }
+}
+function markShape(){ document.querySelectorAll('.preset[data-s]').forEach(el=>
+  el.classList.toggle('active',el.dataset.s===S.shape)); }
+
+/* ================= dispatch ================= */
+function draw(){
+  if(S.tab===0) drawScatter();
+  else if(S.tab===1) drawConditional();
+  else if(S.tab===2) drawTrap();
+  else drawTable();
+  updateMeters();
+}
+const $=id=>document.getElementById(id);
+function setTab(t){
+  S.tab=t;
+  document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active',+el.dataset.tab===t));
+  const T=TABS[t];
+  $('mainTitle').textContent=T.title; $('auxTitle').textContent=T.aux;
+  $('eqText').innerHTML=T.eq; $('eqDesc').textContent=T.desc;
+  $('legend').innerHTML=T.legend.map(l=>
+    `<div class="legend-item"><div class="legend-dot" style="background:${l[0]}"></div>${l[1]}</div>`).join('');
+  $('info').innerHTML=INFO[t];
+  document.querySelectorAll('.cg[data-tabs]').forEach(el=>
+    el.classList.toggle('hidden',!el.dataset.tabs.split(',').includes(String(t))));
+  mainC.height=(t===3)?420:440;
+  buildPresets();
+  draw();
+}
+document.querySelectorAll('.tab').forEach(el=>el.addEventListener('click',()=>setTab(+el.dataset.tab)));
+
+/* ================= controls ================= */
+$('slRho').addEventListener('input',e=>{ S.rho=+e.target.value; $('vRho').textContent=S.rho.toFixed(2);
+  if(S.shape==='gauss') resample(); draw(); });
+$('slSx').addEventListener('input',e=>{ S.sx=+e.target.value; $('vSx').textContent=S.sx.toFixed(2);
+  if(S.shape==='gauss'||S.shape==='indep') resample(); draw(); });
+$('slSy').addEventListener('input',e=>{ S.sy=+e.target.value; $('vSy').textContent=S.sy.toFixed(2);
+  if(S.shape==='gauss'||S.shape==='indep') resample(); draw(); });
+$('slCut').addEventListener('input',e=>{ S.cut=+e.target.value; $('vCut').textContent=S.cut.toFixed(2); draw(); });
+$('slN').addEventListener('input',e=>{ S.n=+e.target.value; $('vN').textContent=S.n.toLocaleString();
+  resample(); draw(); });
+$('ckEll').addEventListener('change',e=>{ S.showEll=e.target.checked; draw(); });
+$('ckReg').addEventListener('change',e=>{ S.showReg=e.target.checked; draw(); });
+$('btnResample').addEventListener('click',()=>{ resample(); draw(); });
+$('btnReset').addEventListener('click',()=>{
+  S.rho=0.7; S.sx=1; S.sy=1; S.cut=1; S.n=2000; S.shape='gauss';
+  S.tbl=TBL_PRESETS.dep.map(r=>r.slice());
+  $('slRho').value=0.7; $('vRho').textContent='0.70';
+  $('slSx').value=1; $('vSx').textContent='1.00';
+  $('slSy').value=1; $('vSy').textContent='1.00';
+  $('slCut').value=1; $('vCut').textContent='1.00';
+  $('slN').value=2000; $('vN').textContent='2,000';
+  resample(); markShape(); draw();
+});
+
+/* click a table cell on tab 3 */
+mainC.addEventListener('click',ev=>{
+  if(S.tab!==3) return;
+  const r=mainC.getBoundingClientRect();
+  const x=(ev.clientX-r.left)*(mainC.width/r.width);
+  const y=(ev.clientY-r.top)*(mainC.height/r.height);
+  const cw=96, chh=64, X0=250, Y0=90;
+  const j=Math.floor((x-X0)/cw), i=Math.floor((y-Y0)/chh);
+  if(i<0||i>=S.tbl.length||j<0||j>=S.tbl[0].length) return;
+  // cycle the cell through a few values
+  const steps=[0,0.04,0.08,0.12,0.18,0.25];
+  const cur=S.tbl[i][j];
+  let k=0; let best=1e9;
+  steps.forEach((v,idx)=>{ const d=Math.abs(v-cur); if(d<best){best=d;k=idx;} });
+  S.tbl[i][j]=steps[(k+1)%steps.length];
+  let tot=0; S.tbl.forEach(row=>row.forEach(v=>tot+=v));
+  if(tot<=0) S.tbl[i][j]=0.1;
+  document.querySelectorAll('.preset.tbl').forEach(x2=>x2.classList.remove('active'));
+  draw();
+});
+
+resample(); setTab(0);
+</script>
+</body>
+</html>
