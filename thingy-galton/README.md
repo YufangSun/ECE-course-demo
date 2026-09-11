@@ -3,11 +3,10 @@ title: Galton Board
 emoji: 🎲
 colorFrom: indigo
 colorTo: blue
-sdk: gradio
-sdk_version: 5.45.0
-app_file: app.py
+sdk: static
 pinned: false
-thingy_author: Yufang Sun
+license: mit
+short_description: Watch a binomial distribution build itself one bouncing ball at a time
 ---
 
 # Galton Board
@@ -31,6 +30,8 @@ a Binomial(n, p) distribution, built out of physical coin flips.
 - **Two convergences at once.** The lower-left panel plots the total variation
   distance between the measured histogram and the true pmf; it shrinks like
   1/√(balls), independently of how good the normal approximation is.
+
+Pure HTML and canvas — no dependencies, no network access, nothing to install.
 
 Built for ECE 302 (Probabilistic Methods in Electrical and Computer Engineering).
 Part of a larger collection at https://yufangsun.github.io/ECE-course-demo/
