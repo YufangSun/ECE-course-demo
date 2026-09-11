@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AM &amp; FM Modulation — ECE 440</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',system-ui,sans-serif;
+    display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:18px}
+  h1{font-size:1.5em;color:#e0e0ff}
+  .subtitle{color:#7d8590;margin-bottom:10px;font-size:.92em;text-align:center;max-width:900px}
+  canvas{display:block;border-radius:10px;max-width:100%}
+  .tabs{display:flex;gap:6px;margin:10px 0;flex-wrap:wrap;justify-content:center}
+  .tab{padding:8px 18px;border-radius:8px;cursor:pointer;font-size:.86em;
+    background:#161b22;border:1px solid #30363d;color:#8b949e;transition:.2s}
+  .tab:hover{border-color:#58a6ff;color:#e6edf3}
+  .tab.active{background:#1f6feb;border-color:#1f6feb;color:white;font-weight:bold}
+  .eq-box{background:#161b22;border:1px solid #30363d;border-radius:10px;
+    padding:8px 14px;margin:6px 0;max-width:1120px;width:100%;text-align:center}
+  .eq{font-size:1.05em;font-family:'Times New Roman',serif;color:#e0e0ff}
+  .eq-desc{font-size:.78em;color:#7d8590;margin-top:3px}
+  .legend{display:flex;gap:12px;justify-content:center;margin:6px 0;flex-wrap:wrap}
+  .legend-item{display:flex;align-items:center;gap:4px;font-size:.76em;color:#8b949e}
+  .legend-dot{width:9px;height:9px;border-radius:3px}
+  .row{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:8px;max-width:1120px;width:100%}
+  .panel{background:#161b22;border-radius:12px;padding:12px;border:1px solid #30363d;width:100%}
+  .panel h2{font-size:.88em;color:#8b949e;margin-bottom:6px;text-align:center}
+  .meters{display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap;max-width:1120px}
+  .meter{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:4px 10px;text-align:center;min-width:94px}
+  .meter .ml{font-size:.68em;color:#8b949e}
+  .meter .mv{font-size:.9em;font-weight:bold;font-family:'Courier New',monospace;color:#e6edf3}
+  .controls{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;justify-content:center;align-items:center;
+    max-width:1120px;width:100%;background:#161b22;border:1px solid #30363d;border-radius:12px;padding:12px}
+  .cg{display:flex;align-items:center;gap:5px}
+  .cg label{font-size:.78em;color:#8b949e;white-space:nowrap}
+  input[type="range"]{width:120px;accent-color:#58a6ff}
+  .val{font-size:.78em;color:#58a6ff;min-width:56px;font-family:'Courier New',monospace}
+  button{background:#238636;color:white;border:none;padding:6px 14px;border-radius:6px;
+    cursor:pointer;font-size:.82em;transition:.2s}
+  button:hover{background:#2ea043}
+  button.sec{background:#30363d}
+  button.sec:hover{background:#484f58}
+  .chk{display:flex;align-items:center;gap:4px;font-size:.76em;color:#8b949e;cursor:pointer;user-select:none}
+  .chk input{accent-color:#58a6ff;cursor:pointer}
+  .presets{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:10px;max-width:1120px}
+  .preset{padding:5px 13px;border-radius:6px;cursor:pointer;font-size:.76em;
+    background:#21262d;border:1px solid #30363d;color:#8b949e;transition:.2s}
+  .preset:hover{border-color:#58a6ff;color:#e6edf3}
+  .preset.active{background:#1f6feb;border-color:#1f6feb;color:white}
+  .preset.warn.active{background:#9e3b2e;border-color:#f85149}
+  .info{max-width:1120px;width:100%;background:#161b22;border-radius:12px;
+    padding:14px 18px;border:1px solid #30363d;margin-top:14px;font-size:.84em;line-height:1.65;color:#8b949e}
+  .info strong{color:#e0e0ff}
+  .info code{color:#f0883e;background:#21262d;padding:1px 5px;border-radius:3px;font-size:.95em}
+  .info ul{margin:6px 0 0 20px}
+  .info li{margin:3px 0}
+  .hidden{display:none!important}
+  a{color:#58a6ff}
+  .back{margin-top:16px;font-size:.82em}
+</style>
+</head>
+<body>
+
+<h1>AM &amp; FM Modulation</h1>
+<p class="subtitle">Push a message onto a carrier by changing its amplitude or its frequency, and watch what that does to the waveform, to the spectrum, and to how much bandwidth and power you spend.</p>
+
+<div class="tabs">
+  <div class="tab active" data-tab="0">AM · DSB-SC · SSB</div>
+  <div class="tab" data-tab="1">Envelope Detector</div>
+  <div class="tab" data-tab="2">FM &amp; PM</div>
+  <div class="tab" data-tab="3">Bandwidth &amp; Power</div>
+</div>
+
+<div class="eq-box">
+  <div class="eq" id="eqText"></div>
+  <div class="eq-desc" id="eqDesc"></div>
+</div>
+
+<div class="presets" id="presets"></div>
+<div class="legend" id="legend"></div>
+
+<div class="row"><div class="panel"><h2 id="mainTitle">Waveforms</h2>
+  <canvas id="mainCanvas" width="1080" height="420"></canvas></div></div>
+<div class="row"><div class="panel"><h2 id="auxTitle">Spectrum</h2>
+  <canvas id="auxCanvas" width="1080" height="260"></canvas></div></div>
+
+<div class="meters" id="meters"></div>
+
+<div class="controls">
+  <div class="cg"><label>carrier f<sub>c</sub>:</label>
+    <input type="range" id="slFc" min="50" max="1000" step="10" value="300">
+    <span class="val" id="vFc">300 Hz</span></div>
+  <div class="cg"><label>message f<sub>m</sub>:</label>
+    <input type="range" id="slFm" min="1" max="20" step="1" value="5">
+    <span class="val" id="vFm">5 Hz</span></div>
+  <div class="cg" data-tabs="0,1,3"><label>index μ:</label>
+    <input type="range" id="slMu" min="0" max="2" step="0.01" value="0.6">
+    <span class="val" id="vMu">0.60</span></div>
+  <div class="cg" data-tabs="2,3"><label>β = Δf/f<sub>m</sub>:</label>
+    <input type="range" id="slBeta" min="0" max="12" step="0.01" value="2.4">
+    <span class="val" id="vBeta">2.40</span></div>
+  <div class="cg" data-tabs="1"><label>detector RC:</label>
+    <input type="range" id="slRC" min="0.2" max="80" step="0.2" value="12">
+    <span class="val" id="vRC">12.0 ms</span></div>
+  <div class="cg" data-tabs="0,1"><label>scheme:</label>
+    <button class="sec" id="btnScheme">AM (with carrier)</button></div>
+  <div class="cg" data-tabs="2"><label>angle:</label>
+    <button class="sec" id="btnAngle">FM</button></div>
+  <div class="cg" data-tabs="0,2"><label class="chk"><input type="checkbox" id="ckTheory" checked> theoretical lines</label></div>
+  <div class="cg"><button class="sec" id="btnReset">Reset</button></div>
+</div>
+
+<div class="info" id="info"></div>
+<div class="back"><a href="index.html">← All demos</a></div>
+
+<script>
+/* ================= math ================= */
+function logGamma(x){
+  const g=[76.18009172947146,-86.50532032941677,24.01409824083091,-1.231739572450155,
+           0.1208650973866179e-2,-0.5395239384953e-5];
+  let y=x,tmp=x+5.5; tmp-=(x+0.5)*Math.log(tmp); let ser=1.000000000190015;
+  for(let j=0;j<6;j++) ser+=g[j]/++y;
+  return -tmp+Math.log(2.5066282746310005*ser/x);
+}
+const logFact=n=>logGamma(n+1);
+/* Bessel function of the first kind, integer order.
+   Terms are advanced by the recurrence  t_k = t_(k-1) · −(x/2)² / (k(n+k)),
+   which avoids an exp(logGamma) round-trip per term and keeps about an extra
+   order of magnitude of accuracy where the alternating series cancels badly. */
+function besselJ(n,x){
+  n=Math.abs(n);
+  if(x===0) return n===0?1:0;
+  const h=Math.abs(x)/2;
+  let t=1;
+  for(let j=1;j<=n;j++) t*=h/j;          // t_0 = (x/2)^n / n!
+  let sum=t;
+  for(let k=1;k<300;k++){
+    t*= -(h*h)/(k*(n+k));
+    sum+=t;
+    if(k>h && Math.abs(t)<1e-18*Math.abs(sum)) break;
+  }
+  if(x<0 && n%2===1) sum=-sum;
+  return sum;
+}
+/* in-place radix-2 FFT */
+function fft(re,im){
+  const n=re.length;
+  for(let i=1,j=0;i<n;i++){
+    let bit=n>>1;
+    for(;j&bit;bit>>=1) j^=bit;
+    j^=bit;
+    if(i<j){ [re[i],re[j]]=[re[j],re[i]]; [im[i],im[j]]=[im[j],im[i]]; }
+  }
+  for(let len=2;len<=n;len<<=1){
+    const ang=-2*Math.PI/len;
+    const wr=Math.cos(ang), wi=Math.sin(ang);
+    for(let i=0;i<n;i+=len){
+      let cr=1,ci=0;
+      for(let j=0;j<len/2;j++){
+        const ur=re[i+j], ui=im[i+j];
+        const vr=re[i+j+len/2]*cr-im[i+j+len/2]*ci;
+        const vi=re[i+j+len/2]*ci+im[i+j+len/2]*cr;
+        re[i+j]=ur+vr; im[i+j]=ui+vi;
+        re[i+j+len/2]=ur-vr; im[i+j+len/2]=ui-vi;
+        const ncr=cr*wr-ci*wi; ci=cr*wi+ci*wr; cr=ncr;
+      }
+    }
+  }
+}
+
+/* ================= state =================
+   The analysis window is exactly 1 second long and N = 2048 samples, so a
+   frequency in Hz is also a whole number of cycles per window. Every tone
+   lands dead centre on an FFT bin — no spectral leakage, clean line spectra. */
+const N=4096, T=1, FS=N/T;
+const S={ tab:0, fc:300, fm:5, mu:0.6, beta:2.4, rc:12, scheme:'am', angle:'fm', theory:true };
+const SCHEMES={am:'AM (with carrier)',dsb:'DSB-SC',ssb:'SSB (upper)'};
+
+const mainC=document.getElementById('mainCanvas'), mx=mainC.getContext('2d');
+const auxC=document.getElementById('auxCanvas'),  ax=auxC.getContext('2d');
+
+/* ================= signals ================= */
+const msg=t=>Math.cos(2*Math.PI*S.fm*t);                 // normalised message, |m| <= 1
+function modulated(t){
+  const wc=2*Math.PI*S.fc*t;
+  if(S.tab===2){
+    // angle modulation: FM integrates the message, PM does not
+    return S.angle==='fm'
+      ? Math.cos(wc + S.beta*Math.sin(2*Math.PI*S.fm*t))
+      : Math.cos(wc + S.beta*Math.cos(2*Math.PI*S.fm*t));
+  }
+  switch(S.scheme){
+    case 'dsb': return msg(t)*Math.cos(wc);
+    case 'ssb': return 0.5*(msg(t)*Math.cos(wc) - Math.sin(2*Math.PI*S.fm*t)*Math.sin(wc));
+    default:    return (1+S.mu*msg(t))*Math.cos(wc);
+  }
+}
+const envelopeTrue=t=>{
+  if(S.scheme==='dsb') return Math.abs(msg(t));
+  if(S.scheme==='ssb') return 0.5;
+  return Math.abs(1+S.mu*msg(t));
+};
+function sampleSignal(fn){
+  const a=new Float64Array(N);
+  for(let i=0;i<N;i++) a[i]=fn(i/FS);
+  return a;
+}
+/* single-sided amplitude spectrum */
+function spectrum(sig){
+  const re=Float64Array.from(sig), im=new Float64Array(N);
+  fft(re,im);
+  const half=N/2, mag=new Float64Array(half);
+  for(let k=0;k<half;k++){
+    mag[k]=2*Math.hypot(re[k],im[k])/N;
+    if(k===0) mag[k]/=2;
+  }
+  return mag;
+}
+/* centred circular moving average, via prefix sums (O(N)) */
+function smooth(arr,L){
+  L=Math.max(1,Math.round(L));
+  if(L<2) return Float64Array.from(arr);
+  const pre=new Float64Array(N+1);
+  for(let i=0;i<N;i++) pre[i+1]=pre[i]+arr[i];
+  const total=pre[N];
+  const out=new Float64Array(N), h=Math.floor(L/2);
+  for(let i=0;i<N;i++){
+    let a=i-h, b=a+L;                 // half-open window [a,b)
+    let sum;
+    if(a<0){ sum=(total-pre[N+a])+pre[b]; }
+    else if(b>N){ sum=(pre[N]-pre[a])+pre[b-N]; }
+    else sum=pre[b]-pre[a];
+    out[i]=sum/L;
+  }
+  return out;
+}
+/* the post-detector audio low-pass every real receiver has: keeps the message,
+   removes the carrier-rate ripple. Applied twice for a steeper skirt. */
+function audioLPF(arr){
+  const L=Math.max(2,Math.round(FS/(4*S.fm)));
+  return smooth(smooth(arr,L),L);
+}
+/* diode envelope detector: rectify, then one-pole RC low-pass */
+function envelopeDetect(sig,rcMs){
+  const dt=1/FS, rc=rcMs/1000;
+  const a=dt/(rc+dt);
+  const out=new Float64Array(N);
+  let y=0;
+  for(let i=0;i<N;i++){
+    const r=Math.abs(sig[i]);
+    // the diode charges instantly and the capacitor discharges through R
+    y = r>y ? r : y+a*(r-y);
+    out[i]=y;
+  }
+  return out;
+}
+
+/* ================= drawing helpers ================= */
+function clear(ctx,c){ ctx.fillStyle='#0d1117'; ctx.fillRect(0,0,c.width,c.height); }
+function txt(ctx,s,x,y,col,font,align){
+  ctx.fillStyle=col||'#8b949e'; ctx.font=font||'11px Segoe UI';
+  ctx.textAlign=align||'center'; ctx.textBaseline='middle'; ctx.fillText(s,x,y);
+}
+function line(ctx,x1,y1,x2,y2,col,w,dash){
+  ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=w||1; if(dash)ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); ctx.restore();
+}
+function dot(ctx,x,y,r,col){ ctx.fillStyle=col; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); }
+function niceTicks(a,b,count){
+  const span=b-a||1, raw=span/count, mag=Math.pow(10,Math.floor(Math.log10(raw)));
+  const norm=raw/mag, step=(norm<1.5?1:norm<3?2:norm<7?5:10)*mag;
+  const out=[]; for(let v=Math.ceil(a/step)*step; v<=b+1e-9; v+=step) out.push(+v.toFixed(10));
+  return out;
+}
+function frame(ctx,x,y,w,h,x0,x1,y0,y1,title){
+  const X=v=>x+(v-x0)/(x1-x0)*w, Y=v=>y+h-(v-y0)/(y1-y0)*h;
+  ctx.strokeStyle='#30363d'; ctx.lineWidth=1; ctx.strokeRect(x,y,w,h);
+  if(title) txt(ctx,title,x+w/2,y-11,'#8b949e','bold 11px Segoe UI');
+  return {X,Y,x,y,w,h,x0,x1,y0,y1};
+}
+/* draw a time-domain trace over the visible window */
+function trace(ctx,Fr,fn,col,lw,dash){
+  ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=lw||1.6; if(dash)ctx.setLineDash(dash);
+  ctx.beginPath();
+  const M=1400;
+  for(let i=0;i<=M;i++){
+    const t=Fr.x0+(Fr.x1-Fr.x0)*i/M;
+    const v=fn(t);
+    i?ctx.lineTo(Fr.X(t),Fr.Y(v)):ctx.moveTo(Fr.X(t),Fr.Y(v));
+  }
+  ctx.stroke(); ctx.restore();
+}
+function traceArr(ctx,Fr,arr,col,lw,dash){
+  ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=lw||1.6; if(dash)ctx.setLineDash(dash);
+  ctx.beginPath();
+  const i0=Math.floor(Fr.x0*FS), i1=Math.ceil(Fr.x1*FS);
+  for(let i=i0;i<=i1&&i<N;i++){
+    const t=i/FS;
+    (i===i0)?ctx.moveTo(Fr.X(t),Fr.Y(arr[i])):ctx.lineTo(Fr.X(t),Fr.Y(arr[i]));
+  }
+  ctx.stroke(); ctx.restore();
+}
+function timeAxis(ctx,Fr,label){
+  niceTicks(Fr.x0,Fr.x1,6).forEach(v=>{
+    const xx=Fr.X(v); if(xx<Fr.x-1||xx>Fr.x+Fr.w+1) return;
+    line(ctx,xx,Fr.y,xx,Fr.y+Fr.h,'#1b222b',1);
+    txt(ctx,(v*1000).toFixed(0),xx,Fr.y+Fr.h+12,'#6e7681','9px Segoe UI');
+  });
+  line(ctx,Fr.x,Fr.Y(0),Fr.x+Fr.w,Fr.Y(0),'#30363d',1);
+  if(label) txt(ctx,label,Fr.x+Fr.w/2,Fr.y+Fr.h+26,'#6e7681','10px Segoe UI');
+}
+/* stem plot of a spectrum, only where there is energy */
+function drawSpectrum(ctx,Fr,mag,col,fMax){
+  const thresh=1e-4;
+  for(let k=0;k<mag.length;k++){
+    const f=k*FS/N;
+    if(f>fMax) break;
+    if(mag[k]<thresh) continue;
+    const x=Fr.X(f);
+    line(ctx,x,Fr.Y(0),x,Fr.Y(mag[k]),col,2.2);
+    dot(ctx,x,Fr.Y(mag[k]),2.6,col);
+  }
+}
+function freqAxis(ctx,Fr,fMax){
+  niceTicks(0,fMax,10).forEach(v=>{
+    const xx=Fr.X(v); if(xx<Fr.x-1||xx>Fr.x+Fr.w+1) return;
+    line(ctx,xx,Fr.y,xx,Fr.y+Fr.h,'#1b222b',1);
+    txt(ctx,String(v),xx,Fr.y+Fr.h+12,'#6e7681','9px Segoe UI');
+  });
+  txt(ctx,'frequency (Hz)',Fr.x+Fr.w/2,Fr.y+Fr.h+27,'#6e7681','10px Segoe UI');
+}
+
+/* ================= TAB 0/1 shared: the AM view ================= */
+function viewSpan(){ return Math.min(2/S.fm,1); }
+function drawAM(){
+  clear(mx,mainC);
+  const span=viewSpan();
+  const X0=80,W=930;
+  const A=frame(mx,X0,40,W,80,0,span,-1.25,1.25,'message  m(t)');
+  timeAxis(mx,A);
+  trace(mx,A,msg,'#3fb950',2);
+
+  const B=frame(mx,X0,166,W,80,0,span,-1.25,1.25,'carrier  cos(2πf_c t)');
+  timeAxis(mx,B);
+  trace(mx,B,t=>Math.cos(2*Math.PI*S.fc*t),'#6e7681',1.2);
+
+  const peak=S.scheme==='am'?Math.max(1+S.mu,1.05):1.2;
+  const C=frame(mx,X0,292,W,105,0,span,-peak*1.1,peak*1.1,
+    'modulated  s(t)   —   '+SCHEMES[S.scheme]);
+  timeAxis(mx,C,'time (ms)');
+  trace(mx,C,modulated,'#58a6ff',1.3);
+  if(S.scheme!=='ssb'){
+    trace(mx,C,t=>envelopeTrue(t),'#e3b341',2,[5,3]);
+    trace(mx,C,t=>-envelopeTrue(t),'#e3b341',2,[5,3]);
+  }
+  if(S.scheme==='am'&&S.mu>1){
+    txt(mx,'μ > 1 — the envelope no longer follows the message: over-modulated',
+        X0+W/2,300,'#f85149','bold 11px Segoe UI');
+  }
+  drawAMSpectrum();
+}
+function drawAMSpectrum(){
+  clear(ax,auxC);
+  const sig=sampleSignal(modulated);
+  const mag=spectrum(sig);
+  const fMax=Math.min(S.fc*2,FS/2);
+  let peak=0; for(let k=0;k*FS/N<=fMax;k++) peak=Math.max(peak,mag[k]);
+  peak=Math.max(peak*1.25,0.1);
+  const Fr=frame(ax,80,34,930,175,0,fMax,0,peak,'amplitude spectrum of s(t)  (single-sided)');
+  freqAxis(ax,Fr,fMax);
+  drawSpectrum(ax,Fr,mag,'#58a6ff',fMax);
+
+  // annotate carrier and sidebands
+  const marks=[];
+  if(S.scheme==='am') marks.push([S.fc,'carrier','#f85149']);
+  if(S.scheme!=='ssb'){ marks.push([S.fc-S.fm,'LSB','#e3b341'],[S.fc+S.fm,'USB','#e3b341']); }
+  else marks.push([S.fc+S.fm,'USB only','#e3b341']);
+  marks.forEach(([f,lab,c])=>{
+    if(f<0||f>fMax) return;
+    line(ax,Fr.X(f),Fr.y,Fr.X(f),Fr.y+Fr.h,c,1,[3,3]);
+    txt(ax,lab,Fr.X(f),Fr.y+11,c,'bold 10px Segoe UI');
+  });
+  // bandwidth bracket
+  const bw=(S.scheme==='ssb')?S.fm:2*S.fm;
+  const f1=(S.scheme==='ssb')?S.fc:S.fc-S.fm, f2=S.fc+S.fm;
+  const by=Fr.y+Fr.h-14;
+  line(ax,Fr.X(f1),by,Fr.X(f2),by,'#d2a8ff',1.8);
+  line(ax,Fr.X(f1),by-5,Fr.X(f1),by+5,'#d2a8ff',1.8);
+  line(ax,Fr.X(f2),by-5,Fr.X(f2),by+5,'#d2a8ff',1.8);
+  txt(ax,'B = '+bw+' Hz',(Fr.X(f1)+Fr.X(f2))/2,by-13,'#d2a8ff','bold 10px Segoe UI');
+
+  if(S.theory){
+    const th=theoryLinesAM();
+    th.forEach(([f,a])=>{
+      if(f<0||f>fMax) return;
+      dot(ax,Fr.X(f),Fr.Y(a),5,'rgba(255,255,255,0.0)');
+      ax.strokeStyle='#3fb950'; ax.lineWidth=1.6;
+      ax.beginPath(); ax.arc(Fr.X(f),Fr.Y(a),5,0,Math.PI*2); ax.stroke();
+    });
+    txt(ax,'○ = theory',Fr.x+Fr.w-8,Fr.y+13,'#3fb950','10px Segoe UI','right');
+  }
+}
+function theoryLinesAM(){
+  // amplitudes of the single-sided spectrum for a single-tone message
+  switch(S.scheme){
+    case 'dsb': return [[S.fc-S.fm,0.5],[S.fc+S.fm,0.5]];
+    case 'ssb': return [[S.fc+S.fm,0.5]];
+    default:    return [[S.fc,1],[S.fc-S.fm,S.mu/2],[S.fc+S.fm,S.mu/2]];
+  }
+}
+
+/* ================= TAB 1 : envelope detector =================
+   Two separate things go wrong with a diode detector and they must be measured
+   separately: carrier-rate RIPPLE (which the audio filter after the detector
+   removes) and genuine DISTORTION of the recovered message (which it cannot). */
+function detectorMetrics(sig,rc){
+  const env=envelopeDetect(sig,rc);
+  const sm=audioLPF(env);
+  let meanEnv=0; for(let i=0;i<N;i++) meanEnv+=env[i]; meanEnv/=N;
+  // ripple: what the audio filter has to throw away
+  let rip=0; for(let i=0;i<N;i++){ const d=env[i]-sm[i]; rip+=d*d; }
+  rip=Math.sqrt(rip/N)/Math.max(meanEnv,1e-9);
+  // distortion: how far the filtered output is from a scaled copy of the message
+  let dc=0; for(let i=0;i<N;i++) dc+=sm[i]; dc/=N;
+  let nn=0,dd=0;
+  for(let i=0;i<N;i++){ const m=msg(i/FS); nn+=(sm[i]-dc)*m; dd+=m*m; }
+  const g=dd>0?nn/dd:0;
+  let er=0,pw=0;
+  for(let i=0;i<N;i++){ const m=g*msg(i/FS); er+=(sm[i]-dc-m)*(sm[i]-dc-m); pw+=m*m; }
+  const dist=pw>0?Math.sqrt(er/pw):1;
+  return {env,sm,ripple:rip,dist:Math.min(dist,1),gain:g,dc};
+}
+function drawDetector(){
+  clear(mx,mainC);
+  const span=viewSpan(), X0=80, W=930;
+  const sig=sampleSignal(modulated);
+  const M=detectorMetrics(sig,S.rc);
+  const peak=S.scheme==='am'?(1+S.mu):1.2;
+
+  const A=frame(mx,X0,42,W,150,0,span,-peak*1.15,peak*1.15,
+    'received s(t), with the raw detector output riding on top');
+  timeAxis(mx,A);
+  traceArr(mx,A,sig,'#30475e',1);
+  trace(mx,A,envelopeTrue,'#e3b341',2,[5,3]);
+  traceArr(mx,A,M.env,'#f0883e',2.2);
+  txt(mx,'ideal envelope',X0+W-8,54,'#e3b341','10px Segoe UI','right');
+  txt(mx,'raw RC output',X0+W-8,68,'#f0883e','10px Segoe UI','right');
+
+  const B=frame(mx,X0,250,W,130,0,span,-1.35*Math.max(S.mu,0.2),1.35*Math.max(S.mu,0.2),
+    'after the audio low-pass and a DC block — the recovered message');
+  timeAxis(mx,B,'time (ms)');
+  trace(mx,B,t=>M.gain*msg(t),'#3fb950',2,[5,3]);
+  const rec=new Float64Array(N);
+  for(let i=0;i<N;i++) rec[i]=M.sm[i]-M.dc;
+  traceArr(mx,B,rec,'#f0883e',2.2);
+  txt(mx,'scaled original',X0+W-8,262,'#3fb950','10px Segoe UI','right');
+  txt(mx,'recovered',X0+W-8,276,'#f0883e','10px Segoe UI','right');
+
+  const lo=1000/(2*Math.PI*S.fc), hi=1000/(2*Math.PI*S.fm);
+  const rcOK=S.rc>lo && S.rc<hi;
+  let verdict, col;
+  if(S.mu>1 && S.scheme==='am'){ verdict='over-modulated: the envelope is |1+μm(t)| and folds — no RC can fix this'; col='#f85149'; }
+  else if(S.scheme==='dsb'){ verdict='DSB-SC: the envelope is |m(t)|, so the detector returns a rectified message'; col='#f85149'; }
+  else if(S.scheme==='ssb'){ verdict='SSB: the envelope is constant — an envelope detector recovers nothing'; col='#f85149'; }
+  else if(!rcOK) verdict='RC is outside 1/(2πf_c) … 1/(2πf_m)', col='#e3b341';
+  else { verdict='inside the design window'; col='#3fb950'; }
+  txt(mx,'ripple = '+(M.ripple*100).toFixed(1)+'%     distortion after filtering = '+
+        (M.dist*100).toFixed(2)+'%     —     '+verdict, X0+W/2,400,col,'bold 11px Segoe UI');
+
+  /* ---- both metrics against RC ---- */
+  clear(ax,auxC);
+  const G=frame(ax,80,40,930,168,0.2,80,0,1,
+    'the two failure modes, separated:  ripple (removable) and distortion (not)');
+  ax.fillStyle='rgba(63,185,80,0.10)';
+  ax.fillRect(G.X(Math.max(lo,0.2)),G.y,Math.max(G.X(Math.min(hi,80))-G.X(Math.max(lo,0.2)),0),G.h);
+  niceTicks(0,80,8).forEach(v=>{ if(v<0.2) return; const xx=G.X(v);
+    line(ax,xx,G.y,xx,G.y+G.h,'#1b222b',1);
+    txt(ax,String(v),xx,G.y+G.h+12,'#6e7681','9px Segoe UI'); });
+  [0,0.25,0.5,0.75,1].forEach(v=>{ const yy=G.Y(v);
+    line(ax,G.x,yy,G.x+G.w,yy,'#1b222b',1);
+    txt(ax,(v*100).toFixed(0)+'%',G.x-6,yy,'#6e7681','9px Segoe UI','right'); });
+  const RCS=[];
+  for(let i=0;i<=48;i++) RCS.push(0.2+(80-0.2)*i/48);
+  const rows=RCS.map(rc=>detectorMetrics(sig,rc));
+  [['ripple','#58a6ff',r=>r.ripple],['distortion','#f0883e',r=>r.dist]].forEach(([lab,c,f],k)=>{
+    ax.strokeStyle=c; ax.lineWidth=2.4; ax.beginPath();
+    rows.forEach((r,i)=>{ const v=Math.min(f(r),1);
+      i?ax.lineTo(G.X(RCS[i]),G.Y(v)):ax.moveTo(G.X(RCS[i]),G.Y(v)); });
+    ax.stroke();
+    txt(ax,lab,G.x+G.w-10,G.y+16+k*15,c,'bold 10px Segoe UI','right');
+  });
+  line(ax,G.X(Math.max(lo,0.2)),G.y,G.X(Math.max(lo,0.2)),G.y+G.h,'#58a6ff',1.4,[4,3]);
+  txt(ax,'1/(2πf_c) = '+lo.toFixed(2)+' ms',G.X(Math.max(lo,0.2))+6,G.y+14,'#58a6ff','9px Segoe UI','left');
+  if(hi<80){
+    line(ax,G.X(hi),G.y,G.X(hi),G.y+G.h,'#e3b341',1.4,[4,3]);
+    txt(ax,'1/(2πf_m) = '+hi.toFixed(1)+' ms',G.X(hi)-6,G.y+14,'#e3b341','9px Segoe UI','right');
+  }
+  line(ax,G.X(Math.min(S.rc,80)),G.y,G.X(Math.min(S.rc,80)),G.y+G.h,'#d2a8ff',1.8);
+  dot(ax,G.X(Math.min(S.rc,80)),G.Y(Math.min(M.ripple,1)),4.5,'#58a6ff');
+  dot(ax,G.X(Math.min(S.rc,80)),G.Y(Math.min(M.dist,1)),4.5,'#f0883e');
+  txt(ax,'small RC → ripple, but the message survives the filter        large RC → diagonal clipping, which no filter undoes',
+      G.x+G.w/2,G.y+G.h+28,'#6e7681','10px Segoe UI');
+}
+
+/* ================= TAB 2 : FM / PM ================= */
+function instFreq(t){
+  // d/dt of the total phase, in Hz
+  return S.angle==='fm'
+    ? S.fc + S.beta*S.fm*Math.cos(2*Math.PI*S.fm*t)
+    : S.fc - S.beta*S.fm*Math.sin(2*Math.PI*S.fm*t);
+}
+function drawFM(){
+  clear(mx,mainC);
+  const span=viewSpan(), X0=80, W=930;
+  const A=frame(mx,X0,40,W,78,0,span,-1.25,1.25,'message  m(t)');
+  timeAxis(mx,A); trace(mx,A,msg,'#3fb950',2);
+
+  const df=S.beta*S.fm;
+  const B=frame(mx,X0,162,W,88,0,span,S.fc-df*1.4-1,S.fc+df*1.4+1,
+    'instantaneous frequency  f_i(t) = f_c + Δf·m(t)');
+  timeAxis(mx,B);
+  trace(mx,B,instFreq,'#e3b341',2.2);
+  line(mx,B.x,B.Y(S.fc),B.x+B.w,B.Y(S.fc),'#6e7681',1,[4,3]);
+  txt(mx,'f_c = '+S.fc+' Hz',B.x+6,B.Y(S.fc)-9,'#6e7681','9px Segoe UI','left');
+  [S.fc-df,S.fc+df].forEach(f=>{
+    line(mx,B.x,B.Y(f),B.x+B.w,B.Y(f),'#e3b341',1,[3,3]);
+    txt(mx,f.toFixed(1),B.x+B.w-6,B.Y(f)-9,'#e3b341','9px Segoe UI','right');
+  });
+  txt(mx,'Δf = β·f_m = '+df.toFixed(1)+' Hz',B.x+B.w/2,B.y+12,'#e3b341','bold 10px Segoe UI');
+
+  const C=frame(mx,X0,294,W,104,0,span,-1.3,1.3,
+    (S.angle==='fm'?'FM':'PM')+'  s(t) = cos(2πf_c t + β·'+(S.angle==='fm'?'sin':'cos')+'(2πf_m t))');
+  timeAxis(mx,C,'time (ms)');
+  trace(mx,C,modulated,'#58a6ff',1.3);
+  line(mx,C.x,C.Y(1),C.x+C.w,C.Y(1),'#f85149',1.4,[4,3]);
+  line(mx,C.x,C.Y(-1),C.x+C.w,C.Y(-1),'#f85149',1.4,[4,3]);
+  txt(mx,'constant envelope — all the information is in the zero crossings',
+      C.x+C.w/2,C.y+12,'#f85149','10px Segoe UI');
+
+  /* spectrum with Bessel sidebands */
+  clear(ax,auxC);
+  const sig=sampleSignal(modulated);
+  const mag=spectrum(sig);
+  const carson=2*(df+S.fm);
+  const fMax=Math.min(Math.max(S.fc+carson*0.9, S.fc+4*S.fm)+2*S.fm, FS/2);
+  const fMin=Math.max(0,S.fc-carson*0.9-2*S.fm);
+  let peak=0;
+  for(let k=Math.floor(fMin*N/FS);k*FS/N<=fMax&&k<mag.length;k++) peak=Math.max(peak,mag[k]);
+  peak=Math.max(peak*1.3,0.05);
+  const Fr=frame(ax,80,34,930,168,fMin,fMax,0,peak,
+    'spectrum — sideband amplitudes are the Bessel functions J_n(β)');
+  niceTicks(fMin,fMax,10).forEach(v=>{ const xx=Fr.X(v);
+    if(xx<Fr.x-1||xx>Fr.x+Fr.w+1) return;
+    line(ax,xx,Fr.y,xx,Fr.y+Fr.h,'#1b222b',1);
+    txt(ax,String(v),xx,Fr.y+Fr.h+12,'#6e7681','9px Segoe UI'); });
+  txt(ax,'frequency (Hz)',Fr.x+Fr.w/2,Fr.y+Fr.h+27,'#6e7681','10px Segoe UI');
+  for(let k=0;k<mag.length;k++){
+    const f=k*FS/N;
+    if(f<fMin) continue; if(f>fMax) break;
+    if(mag[k]<1e-4) continue;
+    line(ax,Fr.X(f),Fr.Y(0),Fr.X(f),Fr.Y(mag[k]),'#58a6ff',2.2);
+  }
+  if(S.theory){
+    for(let n=-30;n<=30;n++){
+      const f=S.fc+n*S.fm;
+      if(f<fMin||f>fMax) continue;
+      const a=Math.abs(besselJ(n,S.beta));
+      if(a<1e-4) continue;
+      ax.strokeStyle='#3fb950'; ax.lineWidth=1.5;
+      ax.beginPath(); ax.arc(Fr.X(f),Fr.Y(a),4.5,0,Math.PI*2); ax.stroke();
+      if(Math.abs(n)<=3&&a>peak*0.12)
+        txt(ax,'J'+(n===0?'₀':(n>0?'₊':'₋')+Math.abs(n)),Fr.X(f),Fr.Y(a)-13,'#3fb950','9px Segoe UI');
+    }
+    txt(ax,'○ = |J_n(β)|',Fr.x+Fr.w-8,Fr.y+13,'#3fb950','10px Segoe UI','right');
+  }
+  const f1=Math.max(S.fc-carson/2,fMin), f2=Math.min(S.fc+carson/2,fMax);
+  const by=Fr.y+Fr.h-12;
+  line(ax,Fr.X(f1),by,Fr.X(f2),by,'#d2a8ff',2);
+  line(ax,Fr.X(f1),by-5,Fr.X(f1),by+5,'#d2a8ff',2);
+  line(ax,Fr.X(f2),by-5,Fr.X(f2),by+5,'#d2a8ff',2);
+  txt(ax,'Carson: B ≈ 2(Δf + f_m) = '+carson.toFixed(1)+' Hz',(Fr.X(f1)+Fr.X(f2))/2,by-13,'#d2a8ff','bold 10px Segoe UI');
+  if(Math.abs(besselJ(0,S.beta))<0.02)
+    txt(ax,'J₀(β) ≈ 0 — the carrier has vanished (β ≈ 2.405, 5.520, 8.654 …)',
+        Fr.x+Fr.w/2,Fr.y+14,'#f85149','bold 11px Segoe UI');
+  // sidebands reaching below 0 Hz reappear folded about DC and add to the lines already there
+  const nSig=Math.floor(S.beta)+3;
+  if(S.fc-nSig*S.fm<0)
+    txt(ax,'f_c is too low: sidebands run past 0 Hz and fold back, so some lines are sums — raise f_c',
+        Fr.x+Fr.w/2,Fr.y+30,'#e3b341','bold 10px Segoe UI');
+}
+
+/* ================= TAB 3 : bandwidth & power ================= */
+function drawBandwidth(){
+  clear(mx,mainC);
+  /* Bessel curves */
+  const A=frame(mx,80,42,470,330,0,12,-0.45,1.05,'J_n(β)  —  how the power redistributes as β grows');
+  niceTicks(0,12,6).forEach(v=>{ const xx=A.X(v);
+    line(mx,xx,A.y,xx,A.y+A.h,'#1b222b',1);
+    txt(mx,String(v),xx,A.y+A.h+12,'#6e7681','9px Segoe UI'); });
+  [-0.4,-0.2,0,0.2,0.4,0.6,0.8,1].forEach(v=>{ const yy=A.Y(v);
+    line(mx,A.x,yy,A.x+A.w,yy,v===0?'#484f58':'#1b222b',1);
+    txt(mx,v.toFixed(1),A.x-6,yy,'#6e7681','9px Segoe UI','right'); });
+  txt(mx,'β',A.x+A.w/2,A.y+A.h+27,'#6e7681','10px Segoe UI');
+  const COLS=['#f85149','#58a6ff','#3fb950','#e3b341','#d2a8ff','#f0883e','#79c0ff'];
+  for(let n=0;n<=6;n++){
+    mx.strokeStyle=COLS[n]; mx.lineWidth=n===0?2.4:1.7; mx.beginPath();
+    for(let i=0;i<=400;i++){ const b=12*i/400, v=besselJ(n,b);
+      i?mx.lineTo(A.X(b),A.Y(v)):mx.moveTo(A.X(b),A.Y(v)); }
+    mx.stroke();
+    txt(mx,'J'+n,A.x+A.w-14,A.y+16+n*14,COLS[n],'bold 9px Segoe UI','right');
+  }
+  // carrier nulls
+  [2.405,5.520,8.654,11.792].forEach(b=>{
+    if(b>12) return;
+    line(mx,A.X(b),A.Y(-0.45),A.X(b),A.Y(1.05),'#484f58',1,[2,3]);
+    txt(mx,b.toFixed(3),A.X(b),A.y+A.h-8,'#6e7681','8px Segoe UI');
+  });
+  line(mx,A.X(S.beta),A.y,A.X(S.beta),A.y+A.h,'#fff',1.6,[4,3]);
+  txt(mx,'β = '+S.beta.toFixed(2),A.X(S.beta),A.y+12,'#fff','bold 10px Segoe UI');
+  for(let n=0;n<=6;n++) dot(mx,A.X(S.beta),A.Y(besselJ(n,S.beta)),3.4,COLS[n]);
+
+  /* AM power efficiency */
+  const B=frame(mx,620,42,390,150,0,2,0,0.55,'AM power efficiency  η = μ²/(2+μ²)');
+  niceTicks(0,2,4).forEach(v=>{ const xx=B.X(v);
+    line(mx,xx,B.y,xx,B.y+B.h,'#1b222b',1);
+    txt(mx,v.toFixed(1),xx,B.y+B.h+12,'#6e7681','9px Segoe UI'); });
+  [0,0.1,0.2,0.3,0.4,0.5].forEach(v=>{ const yy=B.Y(v);
+    line(mx,B.x,yy,B.x+B.w,yy,'#1b222b',1);
+    txt(mx,(v*100).toFixed(0)+'%',B.x-6,yy,'#6e7681','9px Segoe UI','right'); });
+  mx.strokeStyle='#e3b341'; mx.lineWidth=2.4; mx.beginPath();
+  for(let i=0;i<=200;i++){ const m=2*i/200, e=m*m/(2+m*m);
+    i?mx.lineTo(B.X(m),B.Y(e)):mx.moveTo(B.X(m),B.Y(e)); }
+  mx.stroke();
+  line(mx,B.X(1),B.y,B.X(1),B.y+B.h,'#f85149',1.4,[4,3]);
+  txt(mx,'μ=1 → 33%',B.X(1)+6,B.Y(1/3)-10,'#f85149','9px Segoe UI','left');
+  dot(mx,B.X(Math.min(S.mu,2)),B.Y(S.mu*S.mu/(2+S.mu*S.mu)),5,'#d2a8ff');
+  txt(mx,'μ',B.x+B.w/2,B.y+B.h+27,'#6e7681','10px Segoe UI');
+  txt(mx,'the carrier carries no information yet takes most of the power',
+      B.x+B.w/2,B.y+B.h+42,'#6e7681','9.5px Segoe UI');
+
+  /* Carson bandwidth */
+  const C=frame(mx,620,262,390,110,0,12,0,2*(12+1),'Carson bandwidth  B/f_m = 2(β+1)');
+  niceTicks(0,12,6).forEach(v=>{ const xx=C.X(v);
+    line(mx,xx,C.y,xx,C.y+C.h,'#1b222b',1);
+    txt(mx,String(v),xx,C.y+C.h+12,'#6e7681','9px Segoe UI'); });
+  mx.strokeStyle='#d2a8ff'; mx.lineWidth=2.4; mx.beginPath();
+  for(let i=0;i<=200;i++){ const b=12*i/200;
+    i?mx.lineTo(C.X(b),C.Y(2*(b+1))):mx.moveTo(C.X(b),C.Y(2*(b+1))); }
+  mx.stroke();
+  dot(mx,C.X(S.beta),C.Y(2*(S.beta+1)),5,'#fff');
+  txt(mx,'β',C.x+C.w/2,C.y+C.h+27,'#6e7681','10px Segoe UI');
+  txt(mx,'narrowband FM (β≪1) needs 2f_m, exactly like AM',C.x+C.w/2,C.y+14,'#6e7681','9.5px Segoe UI');
+
+  /* aux: significant-sideband count and power capture */
+  clear(ax,auxC);
+  const G=frame(ax,80,40,930,170,0,12,0,1.05,
+    'fraction of total power inside Carson bandwidth, and the number of significant sidebands');
+  niceTicks(0,12,6).forEach(v=>{ const xx=G.X(v);
+    line(ax,xx,G.y,xx,G.y+G.h,'#1b222b',1);
+    txt(ax,String(v),xx,G.y+G.h+12,'#6e7681','9px Segoe UI'); });
+  [0,0.25,0.5,0.75,1].forEach(v=>{ const yy=G.Y(v);
+    line(ax,G.x,yy,G.x+G.w,yy,'#1b222b',1);
+    txt(ax,(v*100).toFixed(0)+'%',G.x-6,yy,'#6e7681','9px Segoe UI','right'); });
+  ax.strokeStyle='#3fb950'; ax.lineWidth=2.4; ax.beginPath();
+  for(let i=0;i<=120;i++){
+    const b=0.02+12*i/120;
+    const nMax=Math.floor(b+1);
+    let p=besselJ(0,b)*besselJ(0,b);
+    for(let n=1;n<=nMax;n++) p+=2*besselJ(n,b)*besselJ(n,b);
+    i?ax.lineTo(G.X(b),G.Y(Math.min(p,1))):ax.moveTo(G.X(b),G.Y(Math.min(p,1)));
+  }
+  ax.stroke();
+  line(ax,G.x,G.Y(0.98),G.x+G.w,G.Y(0.98),'#e3b341',1.4,[5,4]);
+  txt(ax,'98% — the usual definition of "significant"',G.x+G.w-8,G.Y(0.98)-10,'#e3b341','9px Segoe UI','right');
+  line(ax,G.X(S.beta),G.y,G.X(S.beta),G.y+G.h,'#d2a8ff',1.6);
+  const nM=Math.floor(S.beta+1);
+  let pw=besselJ(0,S.beta)*besselJ(0,S.beta);
+  for(let n=1;n<=nM;n++) pw+=2*besselJ(n,S.beta)*besselJ(n,S.beta);
+  dot(ax,G.X(S.beta),G.Y(Math.min(pw,1)),5,'#d2a8ff');
+  txt(ax,'at β = '+S.beta.toFixed(2)+':  '+nM+' sideband pairs hold '+(pw*100).toFixed(1)+'% of the power',
+      G.x+G.w/2,G.y+G.h+30,'#d2a8ff','11px Courier New');
+  txt(ax,'β',G.x+G.w/2,G.y+G.h+14,'#6e7681','10px Segoe UI');
+}
+
+/* ================= tab metadata ================= */
+const TABS=[
+{title:'Message, Carrier and the Modulated Wave',aux:'Spectrum of s(t)',
+ eq:'AM: s(t) = [1 + μ·m(t)]·cos(2πf<sub>c</sub>t) &nbsp;&nbsp;·&nbsp;&nbsp; DSB-SC: s(t) = m(t)·cos(2πf<sub>c</sub>t) &nbsp;&nbsp;·&nbsp;&nbsp; SSB: one sideband only',
+ desc:'Multiplying by a carrier shifts the message spectrum up to ±f_c. Whether you keep the carrier, both sidebands, or just one is the whole difference between AM, DSB-SC and SSB.',
+ legend:[['#3fb950','message m(t)'],['#6e7681','carrier'],['#58a6ff','modulated s(t)'],['#e3b341','envelope'],['#d2a8ff','bandwidth']]},
+{title:'A Diode Envelope Detector, Warts and All',aux:'Distortion vs the RC time constant',
+ eq:'rectify, then low-pass:&nbsp; 1/(2πf<sub>c</sub>) ≪ RC ≪ 1/(2πf<sub>m</sub>)',
+ desc:'The cheapest possible AM receiver: a diode and an RC. It works beautifully inside a window of time constants, and fails in two distinct and instructive ways outside it.',
+ legend:[['#30475e','received s(t)'],['#e3b341','ideal envelope'],['#f0883e','detector output'],['#3fb950','original message']]},
+{title:'Angle Modulation',aux:'Bessel sidebands and Carson bandwidth',
+ eq:'FM: s(t) = cos(2πf<sub>c</sub>t + β·sin 2πf<sub>m</sub>t),&nbsp; β = Δf/f<sub>m</sub> &nbsp;&nbsp;→&nbsp;&nbsp; s(t) = Σ<sub>n</sub> J<sub>n</sub>(β)·cos[2π(f<sub>c</sub>+n f<sub>m</sub>)t]',
+ desc:'The amplitude never changes; the information lives entirely in how the zero crossings bunch up and spread out. One tone in produces infinitely many sidebands out, with Bessel-function amplitudes.',
+ legend:[['#3fb950','message'],['#e3b341','instantaneous frequency'],['#58a6ff','modulated s(t)'],['#d2a8ff','Carson bandwidth']]},
+{title:'What Modulation Costs You',aux:'Power captured inside Carson bandwidth',
+ eq:'B<sub>AM</sub> = 2f<sub>m</sub> &nbsp;·&nbsp; B<sub>FM</sub> ≈ 2(Δf + f<sub>m</sub>) = 2f<sub>m</sub>(β+1) &nbsp;·&nbsp; η<sub>AM</sub> = μ²/(2+μ²)',
+ desc:'Bandwidth and power, side by side. AM spends most of its power on a carrier that carries nothing; FM spends bandwidth instead, and gets noise immunity in return.',
+ legend:[['#f85149','J₀ (carrier)'],['#58a6ff','J₁'],['#e3b341','AM efficiency'],['#d2a8ff','Carson bandwidth']]}
+];
+const INFO=[
+`<strong>Modulation is a frequency shift.</strong> Multiplying by cos(2πf<sub>c</sub>t) convolves the spectrum with a pair of impulses at ±f<sub>c</sub>, so the message lands as sidebands either side of the carrier.
+<ul>
+<li><strong>Two sidebands, one message.</strong> The USB and LSB are mirror images and carry the same information — which is exactly why SSB exists and needs only half the bandwidth.</li>
+<li><strong>Switch between the schemes</strong> and watch the spectrum. AM has a carrier line plus sidebands; DSB-SC drops the carrier line and the envelope stops resembling the message; SSB keeps one sideband and the envelope becomes constant.</li>
+<li><strong>Why keep the carrier at all?</strong> Only so a diode and a capacitor can demodulate it. DSB-SC and SSB need a coherent local oscillator locked in phase — cheaper transmitter, far more expensive receiver.</li>
+<li><strong>The bandwidth is set by the message, not the carrier.</strong> Drag f<sub>c</sub> and the whole picture slides sideways without getting wider. Drag f<sub>m</sub> and it widens. Bandwidth is 2f<sub>m</sub> for AM and DSB, f<sub>m</sub> for SSB.</li>
+<li>The green circles are the theoretical line amplitudes — carrier 1, each sideband μ/2 — drawn on top of an actual FFT of the waveform above.</li>
+</ul>`,
+`<strong>The receiver that made broadcast radio cheap.</strong> Rectify the incoming wave and smooth it: whatever is left is the envelope, and for AM the envelope is the message.
+<ul>
+<li><strong>Two failure modes, both visible here.</strong> Make RC too small and the output chases individual carrier cycles — you see carrier ripple. Make it too large and the capacitor cannot discharge fast enough to follow the message down, giving the sawtooth-like <em>diagonal clipping</em>.</li>
+<li><strong>The design rule</strong> <code>1/(2πf_c) ≪ RC ≪ 1/(2πf_m)</code> is shaded green in the lower plot. Note it only exists because f<sub>c</sub> ≫ f<sub>m</sub>; that separation is what makes envelope detection possible at all.</li>
+<li><strong>Now push μ past 1.</strong> The distortion jumps and no RC value rescues it — 1 + μm(t) goes negative, the rectifier returns its magnitude, and the envelope folds. This is why broadcast AM is kept below 100% modulation.</li>
+<li><strong>Try DSB-SC in this tab.</strong> The envelope is |m(t)|, so the detector recovers a full-wave-rectified message — badly wrong at every zero crossing. Suppressing the carrier and then using an envelope detector simply does not work.</li>
+</ul>`,
+`<strong>Constant amplitude, varying frequency.</strong> FM puts the message into the instantaneous frequency; PM puts it into the phase. They differ only by an integrator, which is why an FM signal is a PM signal driven by ∫m.
+<ul>
+<li><strong>Watch the zero crossings</strong> bunch together on message peaks and spread apart in the troughs. The peak envelope is flat — an FM receiver can hard-limit the signal and throw away every amplitude variation, which is most of the noise.</li>
+<li><strong>One tone in, infinitely many sidebands out.</strong> Unlike AM, FM is a nonlinear operation; the spectrum is Σ J<sub>n</sub>(β) lines spaced f<sub>m</sub> apart. Turn on the theoretical overlay and the circles land exactly on the measured FFT peaks.</li>
+<li><strong>The carrier can vanish entirely.</strong> Set β = 2.405 (a preset) and J₀(β) = 0 — the line at f<sub>c</sub> disappears while the total power is unchanged. It has all moved into the sidebands. This is a standard way to calibrate FM deviation.</li>
+<li><strong>Narrowband FM:</strong> push β below about 0.3 and only J₀ and J±₁ survive, giving a spectrum that looks exactly like AM. That similarity is the basis of the Armstrong indirect FM transmitter.</li>
+<li><strong>FM vs PM:</strong> switch between them. For a single tone they differ only by a 90° shift of the modulating term, which is why you cannot tell them apart from one sinusoid — you need the message's frequency to vary.</li>
+</ul>`,
+`<strong>Every scheme trades power against bandwidth.</strong> These curves are the trade, drawn.
+<ul>
+<li><strong>AM efficiency peaks at 33%</strong> even at full 100% modulation: two thirds of the transmitted power sits in a carrier that conveys nothing. DSB-SC is 100% efficient by comparison, and needs a coherent receiver to collect it.</li>
+<li><strong>Carson's rule</strong> B ≈ 2(Δf + f<sub>m</sub>) = 2f<sub>m</sub>(β+1) is an engineering approximation, not a theorem — FM's spectrum is strictly infinite. The lower panel shows what it actually captures: about 98% of the power for most β, which is where the rule comes from.</li>
+<li><strong>The two limits are worth knowing.</strong> β ≪ 1 gives B ≈ 2f<sub>m</sub>, identical to AM. β ≫ 1 gives B ≈ 2Δf, set purely by the deviation and independent of the message frequency.</li>
+<li><strong>Why broadcast FM sounds better:</strong> it uses 200 kHz per station for a 15 kHz message (β ≈ 5). That bandwidth buys an SNR improvement proportional to β², the FM capture effect, and immunity to amplitude noise — a deliberate purchase of quality with spectrum.</li>
+<li>Follow the J<sub>n</sub> curves as β grows and you can see the power marching outward from the carrier into higher-order sidebands. That migration <em>is</em> the bandwidth expansion.</li>
+</ul>`
+];
+
+/* ================= meters ================= */
+const MET=[
+  ['scheme',()=>S.tab===2?(S.angle==='fm'?'FM':'PM'):SCHEMES[S.scheme]],
+  ['f_c',()=>S.fc+' Hz'],
+  ['f_m',()=>S.fm+' Hz'],
+  ['μ',()=>S.tab===2?'—':S.mu.toFixed(2)],
+  ['β',()=>S.tab===2||S.tab===3?S.beta.toFixed(2):'—'],
+  ['Δf',()=>S.tab===2||S.tab===3?(S.beta*S.fm).toFixed(1)+' Hz':'—'],
+  ['bandwidth',()=>{
+    if(S.tab===2||S.tab===3) return (2*(S.beta*S.fm+S.fm)).toFixed(1)+' Hz';
+    return (S.scheme==='ssb'?S.fm:2*S.fm)+' Hz'; }],
+  ['AM efficiency',()=>S.scheme==='am'&&S.tab<2?(100*S.mu*S.mu/(2+S.mu*S.mu)).toFixed(1)+'%':
+    (S.scheme==='dsb'&&S.tab<2?'100%':'—')],
+  ['J₀(β)',()=>S.tab>=2?besselJ(0,S.beta).toFixed(4):'—'],
+  ['detector RC',()=>S.tab===1?S.rc.toFixed(1)+' ms':'—']
+];
+document.getElementById('meters').innerHTML=MET.map((m,i)=>
+  `<div class="meter"><div class="ml">${m[0]}</div><div class="mv" id="mv${i}">—</div></div>`).join('');
+function updateMeters(){ MET.forEach((m,i)=>{
+  const el=document.getElementById('mv'+i); if(el) el.textContent=String(m[1]()); }); }
+
+/* ================= presets ================= */
+const PRESETS=[
+  ['AM 60%',        {scheme:'am', mu:0.6},false],
+  ['AM 100%',       {scheme:'am', mu:1.0},false],
+  ['Over-modulated',{scheme:'am', mu:1.5},true],
+  ['DSB-SC',        {scheme:'dsb'},false],
+  ['SSB (upper)',   {scheme:'ssb'},false],
+  ['Narrowband FM', {beta:0.2},false],
+  ['Carrier null β=2.405',{beta:2.405},false],
+  ['Wideband FM β=8',{beta:8},false]
+];
+document.getElementById('presets').innerHTML=PRESETS.map((p,i)=>
+  `<div class="preset${p[2]?' warn':''}" data-p="${i}">${p[0]}</div>`).join('');
+document.querySelectorAll('.preset').forEach(el=>el.addEventListener('click',()=>{
+  Object.assign(S,PRESETS[+el.dataset.p][1]);
+  syncControls(); markPreset(); draw();
+}));
+function markPreset(){
+  document.querySelectorAll('.preset').forEach(el=>{
+    const p=PRESETS[+el.dataset.p][1];
+    let on=true;
+    for(const k in p) if(Math.abs((S[k]===p[k]?0:1))>0 && S[k]!==p[k]) on=false;
+    el.classList.toggle('active',on);
+  });
+}
+
+/* ================= dispatch ================= */
+function draw(){
+  if(S.tab===0) drawAM();
+  else if(S.tab===1) drawDetector();
+  else if(S.tab===2) drawFM();
+  else drawBandwidth();
+  updateMeters();
+}
+const $=id=>document.getElementById(id);
+function setTab(t){
+  S.tab=t;
+  document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active',+el.dataset.tab===t));
+  const T=TABS[t];
+  $('mainTitle').textContent=T.title; $('auxTitle').textContent=T.aux;
+  $('eqText').innerHTML=T.eq; $('eqDesc').textContent=T.desc;
+  $('legend').innerHTML=T.legend.map(l=>
+    `<div class="legend-item"><div class="legend-dot" style="background:${l[0]}"></div>${l[1]}</div>`).join('');
+  $('info').innerHTML=INFO[t];
+  document.querySelectorAll('.cg[data-tabs]').forEach(el=>
+    el.classList.toggle('hidden',!el.dataset.tabs.split(',').includes(String(t))));
+  draw();
+}
+document.querySelectorAll('.tab').forEach(el=>el.addEventListener('click',()=>setTab(+el.dataset.tab)));
+
+/* ================= controls ================= */
+function syncControls(){
+  $('slFc').value=S.fc; $('vFc').textContent=S.fc+' Hz';
+  $('slFm').value=S.fm; $('vFm').textContent=S.fm+' Hz';
+  $('slMu').value=S.mu; $('vMu').textContent=S.mu.toFixed(2);
+  $('slBeta').value=S.beta; $('vBeta').textContent=S.beta.toFixed(2);
+  $('slRC').value=S.rc; $('vRC').textContent=S.rc.toFixed(1)+' ms';
+  $('btnScheme').textContent=SCHEMES[S.scheme];
+  $('btnAngle').textContent=S.angle==='fm'?'FM':'PM';
+}
+$('slFc').addEventListener('input',e=>{ S.fc=+e.target.value; syncControls(); markPreset(); draw(); });
+$('slFm').addEventListener('input',e=>{ S.fm=+e.target.value; syncControls(); markPreset(); draw(); });
+$('slMu').addEventListener('input',e=>{ S.mu=+e.target.value; syncControls(); markPreset(); draw(); });
+$('slBeta').addEventListener('input',e=>{ S.beta=+e.target.value; syncControls(); markPreset(); draw(); });
+$('slRC').addEventListener('input',e=>{ S.rc=+e.target.value; syncControls(); draw(); });
+$('btnScheme').addEventListener('click',()=>{
+  const order=['am','dsb','ssb'];
+  S.scheme=order[(order.indexOf(S.scheme)+1)%3]; syncControls(); markPreset(); draw(); });
+$('btnAngle').addEventListener('click',()=>{
+  S.angle=S.angle==='fm'?'pm':'fm'; syncControls(); draw(); });
+$('ckTheory').addEventListener('change',e=>{ S.theory=e.target.checked; draw(); });
+$('btnReset').addEventListener('click',()=>{
+  Object.assign(S,{fc:300,fm:5,mu:0.6,beta:2.4,rc:12,scheme:'am',angle:'fm'});
+  syncControls(); markPreset(); draw(); });
+
+syncControls(); markPreset(); setTab(0);
+</script>
+</body>
+</html>
