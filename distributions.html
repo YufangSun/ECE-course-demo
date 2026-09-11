@@ -90,11 +90,11 @@
 
 <div class="row">
   <div class="panel"><h2 id="mainTitle">Distribution</h2>
-    <canvas id="mainCanvas" width="1080" height="400"></canvas></div>
+    <canvas id="mainCanvas" width="1080" height="430"></canvas></div>
 </div>
 <div class="row">
   <div class="panel"><h2 id="auxTitle">Detail</h2>
-    <canvas id="auxCanvas" width="1080" height="250"></canvas></div>
+    <canvas id="auxCanvas" width="1080" height="280"></canvas></div>
 </div>
 
 <div class="meters" id="meters"></div>
@@ -632,6 +632,7 @@ function drawRelations(){
   axes(ax,G,[0,2,4,6,8,10,12,14],[0,0.1,0.2]);
   const ns=[5,10,40,400];
   const cols=['#1f4f6f','#2a9d8f','#58a6ff','#e3b341'];
+  ax.save(); ax.beginPath(); ax.rect(G.x,G.y,G.w,G.h); ax.clip();  // small n overshoots the axis
   ns.forEach((n,i)=>{
     const p=lam/n;
     ax.strokeStyle=cols[i]; ax.lineWidth=1.8; ax.beginPath();
@@ -647,7 +648,7 @@ function drawRelations(){
     const v=Math.exp(-lam+k*Math.log(lam)-logFact(k));
     k?ax.lineTo(G.X(k),G.Y(v)):ax.moveTo(G.X(k),G.Y(v));
   }
-  ax.stroke(); ax.setLineDash([]);
+  ax.stroke(); ax.setLineDash([]); ax.restore();
   txt(ax,'Poisson(4)',G.x+G.w-16,G.y+14+4*13,'#f85149','bold 9px Segoe UI','right');
 }
 

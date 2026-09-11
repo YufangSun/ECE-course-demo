@@ -216,6 +216,7 @@ function frameXY(ctx,x,y,w,h,lim){
 }
 function drawEllipse(ctx,Fr,st,k,col,dash){
   if(!st||!(st.sx>0)||!(st.sy>0)) return;
+  ctx.save(); ctx.beginPath(); ctx.rect(Fr.x,Fr.y,Fr.w,Fr.h); ctx.clip();
   // principal axes of the sample covariance
   const a=st.sx*st.sx, b=st.cov, c=st.sy*st.sy;
   const tr=a+c, det=a*c-b*b;
@@ -230,6 +231,7 @@ function drawEllipse(ctx,Fr,st,k,col,dash){
     i?ctx.lineTo(Fr.X(X),Fr.Y(Y)):ctx.moveTo(Fr.X(X),Fr.Y(Y));
   }
   ctx.stroke(); ctx.restore();
+  ctx.restore();
 }
 function drawCloud(ctx,Fr,alpha){
   ctx.fillStyle='rgba(88,166,255,'+(alpha||0.5)+')';
@@ -249,7 +251,9 @@ function marginalHist(vals,bins,lim){
 /* ================= TAB 0 : scatter + marginals ================= */
 function drawScatter(){
   clear(mx,mainC);
-  const SZ=330, X0=250, Y0=52, HB=72;
+  // Y0 must leave room above the scatter for the marginal-of-X histogram (HB tall)
+  // plus its label, otherwise the histogram is drawn off the top of the canvas.
+  const SZ=330, X0=250, HB=72, Y0=HB+28;
   const Fr=frameXY(mx,X0,Y0,SZ,SZ);
   const st=sampleStats();
 
@@ -754,7 +758,7 @@ function setTab(t){
   $('info').innerHTML=INFO[t];
   document.querySelectorAll('.cg[data-tabs]').forEach(el=>
     el.classList.toggle('hidden',!el.dataset.tabs.split(',').includes(String(t))));
-  mainC.height=(t===3)?420:440;
+  mainC.height = (t===0)?520 : (t===2)?500 : (t===3)?420 : 440;
   buildPresets();
   draw();
 }

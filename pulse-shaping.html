@@ -455,16 +455,17 @@ function drawISI(){
   const G=frame(ax,90,48,920,170,-0.5,0.5,0,1.25,
     'eye opening against timing offset — how much clock error the shape tolerates');
   axesXY(ax,G,v=>v.toFixed(2),null,8,4);
+  ax.save(); ax.beginPath(); ax.rect(G.x,G.y,G.w,G.h); ax.clip();
   ax.strokeStyle='#58a6ff'; ax.lineWidth=2.6; ax.beginPath();
   for(let i=0;i<=200;i++){
     const off=-0.5+i/200;
     // worst case: 1 at the centre, every neighbour pulling the wrong way
     let isi=0;
     for(let k=-SPAN;k<=SPAN;k++) if(k!==0) isi+=Math.abs(pulse(off-k));
-    const open=2*(pulse(off)-isi);
-    i?ax.lineTo(G.X(off),G.Y(Math.max(open,0))):ax.moveTo(G.X(off),G.Y(Math.max(open,0)));
+    const open=Math.max(0,Math.min(2*(pulse(off)-isi),G.y1));
+    i?ax.lineTo(G.X(off),G.Y(open)):ax.moveTo(G.X(off),G.Y(open));
   }
-  ax.stroke();
+  ax.stroke(); ax.restore();
   line(ax,G.X(S.tau),G.y,G.X(S.tau),G.y+G.h,'#e3b341',1.6,[4,3]);
   line(ax,G.x,G.Y(0),G.x+G.w,G.Y(0),'#484f58',1);
   txt(ax,'timing offset  τ / T',G.x+G.w/2,G.y+G.h+28,'#6e7681','10px Segoe UI');

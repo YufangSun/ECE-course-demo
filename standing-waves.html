@@ -96,7 +96,7 @@
 <div class="row">
   <div class="panel">
     <h2 id="auxTitle">Reflection Coefficient Plane</h2>
-    <canvas id="auxCanvas" width="1080" height="250"></canvas>
+    <canvas id="auxCanvas" width="1080" height="300"></canvas>
   </div>
 </div>
 
@@ -341,7 +341,7 @@ function drawStandingWave(){
   txt(mx,'Γ_L = '+fmtC(g)+'   |Γ| = '+gm.toFixed(3)+' ∠'+(th*180/Math.PI).toFixed(1)+'°   VSWR = '+fmtV(vswr()),
       mainC.width/2,mainC.height-12,'#8b949e','12px Courier New');
 
-  drawGammaPlane(ax,180,125,95,true);
+  drawGammaPlane(ax,180,148,95,true);
   drawVSWRGauge(ax,620,140,110);
   drawReturnLossBar(ax,830,60,200);
 }
@@ -493,7 +493,7 @@ function drawZAlongLine(){
   }
 
   clear(ax,auxC);
-  drawGammaPlane(ax,190,125,95,false);
+  drawGammaPlane(ax,190,148,95,false);
   drawPhaseUnwrap(ax,360,30,640,190);
 }
 function drawPhaseUnwrap(ctx,x,y,w,h){

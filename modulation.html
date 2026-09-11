@@ -81,7 +81,7 @@
 <div class="legend" id="legend"></div>
 
 <div class="row"><div class="panel"><h2 id="mainTitle">Waveforms</h2>
-  <canvas id="mainCanvas" width="1080" height="420"></canvas></div></div>
+  <canvas id="mainCanvas" width="1080" height="440"></canvas></div></div>
 <div class="row"><div class="panel"><h2 id="auxTitle">Spectrum</h2>
   <canvas id="auxCanvas" width="1080" height="260"></canvas></div></div>
 
@@ -281,7 +281,9 @@ function frame(ctx,x,y,w,h,x0,x1,y0,y1,title){
 }
 /* draw a time-domain trace over the visible window */
 function trace(ctx,Fr,fn,col,lw,dash){
-  ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=lw||1.6; if(dash)ctx.setLineDash(dash);
+  ctx.save();
+  ctx.beginPath(); ctx.rect(Fr.x,Fr.y,Fr.w,Fr.h); ctx.clip();   // keep curves inside their axes
+  ctx.strokeStyle=col; ctx.lineWidth=lw||1.6; if(dash)ctx.setLineDash(dash);
   ctx.beginPath();
   const M=1400;
   for(let i=0;i<=M;i++){
@@ -292,7 +294,9 @@ function trace(ctx,Fr,fn,col,lw,dash){
   ctx.stroke(); ctx.restore();
 }
 function traceArr(ctx,Fr,arr,col,lw,dash){
-  ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=lw||1.6; if(dash)ctx.setLineDash(dash);
+  ctx.save();
+  ctx.beginPath(); ctx.rect(Fr.x,Fr.y,Fr.w,Fr.h); ctx.clip();
+  ctx.strokeStyle=col; ctx.lineWidth=lw||1.6; if(dash)ctx.setLineDash(dash);
   ctx.beginPath();
   const i0=Math.floor(Fr.x0*FS), i1=Math.ceil(Fr.x1*FS);
   for(let i=i0;i<=i1&&i<N;i++){
@@ -307,7 +311,9 @@ function timeAxis(ctx,Fr,label){
     line(ctx,xx,Fr.y,xx,Fr.y+Fr.h,'#1b222b',1);
     txt(ctx,(v*1000).toFixed(0),xx,Fr.y+Fr.h+12,'#6e7681','9px Segoe UI');
   });
-  line(ctx,Fr.x,Fr.Y(0),Fr.x+Fr.w,Fr.Y(0),'#30363d',1);
+  // only draw a zero line when zero is actually on this axis — the instantaneous
+  // frequency plot is centred on f_c, so Fr.Y(0) lands far below the canvas
+  if(Fr.y0<=0&&Fr.y1>=0) line(ctx,Fr.x,Fr.Y(0),Fr.x+Fr.w,Fr.Y(0),'#30363d',1);
   if(label) txt(ctx,label,Fr.x+Fr.w/2,Fr.y+Fr.h+26,'#6e7681','10px Segoe UI');
 }
 /* stem plot of a spectrum, only where there is energy */
