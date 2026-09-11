@@ -66,9 +66,10 @@
 
 <div class="tabs">
   <div class="tab active" data-tab="0">Fourier Series</div>
-  <div class="tab" data-tab="1">Fourier Transform</div>
-  <div class="tab" data-tab="2">Standard Pairs</div>
-  <div class="tab" data-tab="3">Properties</div>
+  <div class="tab" data-tab="1">Rotating Phasors</div>
+  <div class="tab" data-tab="2">Fourier Transform</div>
+  <div class="tab" data-tab="3">Standard Pairs</div>
+  <div class="tab" data-tab="4">Properties</div>
 </div>
 
 <div class="eq-box">
@@ -87,25 +88,29 @@
 <div class="meters" id="meters"></div>
 
 <div class="controls">
-  <div class="cg" data-tabs="0"><label>harmonics N:</label>
+  <div class="cg" data-tabs="0,1"><label>harmonics N:</label>
     <input type="range" id="slNH" min="1" max="80" step="1" value="7">
     <span class="val" id="vNH">7</span></div>
-  <div class="cg" data-tabs="0"><label>duty cycle:</label>
+  <div class="cg" data-tabs="0,1"><label>shape parameter:</label>
     <input type="range" id="slDuty" min="0.05" max="0.95" step="0.01" value="0.3">
     <span class="val" id="vDuty">0.30</span></div>
   <div class="cg" data-tabs="0"><label class="chk"><input type="checkbox" id="ckHarm"> show individual harmonics</label></div>
+  <div class="cg" data-tabs="0"><label class="chk"><input type="checkbox" id="ckStack"> stacked build-up</label></div>
   <div class="cg" data-tabs="0"><label class="chk"><input type="checkbox" id="ckMag" checked> magnitude / phase</label></div>
 
-  <div class="cg" data-tabs="1"><label>width τ:</label>
+  <div class="cg" data-tabs="2"><label>width τ:</label>
     <input type="range" id="slTau" min="0.1" max="4" step="0.02" value="1">
     <span class="val" id="vTau">1.00</span></div>
 
-  <div class="cg" data-tabs="3"><label>parameter:</label>
+  <div class="cg" data-tabs="4"><label>parameter:</label>
     <input type="range" id="slProp" min="-2" max="2" step="0.02" value="0.6">
     <span class="val" id="vProp">0.60</span></div>
-  <div class="cg" data-tabs="3"><label>property:</label>
+  <div class="cg" data-tabs="4"><label>property:</label>
     <button class="sec" id="btnProp">time shift</button></div>
 
+  <div class="cg" data-tabs="0"><button id="btnBuild">▶ Build up harmonics</button></div>
+  <div class="cg" data-tabs="1"><button id="btnSpin">⏸ Pause</button></div>
+  <div class="cg" data-tabs="0"><button class="sec" id="btnClearDraw">Clear drawing</button></div>
   <div class="cg"><button class="sec" id="btnReset">Reset</button></div>
 </div>
 
@@ -175,7 +180,14 @@ function impulse(ctx,Fr,x,area,col,label){
 
 /* ================= state ================= */
 const S={ tab:0, wave:'square', NH:7, duty:0.3, showHarm:false, magPhase:true,
-          pair:'rect', tau:1, prop:'shift', pv:0.6 };
+          pair:'rect', tau:1, prop:'shift', pv:0.6,
+          custom:new Float64Array(129), customVer:0, drawing:false,
+          building:false, buildT:0, phasorT:0, phasorRun:true, stack:false };
+// seed the drawable waveform with something recognisable
+for(let i=0;i<S.custom.length;i++){
+  const u=i/(S.custom.length-1);
+  S.custom[i]=Math.sin(TAU*u)+0.4*Math.sin(3*TAU*u);
+}
 
 const mainC=document.getElementById('mainCanvas'), mx=mainC.getContext('2d');
 const auxC=document.getElementById('auxCanvas'),  ax=auxC.getContext('2d');
@@ -201,9 +213,67 @@ const WAVES={
     b:n=>n===1?0.5:0, sym:'neither'},
   fullwave:{name:'Full-wave rectified',eq:'a<sub>0</sub> = 2/π,&nbsp; a<sub>n</sub> = −4/(π(4n²−1))',
     f:t=>Math.abs(Math.sin(PI*t)), a0:()=>2/PI,
-    a:n=>-4/(PI*(4*n*n-1)), b:()=>0, sym:'even · period 1'}
+    a:n=>-4/(PI*(4*n*n-1)), b:()=>0, sym:'even · period 1'},
+  /* ---- the following have no tidy closed form, so their coefficients are
+         integrated numerically and cached ---- */
+  trapezoid:{name:'Trapezoid',eq:'coefficients integrated numerically — slide the rise time',
+    numeric:true, key:()=>'trap'+S.duty.toFixed(3),
+    f:t=>{ const u=t-Math.floor(t+0.5), r=Math.max(S.duty*0.5,0.02);
+           return Math.max(-1,Math.min(1,(0.25-Math.abs(u))/r)); }, sym:'even'},
+  staircase:{name:'Staircase',eq:'coefficients integrated numerically',
+    numeric:true, key:()=>'stair',
+    f:t=>{ const u=t-Math.floor(t); return [-1,-0.35,0.35,1][Math.floor(u*4)%4]; }, sym:'neither'},
+  decay:{name:'Exponential decay',eq:'coefficients integrated numerically',
+    numeric:true, key:()=>'decay',
+    f:t=>{ const u=t-Math.floor(t); return 2*Math.exp(-3*u)-2*(1-Math.exp(-3))/3; }, sym:'neither'},
+  custom:{name:'Draw your own',eq:'drag across the top plot to draw one period',
+    numeric:true, key:()=>'custom'+S.customVer,
+    f:t=>{ const u=t-Math.floor(t), x=u*(S.custom.length-1);
+           const i=Math.floor(x), fr=x-i;
+           const a=S.custom[Math.max(0,Math.min(S.custom.length-1,i))];
+           const b=S.custom[Math.max(0,Math.min(S.custom.length-1,i+1))];
+           return a+(b-a)*fr; }, sym:'whatever you drew'}
 };
-function W(){ return WAVES[S.wave]; }
+/* numerically integrated Fourier coefficients, cached by waveform key */
+const NCOEF_MAX=100;
+let coefCache={key:null};
+function numericCoefs(w){
+  const key=w.key();
+  if(coefCache.key===key) return coefCache;
+  const M=2048;
+  const vals=new Float64Array(M);
+  let a0=0;
+  for(let i=0;i<M;i++){ vals[i]=w.f((i+0.5)/M); a0+=vals[i]; }
+  a0/=M;
+  const a=new Float64Array(NCOEF_MAX+1), b=new Float64Array(NCOEF_MAX+1);
+  for(let n=1;n<=NCOEF_MAX;n++){
+    let sa=0,sb=0;
+    const dth=TAU*n/M;
+    for(let i=0;i<M;i++){
+      const th=dth*(i+0.5);
+      sa+=vals[i]*Math.cos(th); sb+=vals[i]*Math.sin(th);
+    }
+    a[n]=2*sa/M; b[n]=2*sb/M;
+  }
+  coefCache={key,a0,a,b};
+  return coefCache;
+}
+/* identity of the current waveform, including whatever parameter reshapes it */
+function waveKey(){
+  const w=WAVES[S.wave];
+  return S.wave+(w.numeric?('|'+w.key()):(S.wave==='pulse'?('|'+S.duty.toFixed(4)):''));
+}
+let wrapCache={key:null,obj:null};
+function W(){
+  const w=WAVES[S.wave];
+  if(!w.numeric) return w;
+  const key=waveKey();
+  if(wrapCache.key===key) return wrapCache.obj;      // rebuilding this per call was costing
+  const c=numericCoefs(w);                            // thousands of allocations per frame
+  wrapCache={key,obj:{name:w.name,eq:w.eq,f:w.f,sym:w.sym,numeric:true,
+    a0:()=>c.a0, a:n=>n<=NCOEF_MAX?c.a[n]:0, b:n=>n<=NCOEF_MAX?c.b[n]:0}};
+  return wrapCache.obj;
+}
 function partial(t,N){
   const w=W();
   let s=w.a0();
@@ -219,7 +289,73 @@ function cn(n){
   const re=a/2, im=-b/2;
   return {mag:Math.hypot(re,im),ph:Math.atan2(im,re),re,im};
 }
+/* Build-up view: one sinusoid per row on the left, the running total on the right,
+   so you can see exactly which frequency contributes what. */
+function drawSeriesStacked(){
+  clear(mx,mainC);
+  const w=W();
+  // the harmonics that actually carry something, in order
+  const live=[];
+  for(let n=1;n<=S.NH&&live.length<8;n++){
+    const A=Math.hypot(w.a(n),w.b(n));
+    if(A>1e-9) live.push({n,A});
+  }
+  if(!live.length){
+    txt(mx,'this waveform has no harmonics below N = '+S.NH,mainC.width/2,200,'#8b949e','12px Segoe UI');
+    drawSeriesSpectrum(); return;
+  }
+  const K=live.length;
+  const top=44, rowH=Math.min(48,(mainC.height-top-40)/K);
+  const LX=105, LW=380, RX=600, RW=400;
+  txt(mx,'each harmonic on its own',LX+LW/2,top-22,'#8957e5','bold 11px Segoe UI');
+  txt(mx,'running total after adding it',RX+RW/2,top-22,'#58a6ff','bold 11px Segoe UI');
+
+  live.forEach((h,i)=>{
+    const y=top+i*rowH, yc=y+rowH/2;
+    const amp=(rowH/2)*0.82;
+    const X=(t,x0,ww)=>x0+(t+1)/2*ww;
+    // left: the single harmonic, drawn to its true relative amplitude
+    const scale=amp/Math.max(live[0].A,1e-9);
+    line(mx,LX,yc,LX+LW,yc,'#21262d',1);
+    mx.strokeStyle='#8957e5'; mx.lineWidth=1.6; mx.beginPath();
+    for(let j=0;j<=600;j++){
+      const t=-1+2*j/600;
+      const v=w.a(h.n)*Math.cos(h.n*TAU*t)+w.b(h.n)*Math.sin(h.n*TAU*t);
+      const Y=yc-Math.max(-amp*1.6,Math.min(amp*1.6,v*scale));
+      j?mx.lineTo(X(t,LX,LW),Y):mx.moveTo(X(t,LX,LW),Y);
+    }
+    mx.stroke();
+    txt(mx,'n = '+h.n,LX-12,yc,'#d2a8ff','bold 10px Courier New','right');
+    txt(mx,'A = '+h.A.toFixed(3),LX-12,yc+13,'#6e7681','9px Courier New','right');
+    txt(mx,(h.n===1?'fundamental':h.n+'× the fundamental'),LX+LW+10,yc,'#6e7681','9px Segoe UI','left');
+    if(i<K-1) txt(mx,'+',LX+LW/2,y+rowH-3,'#484f58','bold 12px Segoe UI');
+
+    // right: the partial sum through this harmonic, against the target
+    const s2=amp/1.35;
+    line(mx,RX,yc,RX+RW,yc,'#21262d',1);
+    mx.strokeStyle='#2a4a34'; mx.lineWidth=1.2; mx.beginPath();
+    for(let j=0;j<=600;j++){
+      const t=-1+2*j/600, v=w.f(t)-w.a0();
+      const Y=yc-Math.max(-amp*1.5,Math.min(amp*1.5,v*s2));
+      j?mx.lineTo(X(t,RX,RW),Y):mx.moveTo(X(t,RX,RW),Y);
+    }
+    mx.stroke();
+    mx.strokeStyle='#58a6ff'; mx.lineWidth=1.8; mx.beginPath();
+    for(let j=0;j<=800;j++){
+      const t=-1+2*j/800, v=partial(t,h.n)-w.a0();
+      const Y=yc-Math.max(-amp*1.5,Math.min(amp*1.5,v*s2));
+      j?mx.lineTo(X(t,RX,RW),Y):mx.moveTo(X(t,RX,RW),Y);
+    }
+    mx.stroke();
+    txt(mx,'S'+h.n,RX+RW+10,yc,'#58a6ff','bold 10px Courier New','left');
+  });
+  txt(mx,'green = the target, blue = the sum so far.  Raise N to add more rows; '+
+        'the ones you cannot see here are smaller still.',
+      mainC.width/2,mainC.height-16,'#6e7681','11px Segoe UI');
+  drawSeriesSpectrum();
+}
 function drawSeries(){
+  if(S.stack) return drawSeriesStacked();
   clear(mx,mainC);
   const w=W();
   const A=frame(mx,80,44,930,220,-1.2,1.2,-1.55,1.55,
@@ -239,6 +375,8 @@ function drawSeries(){
   txt(mx,'target x(t)',A.x+A.w-8,A.y+14,'#3fb950','10px Segoe UI','right');
   txt(mx,'partial sum S_N(t)',A.x+A.w-8,A.y+28,'#58a6ff','10px Segoe UI','right');
   txt(mx,'t / T',A.x+A.w/2,A.y+A.h+27,'#6e7681','10px Segoe UI');
+  if(S.wave==='custom')
+    txt(mx,'drag anywhere in this plot to draw your own period',A.x+A.w/2,A.y+14,'#7ee787','bold 10px Segoe UI');
 
   /* Gibbs: overshoot near a jump */
   const jump=hasJump();
@@ -337,11 +475,90 @@ function drawSeriesSpectrum(){
   txt(ax,'N = '+S.NH+' captures '+(Ptot>0?(100*accN/Ptot).toFixed(2):'0')+'%',
       G.x+G.w/2,G.y+G.h+26,'#d2a8ff','10px Courier New');
 }
+let powCache={key:null,v:0};
 function totalPower(){
-  // mean square of the waveform over one period, by fine sampling
+  // mean square of the waveform over one period, by fine sampling — cached, because
+  // it is read by both the spectrum panel and the meters on every single frame
+  const key=waveKey();
+  if(powCache.key===key) return powCache.v;
   const w=W(), M=20000; let s=0;
   for(let i=0;i<M;i++){ const v=w.f(-0.5+(i+0.5)/M); s+=v*v; }
-  return s/M;
+  powCache={key,v:s/M};
+  return powCache.v;
+}
+
+/* ================= TAB : rotating phasors =================
+   Harmonic n is a_n cos + b_n sin = A_n cos(2*pi*n*t - phi_n), i.e. a vector of
+   length A_n turning at n revolutions per period. Chain them tip to tail and the
+   VERTICAL position of the final tip traces the waveform. */
+function harmonicPolar(n){
+  const w=W(), a=w.a(n), b=w.b(n);
+  return {A:Math.hypot(a,b), phi:Math.atan2(b,a)};
+}
+function drawPhasors(){
+  clear(mx,mainC);
+  const w=W(), t=S.phasorT;
+  const cx=250, cy=215, scale=118;
+  const N=Math.min(S.NH,40);
+
+  // chain the vectors
+  let px=0, py=0;
+  const pts=[{x:0,y:0}];
+  for(let n=1;n<=N;n++){
+    const {A,phi}=harmonicPolar(n);
+    if(A<1e-12){ pts.push({x:px,y:py}); continue; }
+    const th=TAU*n*t-phi+PI/2;          // +pi/2 so the VERTICAL projection is the waveform
+    px+=A*Math.cos(th); py+=A*Math.sin(th);
+    pts.push({x:px,y:py});
+  }
+  // circles and vectors
+  for(let i=0;i<pts.length-1;i++){
+    const r=Math.hypot(pts[i+1].x-pts[i].x,pts[i+1].y-pts[i].y);
+    if(r<1e-9) continue;
+    mx.strokeStyle='rgba(137,87,229,0.30)'; mx.lineWidth=1;
+    mx.beginPath(); mx.arc(cx+pts[i].x*scale,cy-pts[i].y*scale,r*scale,0,TAU); mx.stroke();
+    line(mx,cx+pts[i].x*scale,cy-pts[i].y*scale,cx+pts[i+1].x*scale,cy-pts[i+1].y*scale,
+         '#d2a8ff',1.6);
+    dot(mx,cx+pts[i+1].x*scale,cy-pts[i+1].y*scale,2.2,'#8957e5');
+  }
+  const tip=pts[pts.length-1];
+  const tipY=cy-(tip.y)*scale;
+  dot(mx,cx+tip.x*scale,tipY,5,'#58a6ff');
+  txt(mx,'N = '+N+' rotating vectors',cx,40,'#8b949e','bold 11px Segoe UI');
+  txt(mx,'each turns n times per period, with length |A_n|',cx,56,'#6e7681','9.5px Segoe UI');
+
+  // the waveform, traced by the tip's height
+  const A=frame(mx,470,80,540,270,0,1,-1.6,1.6,'the vertical position of the tip, against time');
+  axesXY(mx,A,v=>v.toFixed(2),null,6,4);
+  plot(mx,A,tt=>w.f(tt),'#3fb950',1.8,[4,3],2000);
+  plot(mx,A,tt=>partial(tt,N),'#58a6ff',2.4,null,2000);
+  const val=w.a0()+tip.y;
+  line(mx,cx+tip.x*scale,tipY,A.X(t),A.Y(val),'#e3b341',1.2,[4,3]);
+  dot(mx,A.X(t),A.Y(val),5,'#e3b341');
+  line(mx,A.X(t),A.y,A.X(t),A.y+A.h,'#e3b341',1,[3,3]);
+  txt(mx,'t / T',A.x+A.w/2,A.y+A.h+27,'#6e7681','10px Segoe UI');
+  txt(mx,'target',A.x+A.w-8,A.y+14,'#3fb950','10px Segoe UI','right');
+  txt(mx,'sum of the vectors',A.x+A.w-8,A.y+28,'#58a6ff','10px Segoe UI','right');
+
+  clear(ax,auxC);
+  const G=frame(ax,90,44,500,170,0,Math.min(S.NH,40)+0.7,0,
+    Math.max(0.05,...Array.from({length:Math.min(S.NH,40)},(_,i)=>harmonicPolar(i+1).A))*1.25,
+    'A_n — the length of each rotating vector');
+  axesXY(ax,G,v=>String(Math.round(v)),null,10,4);
+  for(let n=1;n<=Math.min(S.NH,40);n++){
+    const {A:Amp}=harmonicPolar(n);
+    if(Amp<1e-12) continue;
+    line(ax,G.X(n),G.Y(0),G.X(n),G.Y(Amp),'#8957e5',2.6);
+    dot(ax,G.X(n),G.Y(Amp),2.6,'#d2a8ff');
+  }
+  txt(ax,'n',G.x+G.w/2,G.y+G.h+26,'#6e7681','10px Segoe UI');
+  txt(ax,'A_n = √(a_n² + b_n²)   and the starting angle is −φ_n = −atan2(b_n, a_n)',
+      700,90,'#8b949e','11.5px Segoe UI');
+  txt(ax,'The biggest circle is the fundamental; each smaller one adds a finer correction.',
+      700,118,'#6e7681','11px Segoe UI');
+  txt(ax,'This is the same sum as the previous tab — only drawn as rotation instead of addition.',
+      700,146,'#6e7681','11px Segoe UI');
+  txt(ax,'t = '+t.toFixed(3)+' periods',700,180,'#e3b341','bold 12px Courier New');
 }
 
 /* ================= TAB 1 : Fourier transform ================= */
@@ -589,6 +806,11 @@ const TABS=[
  desc:'Add harmonics one at a time and watch the partial sum close in on the target. The coefficients below are exact, not fitted.',
  legend:[['#3fb950','target x(t)'],['#58a6ff','partial sum S_N'],['#8957e5','individual harmonics'],
          ['#f0883e','error'],['#f85149','Gibbs overshoot']]},
+{title:'The Same Sum, Drawn as Rotation',aux:'Vector lengths A_n',
+ eq:'a<sub>n</sub>cos(nω₀t) + b<sub>n</sub>sin(nω₀t) = A<sub>n</sub>cos(nω₀t − φ<sub>n</sub>),&nbsp; A<sub>n</sub> = √(a<sub>n</sub>²+b<sub>n</sub>²),&nbsp; φ<sub>n</sub> = atan2(b<sub>n</sub>, a<sub>n</sub>)',
+ desc:'Every harmonic is a vector turning at n revolutions per period. Chain them tip to tail and the height of the final tip draws the waveform.',
+ legend:[['#d2a8ff','rotating vectors'],['#8957e5','their circles'],['#58a6ff','the running sum'],
+         ['#3fb950','target'],['#e3b341','the tip, projected']]},
 {title:'Aperiodic Signals and the Transform',aux:'Time–bandwidth trade',
  eq:'X(f) = ∫ x(t)e<sup>−j2πft</sup> dt &nbsp;&nbsp;·&nbsp;&nbsp; x(t) = ∫ X(f)e<sup>+j2πft</sup> df',
  desc:'Let the period go to infinity and the discrete harmonics merge into a continuum. Squeeze a pulse in time and its spectrum necessarily spreads.',
@@ -608,6 +830,14 @@ const INFO=[
 <li><strong>How fast the coefficients decay tells you how smooth the signal is.</strong> Square and sawtooth have jumps, so their coefficients fall as 1/n. The triangle is continuous with a kink, so it falls as 1/n². Smoother signal, faster decay, fewer terms needed.</li>
 <li><strong>Gibbs never goes away.</strong> Near a jump the partial sum overshoots by about 8.95% of the step no matter how large N is — the overshoot narrows but never shrinks. Push N to 80 on the square wave and watch it persist.</li>
 <li><strong>Parseval:</strong> the panel on the right accumulates |c<sub>n</sub>|² and compares it with the true mean-square. For the square wave the fundamental alone carries 81% of the power.</li>
+</ul>`,
+`<strong>A harmonic is a rotation.</strong> Writing a<sub>n</sub>cos + b<sub>n</sub>sin as a single cosine with amplitude A<sub>n</sub> and phase φ<sub>n</sub> turns each term into a vector of length A<sub>n</sub> spinning at n revolutions per period.
+<ul>
+<li><strong>Chain them tip to tail</strong> and the height of the last tip is the partial sum, exactly the blue curve from the previous tab. Nothing new is being computed — it is the same arithmetic, drawn as motion.</li>
+<li><strong>The first circle is the fundamental</strong> and does most of the work; each later one is a smaller correction turning faster. That is why truncating the series is usually harmless and why the coefficients' decay rate matters so much.</li>
+<li><strong>Raise N and watch the tip's path tighten</strong> onto the target. For the square wave the corrections are all odd harmonics, so the circles shrink as 1/n — slowly, which is exactly why the corners stay rounded.</li>
+<li><strong>φ<sub>n</sub> is where each vector starts.</strong> An even waveform has every φ<sub>n</sub> = 0 and the vectors all begin pointing the same way; an odd one starts them at 90°. Symmetry is visible in the starting angles.</li>
+<li>This is the picture behind phasors in circuits, and behind the epicycle drawings that trace a shape from its Fourier coefficients — same mathematics, different projection.</li>
 </ul>`,
 `<strong>The transform is the series with the period taken to infinity.</strong> Harmonic lines spaced 1/T apart merge into a continuous X(f) as T → ∞.
 <ul>
@@ -637,21 +867,21 @@ const INFO=[
 
 /* ================= meters ================= */
 const MET=[
-  ['view',()=>['series','transform','pairs','properties'][S.tab]],
-  ['signal',()=>S.tab===0?W().name:(S.tab===1?FT().name:(S.tab===2?pairOf(S.pair).n:PROPS[S.prop].name))],
-  ['N',()=>S.tab===0?S.NH:'—'],
-  ['a₀ / DC',()=>S.tab===0?W().a0().toFixed(4):'—'],
-  ['|c₁|',()=>S.tab===0?cn(1).mag.toFixed(4):'—'],
-  ['|c₂|',()=>S.tab===0?cn(2).mag.toFixed(4):'—'],
-  ['|c₃|',()=>S.tab===0?cn(3).mag.toFixed(4):'—'],
+  ['view',()=>['series','phasors','transform','pairs','properties'][S.tab]],
+  ['signal',()=>(S.tab===0||S.tab===1)?WAVES[S.wave].name:(S.tab===2?FT().name:(S.tab===3?pairOf(S.pair).n:PROPS[S.prop].name))],
+  ['N',()=>(S.tab===0||S.tab===1)?S.NH:'—'],
+  ['a₀ / DC',()=>(S.tab===0||S.tab===1)?W().a0().toFixed(4):'—'],
+  ['|c₁|',()=>(S.tab===0||S.tab===1)?cn(1).mag.toFixed(4):'—'],
+  ['|c₂|',()=>(S.tab===0||S.tab===1)?cn(2).mag.toFixed(4):'—'],
+  ['|c₃|',()=>(S.tab===0||S.tab===1)?cn(3).mag.toFixed(4):'—'],
   ['power captured',()=>{
-    if(S.tab!==0) return '—';
+    if(S.tab!==0&&S.tab!==1) return '—';
     const P=totalPower(); let acc=cn(0).mag*cn(0).mag;
     for(let n=1;n<=S.NH;n++){ const c=cn(n); acc+=2*c.mag*c.mag; }
     return P>0?(100*acc/P).toFixed(2)+'%':'—'; }],
-  ['τ',()=>S.tab===1?S.tau.toFixed(2):'—'],
+  ['τ',()=>S.tab===2?S.tau.toFixed(2):'—'],
   ['τ·B',()=>{
-    if(S.tab!==1) return '—';
+    if(S.tab!==2) return '—';
     const b=(S.pair==='rect'||S.pair==='tri')?1/S.tau:(S.pair==='sincp'?0.5/S.tau:1/(TAU*S.tau));
     return (S.tau*b).toFixed(3); }]
 ];
@@ -664,16 +894,16 @@ function updateMeters(){ MET.forEach((m,i)=>{
 function buildPresets(){
   const el=document.getElementById('presets');
   let items=[], attr='', cur='';
-  if(S.tab===0){ items=Object.keys(WAVES).map(k=>[k,WAVES[k].name]); attr='w'; cur=S.wave; }
-  else if(S.tab===1){ items=Object.keys(FTS).map(k=>[k,FTS[k].name]); attr='p'; cur=S.pair in FTS?S.pair:'rect'; }
-  else if(S.tab===2){ items=PAIRS.map(p=>[p.k,p.n]); attr='p'; cur=S.pair; }
+  if(S.tab===0||S.tab===1){ items=Object.keys(WAVES).map(k=>[k,WAVES[k].name]); attr='w'; cur=S.wave; }
+  else if(S.tab===2){ items=Object.keys(FTS).map(k=>[k,FTS[k].name]); attr='p'; cur=S.pair in FTS?S.pair:'rect'; }
+  else if(S.tab===3){ items=PAIRS.map(p=>[p.k,p.n]); attr='p'; cur=S.pair; }
   else { items=Object.keys(PROPS).map(k=>[k,PROPS[k].name]); attr='r'; cur=S.prop; }
   el.innerHTML=items.map(([k,n])=>
     `<div class="preset${k===cur?' active':''}" data-${attr}="${k}">${n}</div>`).join('');
   el.querySelectorAll('.preset').forEach(e=>e.addEventListener('click',()=>{
     const k=e.dataset[attr];
-    if(S.tab===0) S.wave=k; else if(S.tab===3) S.prop=k; else S.pair=k;
-    if(S.tab===3) document.getElementById('btnProp').textContent=PROPS[S.prop].name;
+    if(S.tab===0||S.tab===1) S.wave=k; else if(S.tab===4) S.prop=k; else S.pair=k;
+    if(S.tab===4) document.getElementById('btnProp').textContent=PROPS[S.prop].name;
     buildPresets(); draw();
   }));
 }
@@ -681,24 +911,25 @@ function buildPresets(){
 /* ================= dispatch ================= */
 function draw(){
   if(S.tab===0) drawSeries();
-  else if(S.tab===1) drawTransform();
-  else if(S.tab===2) drawPairs();
+  else if(S.tab===1) drawPhasors();
+  else if(S.tab===2) drawTransform();
+  else if(S.tab===3) drawPairs();
   else drawProps();
   updateMeters();
 }
 const $=id=>document.getElementById(id);
-const TAB_SLUGS=['series','transform','pairs','properties'];
+const TAB_SLUGS=['series','phasors','transform','pairs','properties'];
 function setTab(t,skipHash){
   S.tab=t;
   if(!skipHash && typeof location!=='undefined' && typeof history!=='undefined' && history.replaceState){
     try{ history.replaceState(null,'','#'+TAB_SLUGS[t]); }catch(e){}
   }
-  if(t===1 && !(S.pair in FTS)) S.pair='rect';
-  if(t===2 && (S.pair in FTS) && !PAIRS.some(p=>p.k===S.pair)) S.pair='rect';
+  if(t===2 && !(S.pair in FTS)) S.pair='rect';
+  if(t===3 && (S.pair in FTS) && !PAIRS.some(p=>p.k===S.pair)) S.pair='rect';
   document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active',+el.dataset.tab===t));
   const T=TABS[t];
   $('mainTitle').textContent=T.title; $('auxTitle').textContent=T.aux;
-  $('eqText').innerHTML=T.eq|| (t===0?W().eq:'');
+  $('eqText').innerHTML=T.eq|| ((t===0||t===1)?WAVES[S.wave].eq:'');
   $('eqDesc').textContent=T.desc;
   $('legend').innerHTML=T.legend.map(l=>
     `<div class="legend-item"><div class="legend-dot" style="background:${l[0]}"></div>${l[1]}</div>`).join('');
@@ -711,9 +942,12 @@ function setTab(t,skipHash){
 document.querySelectorAll('.tab').forEach(el=>el.addEventListener('click',()=>setTab(+el.dataset.tab)));
 
 /* ================= controls ================= */
-$('slNH').addEventListener('input',e=>{ S.NH=+e.target.value; $('vNH').textContent=S.NH; draw(); });
+$('slNH').addEventListener('input',e=>{ S.NH=+e.target.value; $('vNH').textContent=S.NH;
+  S.building=false; $('btnBuild').textContent='▶ Build up harmonics'; draw(); });
 $('slDuty').addEventListener('input',e=>{ S.duty=+e.target.value; $('vDuty').textContent=S.duty.toFixed(2); draw(); });
+// note: WAVES.trapezoid.key() includes S.duty, so the coefficient cache invalidates itself
 $('ckHarm').addEventListener('change',e=>{ S.showHarm=e.target.checked; draw(); });
+$('ckStack').addEventListener('change',e=>{ S.stack=e.target.checked; draw(); });
 $('ckMag').addEventListener('change',e=>{ S.magPhase=e.target.checked; draw(); });
 $('slTau').addEventListener('input',e=>{ S.tau=+e.target.value; $('vTau').textContent=S.tau.toFixed(2); draw(); });
 $('slProp').addEventListener('input',e=>{ S.pv=+e.target.value; $('vProp').textContent=S.pv.toFixed(2); draw(); });
@@ -722,13 +956,77 @@ $('btnProp').addEventListener('click',()=>{
   S.prop=ks[(ks.indexOf(S.prop)+1)%ks.length];
   $('btnProp').textContent=PROPS[S.prop].name; buildPresets(); draw(); });
 $('btnReset').addEventListener('click',()=>{
-  Object.assign(S,{NH:7,duty:0.3,tau:1,pv:0.6,showHarm:false,magPhase:true});
+  Object.assign(S,{NH:7,duty:0.3,tau:1,pv:0.6,showHarm:false,magPhase:true,stack:false});
   $('slNH').value=7; $('vNH').textContent='7';
   $('slDuty').value=0.3; $('vDuty').textContent='0.30';
   $('slTau').value=1; $('vTau').textContent='1.00';
   $('slProp').value=0.6; $('vProp').textContent='0.60';
-  $('ckHarm').checked=false; $('ckMag').checked=true;
+  $('ckHarm').checked=false; $('ckMag').checked=true; $('ckStack').checked=false;
   draw(); });
+
+/* ---- drag on the top plot to draw one period of your own waveform ---- */
+const SERIES_FRAME={x:80,y:44,w:930,h:220,x0:-1.2,x1:1.2,y0:-1.55,y1:1.55};
+function canvasPos(ev){
+  const r=mainC.getBoundingClientRect();
+  return {x:(ev.clientX-r.left)*(mainC.width/r.width),
+          y:(ev.clientY-r.top)*(mainC.height/r.height)};
+}
+function drawAt(px,py){
+  const F=SERIES_FRAME;
+  if(px<F.x||px>F.x+F.w||py<F.y-30||py>F.y+F.h+30) return false;
+  const t=F.x0+(px-F.x)/F.w*(F.x1-F.x0);
+  const v=Math.max(-1.5,Math.min(1.5,F.y1-(py-F.y)/F.h*(F.y1-F.y0)));
+  // the plot spans -1.2..1.2 periods, so fold the x position into one period
+  const u=t-Math.floor(t);
+  const L=S.custom.length;
+  const i=Math.round(u*(L-1));
+  S.custom[i]=v;
+  if(i===0) S.custom[L-1]=v;            // keep the period closed
+  if(i===L-1) S.custom[0]=v;
+  // fill any gap left by a fast drag
+  if(S.lastDrawIdx!==undefined && S.lastDrawIdx!==null){
+    const a=S.lastDrawIdx, b=i;
+    if(Math.abs(b-a)>1 && Math.abs(b-a)<L/2){
+      const lo=Math.min(a,b), hi=Math.max(a,b);
+      const va=S.custom[lo], vb=S.custom[hi];
+      for(let k=lo+1;k<hi;k++) S.custom[k]=va+(vb-va)*(k-lo)/(hi-lo);
+    }
+  }
+  S.lastDrawIdx=i;
+  S.customVer++;
+  return true;
+}
+mainC.addEventListener('mousedown',ev=>{
+  if(S.tab!==0||S.wave!=='custom') return;
+  const q=canvasPos(ev); S.lastDrawIdx=null;
+  if(drawAt(q.x,q.y)){ S.drawing=true; draw(); }
+});
+if(typeof window!=='undefined'&&window.addEventListener){
+  window.addEventListener('mousemove',ev=>{
+    if(!S.drawing) return;
+    const q=canvasPos(ev); drawAt(q.x,q.y); draw();
+  });
+  window.addEventListener('mouseup',()=>{ S.drawing=false; S.lastDrawIdx=null; });
+}
+
+/* ---- animation: harmonics building up, and the phasors turning ---- */
+function loop(){
+  let need=false;
+  if(S.building&&S.tab===0){
+    S.buildT+=0.035;
+    const n=1+Math.floor(S.buildT);
+    if(n>80){ S.building=false; S.buildT=0;
+      const b=document.getElementById('btnBuild'); if(b) b.textContent='▶ Build up harmonics'; }
+    else if(n!==S.NH){ S.NH=n;
+      const sl=document.getElementById('slNH'), v=document.getElementById('vNH');
+      if(sl) sl.value=n; if(v) v.textContent=String(n);
+    }
+    need=true;
+  }
+  if(S.phasorRun&&S.tab===1){ S.phasorT+=0.0035; if(S.phasorT>1) S.phasorT-=1; need=true; }
+  if(need) draw();
+  requestAnimationFrame(loop);
+}
 
 let startTab=0;
 if(typeof location!=='undefined' && location.hash){
@@ -736,6 +1034,20 @@ if(typeof location!=='undefined' && location.hash){
   if(i>=0) startTab=i;
 }
 setTab(startTab,true);
+$('btnBuild').addEventListener('click',()=>{
+  S.building=!S.building;
+  if(S.building){ S.buildT=0; S.NH=1; $('slNH').value=1; $('vNH').textContent='1'; }
+  $('btnBuild').textContent=S.building?'⏸ Stop building':'▶ Build up harmonics';
+});
+$('btnSpin').addEventListener('click',()=>{
+  S.phasorRun=!S.phasorRun;
+  $('btnSpin').textContent=S.phasorRun?'⏸ Pause':'▶ Play';
+});
+$('btnClearDraw').addEventListener('click',()=>{
+  for(let i=0;i<S.custom.length;i++) S.custom[i]=0;
+  S.customVer++; S.wave='custom'; buildPresets(); draw();
+});
+loop();
 </script>
 </body>
 </html>
