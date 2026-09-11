@@ -1362,8 +1362,14 @@ function draw(){
   else drawInverse();
   updateMeters();
 }
-function setTab(t){
+const TAB_SLUGS=['clt','lln','convolution','galton','inverse-cdf'];
+function setTab(t,skipHash){
   S.tab=t;
+  // keep the URL in step so a tab can be linked directly (…/clt-lln.html#galton)
+  if(!skipHash && typeof location!=='undefined' && typeof history!=='undefined'
+     && history.replaceState){
+    try{ history.replaceState(null,'','#'+TAB_SLUGS[t]); }catch(e){}
+  }
   document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active',+el.dataset.tab===t));
   const T=TABS[t];
   document.getElementById('mainTitle').textContent=T.title;
@@ -1487,7 +1493,19 @@ function loop(){
 markDist(); syncParamVis(); resetGalton(); resetCLT();
 setPmf('binom');
 document.querySelector('.preset.pmf[data-w="binom"]').classList.add('active');
-setTab(0); loop();
+// open on the tab named in the URL fragment, if there is one
+let startTab=0;
+if(typeof location!=='undefined' && location.hash){
+  const i=TAB_SLUGS.indexOf(location.hash.replace('#','').toLowerCase());
+  if(i>=0) startTab=i;
+}
+setTab(startTab,true);
+if(typeof window!=='undefined' && window.addEventListener)
+  window.addEventListener('hashchange',()=>{
+    const i=TAB_SLUGS.indexOf(location.hash.replace('#','').toLowerCase());
+    if(i>=0&&i!==S.tab) setTab(i,true);
+  });
+loop();
 </script>
 </body>
 </html>
