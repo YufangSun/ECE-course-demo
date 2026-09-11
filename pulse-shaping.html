@@ -56,10 +56,15 @@
   .info li{margin:3px 0}
   .hidden{display:none!important}
   a{color:#58a6ff}
-  .back{margin-top:16px;font-size:.82em}
+  .back{position:fixed;top:8px;left:12px;font-size:.82em;z-index:50;
+    background:rgba(13,17,23,.92);padding:4px 11px;border-radius:8px;border:1px solid #30363d}
+  .back a{color:#58a6ff;text-decoration:none}
+  .back a:hover{text-decoration:underline}
 </style>
 </head>
 <body>
+<div class="back"><a href="index.html">← All demos</a> &nbsp;·&nbsp;
+  <a href="digital-modulation.html">Digital Modulation</a> &nbsp;·&nbsp; <a href="fourier.html">Fourier</a></div>
 
 <h1>Pulse Shaping, ISI &amp; Eye Diagrams</h1>
 <p class="subtitle">A pulse that is short in time is wide in frequency, and a pulse squeezed into a narrow band spreads across its neighbours. Pulse shaping is the art of spreading in time without ever interfering at the sampling instants.</p>
@@ -105,9 +110,6 @@
 </div>
 
 <div class="info" id="info"></div>
-<div class="back"><a href="index.html">← All demos</a> &nbsp;·&nbsp;
-  <a href="digital-modulation.html">Digital Modulation</a> &nbsp;·&nbsp; <a href="fourier.html">Fourier</a></div>
-
 <script>
 /* ================= helpers ================= */
 const PI=Math.PI, TAU=2*PI;

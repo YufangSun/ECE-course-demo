@@ -56,10 +56,15 @@
   .info li{margin:3px 0}
   .hidden{display:none!important}
   a{color:#58a6ff}
-  .back{margin-top:16px;font-size:.82em}
+  .back{position:fixed;top:8px;left:12px;font-size:.82em;z-index:50;
+    background:rgba(13,17,23,.92);padding:4px 11px;border-radius:8px;border:1px solid #30363d}
+  .back a{color:#58a6ff;text-decoration:none}
+  .back a:hover{text-decoration:underline}
 </style>
 </head>
 <body>
+<div class="back"><a href="index.html">← All demos</a> &nbsp;·&nbsp; <a href="modulation.html">AM &amp; FM</a> &nbsp;·&nbsp;
+  <a href="clt-lln.html">CLT &amp; LLN</a></div>
 
 <h1>Digital Modulation &amp; Bit Error Rate</h1>
 <p class="subtitle">Map bits onto points in a plane, add noise, and decide which point was sent. How far apart you can keep those points — for a given power — is the whole game.</p>
@@ -101,9 +106,6 @@
 </div>
 
 <div class="info" id="info"></div>
-<div class="back"><a href="index.html">← All demos</a> &nbsp;·&nbsp; <a href="modulation.html">AM &amp; FM</a> &nbsp;·&nbsp;
-  <a href="clt-lln.html">CLT &amp; LLN</a></div>
-
 <script>
 /* ================= math ================= */
 const PI=Math.PI, TAU=2*PI;

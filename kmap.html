@@ -91,9 +91,14 @@
   .steps .step:last-child{border-bottom:none}
   .steps .group-tag{display:inline-block;padding:1px 6px;border-radius:4px;font-size:.85em;margin-right:4px;font-weight:bold}
   .steps .essential{color:#3fb950}
+  .back{position:fixed;top:8px;left:12px;font-size:.82em;z-index:50;
+    background:rgba(13,17,23,.92);padding:4px 11px;border-radius:8px;border:1px solid #30363d}
+  .back a{color:#58a6ff;text-decoration:none}
+  .back a:hover{text-decoration:underline}
 </style>
 </head>
 <body>
+<div class="back"><a href="index.html">← All demos</a></div>
 
 <h1>Karnaugh Map — Boolean Simplifier</h1>
 <p class="subtitle">Click cells to toggle 0 / 1 / X (don't-care). Watch the K-map automatically find prime implicants and produce the minimal SOP & POS expressions.</p>

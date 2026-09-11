@@ -65,10 +65,14 @@
   .info li{margin:3px 0}
   .hidden{display:none!important}
   a{color:#58a6ff}
-  .back{margin-top:16px;font-size:.82em}
+  .back{position:fixed;top:8px;left:12px;font-size:.82em;z-index:50;
+    background:rgba(13,17,23,.92);padding:4px 11px;border-radius:8px;border:1px solid #30363d}
+  .back a{color:#58a6ff;text-decoration:none}
+  .back a:hover{text-decoration:underline}
 </style>
 </head>
 <body>
+<div class="back"><a href="index.html">← All demos</a> &nbsp;·&nbsp; <a href="clt-lln.html">CLT &amp; LLN</a> &nbsp;·&nbsp; <a href="bayes.html">Bayes</a></div>
 
 <h1>Distribution Explorer</h1>
 <p class="subtitle">The standard families side by side — pmf/pdf against CDF, with the mean, the spread, and P(a ≤ X ≤ b) shaded live. Most of these are the same distribution wearing different clothes, and the last tab shows which turns into which.</p>
@@ -118,8 +122,6 @@
 </div>
 
 <div class="info" id="info"></div>
-<div class="back"><a href="index.html">← All demos</a> &nbsp;·&nbsp; <a href="clt-lln.html">CLT &amp; LLN</a> &nbsp;·&nbsp; <a href="bayes.html">Bayes</a></div>
-
 <script>
 /* ================= numeric helpers ================= */
 const SQ2PI=Math.sqrt(2*Math.PI);

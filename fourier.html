@@ -56,10 +56,14 @@
   .info li{margin:3px 0}
   .hidden{display:none!important}
   a{color:#58a6ff}
-  .back{margin-top:16px;font-size:.82em}
+  .back{position:fixed;top:8px;left:12px;font-size:.82em;z-index:50;
+    background:rgba(13,17,23,.92);padding:4px 11px;border-radius:8px;border:1px solid #30363d}
+  .back a{color:#58a6ff;text-decoration:none}
+  .back a:hover{text-decoration:underline}
 </style>
 </head>
 <body>
+<div class="back"><a href="index.html">← All demos</a> &nbsp;·&nbsp; <a href="modulation.html">AM &amp; FM</a></div>
 
 <h1>Fourier Series, Transform &amp; Standard Pairs</h1>
 <p class="subtitle">Periodic signals are sums of harmonics; everything else is an integral of them. Here are the coefficients, the transform, the dozen pairs worth memorising, and the handful of properties that let you avoid computing any integral ever again.</p>
@@ -116,8 +120,6 @@
 </div>
 
 <div class="info" id="info"></div>
-<div class="back"><a href="index.html">← All demos</a> &nbsp;·&nbsp; <a href="modulation.html">AM &amp; FM</a></div>
-
 <script>
 /* ================= helpers ================= */
 const PI=Math.PI, TAU=2*PI;
@@ -968,14 +970,16 @@ $('btnProp').addEventListener('click',()=>{
   const ks=Object.keys(PROPS);
   S.prop=ks[(ks.indexOf(S.prop)+1)%ks.length];
   $('btnProp').textContent=PROPS[S.prop].name; buildPresets(); draw(); });
-$('btnReset').addEventListener('click',()=>{
+function resetAll(){
   Object.assign(S,{NH:7,duty:0.3,tau:1,pv:0.6,showHarm:false,magPhase:true,stack:false});
   $('slNH').value=7; $('vNH').textContent='7';
   $('slDuty').value=0.3; $('vDuty').textContent='0.30';
   $('slTau').value=1; $('vTau').textContent='1.00';
   $('slProp').value=0.6; $('vProp').textContent='0.60';
   $('ckHarm').checked=false; $('ckMag').checked=true; $('ckStack').checked=false;
-  draw(); });
+  draw();
+}
+$('btnReset').addEventListener('click',resetAll);
 
 /* ---- drag on the top plot to draw one period of your own waveform ---- */
 const SERIES_FRAME={x:80,y:44,w:930,h:220,x0:-1.2,x1:1.2,y0:-1.55,y1:1.55};
@@ -1032,7 +1036,11 @@ function loop(){
       // pause on each harmonic that actually contributes, so it can be read
       const live=liveHarmonics(80);
       const idx=Math.floor(S.buildT/40);
-      if(idx>=Math.min(live.length,12)){ stopBuild(); n=S.NH; }
+      if(idx>=Math.min(live.length,12)){
+        stopBuild();
+        resetAll();            // finished: hand the page back in its default state
+        n=S.NH;
+      }
       else n=live[idx];
     } else {
       n=1+Math.floor(S.buildT*0.035);
@@ -1081,6 +1089,8 @@ $('btnClearDraw').addEventListener('click',()=>{
   for(let i=0;i<S.custom.length;i++) S.custom[i]=0;
   S.customVer++; S.wave='custom'; buildPresets(); draw();
 });
+// play the harmonic build-up once on arrival, then reset
+if(S.tab===0) startBuild(true);
 loop();
 </script>
 </body>

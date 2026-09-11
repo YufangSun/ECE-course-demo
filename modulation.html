@@ -57,10 +57,14 @@
   .info li{margin:3px 0}
   .hidden{display:none!important}
   a{color:#58a6ff}
-  .back{margin-top:16px;font-size:.82em}
+  .back{position:fixed;top:8px;left:12px;font-size:.82em;z-index:50;
+    background:rgba(13,17,23,.92);padding:4px 11px;border-radius:8px;border:1px solid #30363d}
+  .back a{color:#58a6ff;text-decoration:none}
+  .back a:hover{text-decoration:underline}
 </style>
 </head>
 <body>
+<div class="back"><a href="index.html">← All demos</a></div>
 
 <h1>AM &amp; FM Modulation</h1>
 <p class="subtitle">Push a message onto a carrier by changing its amplitude or its frequency, and watch what that does to the waveform, to the spectrum, and to how much bandwidth and power you spend.</p>
@@ -112,8 +116,6 @@
 </div>
 
 <div class="info" id="info"></div>
-<div class="back"><a href="index.html">← All demos</a></div>
-
 <script>
 /* ================= math ================= */
 function logGamma(x){

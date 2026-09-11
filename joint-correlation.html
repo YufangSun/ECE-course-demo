@@ -57,10 +57,14 @@
   .info li{margin:3px 0}
   .hidden{display:none!important}
   a{color:#58a6ff}
-  .back{margin-top:16px;font-size:.82em}
+  .back{position:fixed;top:8px;left:12px;font-size:.82em;z-index:50;
+    background:rgba(13,17,23,.92);padding:4px 11px;border-radius:8px;border:1px solid #30363d}
+  .back a{color:#58a6ff;text-decoration:none}
+  .back a:hover{text-decoration:underline}
 </style>
 </head>
 <body>
+<div class="back"><a href="index.html">← All demos</a> &nbsp;·&nbsp; <a href="distributions.html">Distributions</a> &nbsp;·&nbsp; <a href="clt-lln.html">CLT &amp; LLN</a></div>
 
 <h1>Joint Distributions &amp; Correlation</h1>
 <p class="subtitle">Two random variables at once: the joint density, the marginals you get by squashing it flat, the conditional you get by slicing it — and the gap between "uncorrelated" and "independent" that ρ cannot see.</p>
@@ -110,8 +114,6 @@
 </div>
 
 <div class="info" id="info"></div>
-<div class="back"><a href="index.html">← All demos</a> &nbsp;·&nbsp; <a href="distributions.html">Distributions</a> &nbsp;·&nbsp; <a href="clt-lln.html">CLT &amp; LLN</a></div>
-
 <script>
 /* ================= helpers ================= */
 const SQ2PI=Math.sqrt(2*Math.PI);
